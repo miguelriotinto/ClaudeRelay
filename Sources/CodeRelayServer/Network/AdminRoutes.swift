@@ -96,6 +96,17 @@ enum AdminRoutes {
             return .encodable(tokens)
         }
 
+        // GET /tokens/:id
+        if method == .GET && count == 2 && components[0] == "tokens" {
+            let id = components[1]
+            do {
+                let info = try await tokenStore.inspect(id: id)
+                return .encodable(info)
+            } catch {
+                return .error("Token not found", status: 404)
+            }
+        }
+
         // DELETE /tokens/:id
         if method == .DELETE && count == 2 && components[0] == "tokens" {
             let id = components[1]

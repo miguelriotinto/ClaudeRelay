@@ -27,12 +27,10 @@ final class OutputFormatterTests: XCTestCase {
             running: true,
             pid: 12345,
             uptime: 3661,
-            wsPort: 9200,
             sessions: 3
         )
         XCTAssertTrue(output.contains("Running"), "Should indicate Running")
         XCTAssertTrue(output.contains("12345"), "Should contain the PID")
-        XCTAssertTrue(output.contains("9200"), "Should contain the port")
         XCTAssertTrue(output.contains("3"), "Should contain session count")
     }
 
@@ -41,7 +39,6 @@ final class OutputFormatterTests: XCTestCase {
             running: false,
             pid: nil,
             uptime: nil,
-            wsPort: 9200,
             sessions: 0
         )
         XCTAssertTrue(output.contains("Stopped"), "Should indicate Stopped")
@@ -80,5 +77,50 @@ final class OutputFormatterTests: XCTestCase {
         let output = OutputFormatter.formatTable(headers: headers, rows: rows)
         XCTAssertTrue(output.contains("Col1"))
         XCTAssertTrue(output.contains("Col2"))
+    }
+
+    // MARK: - Uptime Formatting
+
+    func testUptimeSeconds() {
+        let output = OutputFormatter.formatStatus(
+            running: true, pid: 1, uptime: 45, sessions: 0
+        )
+        XCTAssertTrue(output.contains("45s"))
+    }
+
+    func testUptimeMinutes() {
+        let output = OutputFormatter.formatStatus(
+            running: true, pid: 1, uptime: 125, sessions: 0
+        )
+        XCTAssertTrue(output.contains("2m 5s"))
+    }
+
+    func testUptimeHours() {
+        let output = OutputFormatter.formatStatus(
+            running: true, pid: 1, uptime: 7265, sessions: 0
+        )
+        XCTAssertTrue(output.contains("2h 1m 5s"))
+    }
+
+    func testStatusWithNilUptime() {
+        let output = OutputFormatter.formatStatus(
+            running: true, pid: 999, uptime: nil, sessions: 2
+        )
+        XCTAssertFalse(output.contains("Uptime"), "Should not show uptime when nil")
+        XCTAssertTrue(output.contains("999"))
+        XCTAssertTrue(output.contains("2"))
+    }
+
+    // MARK: - Table Edge Cases
+
+    func testTableFormatEmptyHeaders() {
+        let output = OutputFormatter.formatTable(headers: [], rows: [])
+        XCTAssertEqual(output, "")
+    }
+
+    func testTableFormatSingleColumn() {
+        let output = OutputFormatter.formatTable(headers: ["Name"], rows: [["Alice"], ["Bob"]])
+        XCTAssertTrue(output.contains("Alice"))
+        XCTAssertTrue(output.contains("Bob"))
     }
 }

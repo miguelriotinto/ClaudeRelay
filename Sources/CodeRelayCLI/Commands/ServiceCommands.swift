@@ -194,7 +194,6 @@ struct StatusCommand: AsyncParsableCommand {
                     running: response.running,
                     pid: response.pid,
                     uptime: response.uptime,
-                    wsPort: response.wsPort,
                     sessions: response.sessions
                 ))
             }
@@ -237,11 +236,21 @@ struct HealthCommand: AsyncParsableCommand {
 // MARK: - Response Models
 
 struct StatusResponse: Codable {
-    let running: Bool
+    let status: String
     let pid: Int?
-    let uptime: Int?
-    let wsPort: UInt16
-    let sessions: Int
+    let uptimeSeconds: Int?
+    let sessionCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case pid
+        case uptimeSeconds = "uptime_seconds"
+        case sessionCount = "session_count"
+    }
+
+    var running: Bool { status == "running" }
+    var uptime: Int? { uptimeSeconds }
+    var sessions: Int { sessionCount ?? 0 }
 }
 
 // MARK: - Helpers

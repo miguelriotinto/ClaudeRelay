@@ -22,7 +22,6 @@ public enum OutputFormatter {
         running: Bool,
         pid: Int?,
         uptime: Int?,
-        wsPort: UInt16,
         sessions: Int
     ) -> String {
         var lines: [String] = []
@@ -38,7 +37,6 @@ public enum OutputFormatter {
             lines.append("Uptime:     \(formatUptime(uptime))")
         }
 
-        lines.append("WS Port:    \(wsPort)")
         lines.append("Sessions:   \(sessions)")
 
         return lines.joined(separator: "\n")

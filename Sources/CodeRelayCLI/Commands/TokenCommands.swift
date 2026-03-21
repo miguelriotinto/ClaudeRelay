@@ -177,8 +177,12 @@ struct TokenCreateRequest: Encodable {
 }
 
 struct TokenCreateResponse: Codable {
-    let plaintext: String
-    let info: TokenInfo
+    let token: String
+    let id: String
+    let label: String?
+
+    /// Convenience alias for the raw token string.
+    var plaintext: String { token }
 }
 
 struct TokenInfo: Codable {
