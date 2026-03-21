@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "CodeRelay",
+    name: "ClaudeRelay",
     platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
-        .executable(name: "code-relay-server", targets: ["CodeRelayServer"]),
-        .executable(name: "claude-relay", targets: ["CodeRelayCLI"]),
-        .library(name: "CodeRelayKit", targets: ["CodeRelayKit"]),
-        .library(name: "CodeRelayClient", targets: ["CodeRelayClient"]),
+        .executable(name: "claude-relay-server", targets: ["ClaudeRelayServer"]),
+        .executable(name: "claude-relay", targets: ["ClaudeRelayCLI"]),
+        .library(name: "ClaudeRelayKit", targets: ["ClaudeRelayKit"]),
+        .library(name: "ClaudeRelayClient", targets: ["ClaudeRelayClient"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
@@ -23,17 +23,17 @@ let package = Package(
             publicHeadersPath: "include"
         ),
         .target(
-            name: "CodeRelayKit",
+            name: "ClaudeRelayKit",
             dependencies: [
                 "CPTYShim",
                 .product(name: "Crypto", package: "swift-crypto"),
             ],
-            path: "Sources/CodeRelayKit"
+            path: "Sources/ClaudeRelayKit"
         ),
         .executableTarget(
-            name: "CodeRelayServer",
+            name: "ClaudeRelayServer",
             dependencies: [
-                "CodeRelayKit",
+                "ClaudeRelayKit",
                 "CPTYShim",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
@@ -42,38 +42,38 @@ let package = Package(
                 .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "NIOSSL", package: "swift-nio-ssl"),
             ],
-            path: "Sources/CodeRelayServer"
+            path: "Sources/ClaudeRelayServer"
         ),
         .executableTarget(
-            name: "CodeRelayCLI",
+            name: "ClaudeRelayCLI",
             dependencies: [
-                "CodeRelayKit",
+                "ClaudeRelayKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
-            path: "Sources/CodeRelayCLI"
+            path: "Sources/ClaudeRelayCLI"
         ),
         .target(
-            name: "CodeRelayClient",
-            dependencies: ["CodeRelayKit"],
-            path: "Sources/CodeRelayClient"
+            name: "ClaudeRelayClient",
+            dependencies: ["ClaudeRelayKit"],
+            path: "Sources/ClaudeRelayClient"
         ),
         .testTarget(
-            name: "CodeRelayKitTests",
-            dependencies: ["CodeRelayKit"],
-            path: "Tests/CodeRelayKitTests"
+            name: "ClaudeRelayKitTests",
+            dependencies: ["ClaudeRelayKit"],
+            path: "Tests/ClaudeRelayKitTests"
         ),
         .testTarget(
-            name: "CodeRelayServerTests",
-            dependencies: ["CodeRelayServer", "CodeRelayKit"],
-            path: "Tests/CodeRelayServerTests"
+            name: "ClaudeRelayServerTests",
+            dependencies: ["ClaudeRelayServer", "ClaudeRelayKit"],
+            path: "Tests/ClaudeRelayServerTests"
         ),
         .testTarget(
-            name: "CodeRelayCLITests",
-            dependencies: ["CodeRelayCLI", "CodeRelayKit"],
-            path: "Tests/CodeRelayCLITests"
+            name: "ClaudeRelayCLITests",
+            dependencies: ["ClaudeRelayCLI", "ClaudeRelayKit"],
+            path: "Tests/ClaudeRelayCLITests"
         ),
     ]
 )

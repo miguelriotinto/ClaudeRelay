@@ -1,4 +1,4 @@
-name: CodeRelayApp
+name: ClaudeRelayApp
 options:
   bundleIdPrefix: com.coderemote
   deploymentTarget:
@@ -7,23 +7,23 @@ options:
   generateEmptyDirectories: true
 
 packages:
-  CodeRelayClient:
+  ClaudeRelayClient:
     path: .
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm.git
     majorVersion: 1.2.0
 
 targets:
-  CodeRelayApp:
+  ClaudeRelayApp:
     type: application
     platform: iOS
     sources:
-      - path: CodeRelayApp
+      - path: ClaudeRelayApp
         excludes:
           - README.md
     dependencies:
-      - package: CodeRelayClient
-        product: CodeRelayClient
+      - package: ClaudeRelayClient
+        product: ClaudeRelayClient
       - package: SwiftTerm
     settings:
       base:
