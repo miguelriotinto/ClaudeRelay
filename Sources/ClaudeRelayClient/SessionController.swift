@@ -41,6 +41,13 @@ public final class SessionController: ObservableObject {
 
     // MARK: - Authentication
 
+    /// Resets authentication state so the next operation will re-authenticate.
+    /// Call this after the underlying connection has been re-established.
+    public func resetAuth() {
+        isAuthenticated = false
+        sessionId = nil
+    }
+
     /// Sends an authentication request and waits for the server response.
     public func authenticate(token: String) async throws {
         let response = try await sendAndWaitForResponse(.authRequest(token: token))

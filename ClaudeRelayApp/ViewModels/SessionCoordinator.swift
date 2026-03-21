@@ -74,10 +74,10 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Authentication
 
     private func ensureAuthenticated() async throws -> SessionController {
-        if let controller = sessionController {
+        if let controller = sessionController, controller.isAuthenticated {
             return controller
         }
-        let controller = SessionController(connection: connection)
+        let controller = sessionController ?? SessionController(connection: connection)
         try await controller.authenticate(token: token)
         sessionController = controller
         return controller
@@ -175,6 +175,47 @@ final class SessionCoordinator: ObservableObject {
 
     func viewModel(for sessionId: UUID) -> TerminalViewModel? {
         terminalViewModels[sessionId]
+    }
+
+    // MARK: - Foreground Recovery
+
+    /// Called when the app returns to the foreground. Checks if the WebSocket
+    /// is still alive and, if not, reconnects + re-authenticates + resumes
+    /// the previously active session transparently.
+    func handleForegroundTransition() async {
+        let alive = await connection.isAlive()
+        if alive { return }
+
+        print("[SessionCoordinator] Connection dead after foreground — reconnecting")
+
+        // 1. Force-reconnect the transport
+        do {
+            try await connection.forceReconnect()
+        } catch {
+            presentError("Reconnection failed: \(error.localizedDescription)")
+            return
+        }
+
+        // 2. Force re-authentication (server doesn't know this new WebSocket)
+        sessionController?.resetAuth()
+
+        do {
+            let controller = try await ensureAuthenticated()
+
+            // 3. Resume the session that was active before backgrounding
+            if let activeId = activeSessionId {
+                try await controller.resumeSession(id: activeId)
+                wireTerminalOutput(to: activeId)
+            }
+        } catch {
+            // Session may have been terminated server-side while backgrounded
+            if activeSessionId != nil {
+                activeSessionId = nil
+                presentError("Session could not be restored: \(error.localizedDescription)")
+            }
+        }
+
+        await fetchSessions()
     }
 
     // MARK: - Cleanup

@@ -3,6 +3,7 @@ import ClaudeRelayClient
 
 /// Main workspace: NavigationSplitView with a session sidebar and terminal detail.
 struct WorkspaceView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var coordinator: SessionCoordinator
     @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
     @Environment(\.dismiss) private var dismiss
@@ -42,6 +43,13 @@ struct WorkspaceView: View {
         }
         .onDisappear {
             coordinator.detachActive()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                Task {
+                    await coordinator.handleForegroundTransition()
+                }
+            }
         }
         .alert("Error", isPresented: $coordinator.showError) {
             Button("OK", role: .cancel) {}

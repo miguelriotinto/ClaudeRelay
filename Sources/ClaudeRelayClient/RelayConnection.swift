@@ -89,6 +89,30 @@ public final class RelayConnection: ObservableObject {
         state = .disconnected
     }
 
+    /// Checks whether the WebSocket is still alive by sending a ping.
+    public func isAlive() async -> Bool {
+        guard let task = webSocketTask, state == .connected else { return false }
+        return await withCheckedContinuation { continuation in
+            task.sendPing { error in
+                continuation.resume(returning: error == nil)
+            }
+        }
+    }
+
+    /// Tears down the current connection and establishes a fresh one immediately.
+    /// Preserves the stored config/token. Use this for foreground recovery.
+    public func forceReconnect() async throws {
+        guard let config = config, let token = token else {
+            throw ConnectionError.notConnected
+        }
+        // Suppress auto-reconnect to avoid racing with our manual reconnect
+        shouldReconnect = false
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+
+        try await connect(config: config, token: token)
+    }
+
     /// Sends a control message (JSON text frame) to the server.
     public func send(_ message: ClientMessage) async throws {
         guard let task = webSocketTask else {
