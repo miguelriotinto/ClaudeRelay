@@ -207,8 +207,8 @@ final class RelayMessageHandler: ChannelInboundHandler {
         Task { [weak self] in
             do {
                 let (info, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
-                // Flush buffered data
-                let buffered = await pty.flushBuffer()
+                // Read scrollback history to send to client
+                let buffered = await pty.readBuffer()
                 context.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId

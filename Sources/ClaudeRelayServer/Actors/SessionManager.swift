@@ -184,8 +184,18 @@ public actor SessionManager {
             throw SessionError.notFound(id)
         }
 
-        let currentState = managed.info.state
-        // Must be activeDetached to resume
+        var currentState = managed.info.state
+
+        // If still attached (client didn't detach cleanly), detach first.
+        if currentState == .activeAttached {
+            managed.info = SessionInfo(
+                id: managed.info.id, state: .activeDetached,
+                tokenId: managed.info.tokenId, createdAt: managed.info.createdAt,
+                cols: managed.info.cols, rows: managed.info.rows
+            )
+            currentState = .activeDetached
+        }
+
         guard currentState.canTransition(to: .resuming) else {
             throw SessionError.invalidTransition(currentState, .resuming)
         }
@@ -218,12 +228,8 @@ public actor SessionManager {
         detachTimers[id]?.cancel()
         detachTimers[id] = nil
 
-        // We need to flush the buffer, but that requires awaiting the actor.
-        // Since we can't await inside this sync context easily, return empty data
-        // and let caller flush. Actually, PTYSession.flushBuffer is async.
-        // We'll return Data() here and the caller can flush via the pty.
-        // But the spec says return buffered data. We'll need a workaround.
-        // Let's just return empty data; the caller has the PTYSession and can flush.
+        // Buffer reading requires awaiting the PTYSession actor, so return
+        // empty data here — the caller reads the buffer via pty.readBuffer().
         return (attachedInfo, Data(), pty)
     }
 

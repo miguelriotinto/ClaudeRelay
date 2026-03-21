@@ -43,8 +43,8 @@ public struct RingBuffer: Sendable {
         filled = min(filled + bytes.count, capacity)
     }
 
-    /// Returns all buffered data in order and clears the buffer.
-    public mutating func flush() -> Data {
+    /// Returns all buffered data in order without clearing.
+    public func read() -> Data {
         guard filled > 0 else { return Data() }
 
         let start = (head - filled + capacity) % capacity
@@ -52,16 +52,20 @@ public struct RingBuffer: Sendable {
         result.reserveCapacity(filled)
 
         if start + filled <= capacity {
-            // No wrap-around
             result.append(contentsOf: storage[start..<(start + filled)])
         } else {
-            // Wrap-around: read from start to end, then from 0 to head
             result.append(contentsOf: storage[start..<capacity])
             result.append(contentsOf: storage[0..<head])
         }
 
+        return Data(result)
+    }
+
+    /// Returns all buffered data in order and clears the buffer.
+    public mutating func flush() -> Data {
+        let data = read()
         filled = 0
         head = 0
-        return Data(result)
+        return data
     }
 }

@@ -17,20 +17,12 @@ struct TerminalContainerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Terminal area
-            SwiftTermView(viewModel: viewModel)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .topTrailing) {
-                    StatusIndicator(state: viewModel.connectionState)
-                        .padding(8)
-                }
-
-            // Keyboard accessory bar
-            KeyboardAccessory { data in
-                viewModel.sendInput(data)
+        SwiftTermView(viewModel: viewModel)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                StatusIndicator(state: viewModel.connectionState)
+                    .padding(8)
             }
-        }
         .navigationTitle("Terminal")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -41,6 +33,9 @@ struct TerminalContainerView: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onDisappear {
+            viewModel.detach()
+        }
     }
 }
 

@@ -113,12 +113,11 @@ public actor PTYSession {
     // MARK: - Internal Handlers
 
     /// Called from the read source when output data is available.
+    /// Always writes to the ring buffer (for resume history) and
+    /// additionally forwards to the live output handler if attached.
     private func handleOutput(_ data: Data) {
-        if let handler = outputHandler {
-            handler(data)
-        } else {
-            ringBuffer.write(data)
-        }
+        ringBuffer.write(data)
+        outputHandler?(data)
     }
 
     /// Called from the read source on EOF (child exited).
@@ -166,9 +165,10 @@ public actor PTYSession {
         _ = relay_set_winsize(masterFD, rows, cols)
     }
 
-    /// Flush the ring buffer (on resume, send buffered output to client).
-    public func flushBuffer() -> Data {
-        return ringBuffer.flush()
+    /// Read the ring buffer contents (for resume, send scrollback history to client).
+    /// Does not clear the buffer — data continues to accumulate.
+    public func readBuffer() -> Data {
+        return ringBuffer.read()
     }
 
     /// Clean up: kill child process, close fd.

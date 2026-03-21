@@ -13,13 +13,25 @@ final class TerminalViewModel: ObservableObject {
 
     /// Callback invoked with raw terminal output data. SwiftTermView wires
     /// this up so bytes are fed directly into the TerminalView.
-    var onTerminalOutput: ((Data) -> Void)?
+    /// Setting this flushes any buffered data that arrived before the view was ready.
+    var onTerminalOutput: ((Data) -> Void)? {
+        didSet {
+            guard let handler = onTerminalOutput, !pendingOutput.isEmpty else { return }
+            let buffered = pendingOutput
+            pendingOutput.removeAll()
+            for chunk in buffered {
+                handler(chunk)
+            }
+        }
+    }
 
     // MARK: - Dependencies
 
     let connection: RelayConnection
     let sessionId: UUID
     private let bridge: TerminalBridge
+    /// Buffers output that arrives before SwiftTermView is wired up.
+    private var pendingOutput: [Data] = []
 
     // MARK: - Init
 
@@ -35,14 +47,11 @@ final class TerminalViewModel: ObservableObject {
         // Wire up terminal output.
         bridge.onOutput = { [weak self] data in
             guard let self = self else { return }
-            // Forward raw bytes to SwiftTerm (if wired up).
             Task { @MainActor in
-                self.onTerminalOutput?(data)
-            }
-            // Also keep the plain-text accumulator for any fallback UI.
-            if let text = String(data: data, encoding: .utf8) {
-                Task { @MainActor in
-                    self.terminalOutput += text
+                if let handler = self.onTerminalOutput {
+                    handler(data)
+                } else {
+                    self.pendingOutput.append(data)
                 }
             }
         }
@@ -70,6 +79,12 @@ final class TerminalViewModel: ObservableObject {
     }
 
     // MARK: - Lifecycle
+
+    func detach() {
+        Task {
+            try? await connection.send(.sessionDetach)
+        }
+    }
 
     func disconnect() {
         connection.disconnect()
