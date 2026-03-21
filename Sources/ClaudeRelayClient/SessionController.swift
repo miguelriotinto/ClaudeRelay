@@ -32,7 +32,6 @@ public final class SessionController: ObservableObject {
     // MARK: - Private
 
     private let connection: RelayConnection
-    private var messageContinuation: CheckedContinuation<ServerMessage, Never>?
 
     // MARK: - Init
 
@@ -44,9 +43,7 @@ public final class SessionController: ObservableObject {
 
     /// Sends an authentication request and waits for the server response.
     public func authenticate(token: String) async throws {
-        try await connection.send(.authRequest(token: token))
-
-        let response = await waitForNextServerMessage()
+        let response = try await sendAndWaitForResponse(.authRequest(token: token))
 
         switch response {
         case .authSuccess:
@@ -64,9 +61,7 @@ public final class SessionController: ObservableObject {
     /// Creates a new terminal session on the server. Returns the session UUID.
     @discardableResult
     public func createSession() async throws -> UUID {
-        try await connection.send(.sessionCreate)
-
-        let response = await waitForNextServerMessage()
+        let response = try await sendAndWaitForResponse(.sessionCreate)
 
         switch response {
         case .sessionCreated(let id, _, _):
@@ -81,9 +76,7 @@ public final class SessionController: ObservableObject {
 
     /// Resumes an existing session by its identifier.
     public func resumeSession(id: UUID) async throws {
-        try await connection.send(.sessionResume(sessionId: id))
-
-        let response = await waitForNextServerMessage()
+        let response = try await sendAndWaitForResponse(.sessionResume(sessionId: id))
 
         switch response {
         case .sessionResumed(let resumedId):
@@ -97,9 +90,7 @@ public final class SessionController: ObservableObject {
 
     /// Lists all sessions owned by the authenticated token.
     public func listSessions() async throws -> [SessionInfo] {
-        try await connection.send(.sessionList)
-
-        let response = await waitForNextServerMessage()
+        let response = try await sendAndWaitForResponse(.sessionList)
 
         switch response {
         case .sessionList(let sessions):
@@ -113,9 +104,7 @@ public final class SessionController: ObservableObject {
 
     /// Detaches from the current session without terminating it.
     public func detach() async throws {
-        try await connection.send(.sessionDetach)
-
-        let response = await waitForNextServerMessage()
+        let response = try await sendAndWaitForResponse(.sessionDetach)
 
         switch response {
         case .sessionDetached:
@@ -130,7 +119,6 @@ public final class SessionController: ObservableObject {
     // MARK: - Internal Helpers
 
     /// Response message types we expect from command requests.
-    /// Messages not in this set are "background" notifications and should be forwarded, not captured.
     private static let responseTypes: Set<String> = [
         "auth_success", "auth_failure",
         "session_created", "session_attached", "session_resumed", "session_detached",
@@ -138,22 +126,33 @@ public final class SessionController: ObservableObject {
         "error",
     ]
 
-    /// Installs a filtered handler on the connection to capture the next *response* message
-    /// and delivers it via an async continuation. Background messages (resize_ack, pong,
-    /// session_state, session_terminated, session_expired) are forwarded to the previous
-    /// handler and do not satisfy the wait.
-    private func waitForNextServerMessage() async -> ServerMessage {
-        await withCheckedContinuation { continuation in
+    /// Installs the response handler FIRST, then sends the message, to avoid a race
+    /// where the server responds before the handler is installed.
+    private func sendAndWaitForResponse(_ message: ClientMessage) async throws -> ServerMessage {
+        return try await withCheckedThrowingContinuation { continuation in
             let previousHandler = connection.onServerMessage
-            connection.onServerMessage = { [weak self] message in
-                guard Self.responseTypes.contains(message.typeString) else {
+
+            // Install handler BEFORE sending to avoid race condition.
+            connection.onServerMessage = { [weak self] serverMessage in
+                guard Self.responseTypes.contains(serverMessage.typeString) else {
                     // Not a command response — forward and keep waiting.
-                    previousHandler?(message)
+                    previousHandler?(serverMessage)
                     return
                 }
                 // Restore the previous handler before resuming.
                 self?.connection.onServerMessage = previousHandler
-                continuation.resume(returning: message)
+                continuation.resume(returning: serverMessage)
+            }
+
+            // Now send the message.
+            Task { [weak self] in
+                do {
+                    try await self?.connection.send(message)
+                } catch {
+                    // Restore handler and fail.
+                    self?.connection.onServerMessage = previousHandler
+                    continuation.resume(throwing: error)
+                }
             }
         }
     }
