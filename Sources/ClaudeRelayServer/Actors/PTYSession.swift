@@ -50,8 +50,13 @@ public actor PTYSession {
             // Child process
             setenv("TERM", "xterm-256color", 1)
             setenv("LANG", "en_US.UTF-8", 1)
+            setenv("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1)
             chdir(NSHomeDirectory())
-            let args = ["zsh", "-l", "-c", command]
+            // Start an interactive login shell that auto-runs the command.
+            // Using --init-command (via zshrc override) isn't clean, so we
+            // write a tiny rc snippet that execs claude after normal init.
+            let rcScript = "source ~/.zprofile 2>/dev/null; source ~/.zshrc 2>/dev/null; exec \(command)"
+            let args = ["/bin/zsh", "-c", rcScript]
             let cArgs = args.map { strdup($0) } + [nil]
             execv("/bin/zsh", cArgs)
             _exit(1)
