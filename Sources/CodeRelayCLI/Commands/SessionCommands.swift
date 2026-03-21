@@ -37,9 +37,13 @@ struct SessionListCommand: AsyncParsableCommand {
                         print("No active sessions.")
                     }
                 } else {
-                    let headers = ["ID", "TOKEN", "CONNECTED", "REMOTE"]
-                    let rows = sessions.map { s in
-                        [s.id, s.tokenLabel ?? s.tokenId ?? "-", s.connectedAt, s.remoteAddress ?? "-"]
+                    let headers = ["ID", "STATE", "TOKEN", "SIZE", "CREATED"]
+                    let rows = sessions.map { s -> [String] in
+                        [String(s.id.uuidString.prefix(8)).lowercased(),
+                         s.state,
+                         String(s.tokenId.prefix(8)),
+                         "\(s.cols)x\(s.rows)",
+                         s.createdAtFormatted]
                     }
                     print(OutputFormatter.formatTable(headers: headers, rows: rows))
                 }
@@ -72,13 +76,11 @@ struct SessionInspectCommand: AsyncParsableCommand {
             if globals.json {
                 print(OutputFormatter.formatJSON(session))
             } else {
-                print("ID:           \(session.id)")
-                print("Token:        \(session.tokenLabel ?? session.tokenId ?? "-")")
-                print("Connected:    \(session.connectedAt)")
-                print("Remote:       \(session.remoteAddress ?? "-")")
-                if let bytes = session.bytesTransferred {
-                    print("Transferred:  \(bytes) bytes")
-                }
+                print("ID:        \(session.id)")
+                print("State:     \(session.state)")
+                print("Token:     \(session.tokenId)")
+                print("Size:      \(session.cols)x\(session.rows)")
+                print("Created:   \(session.createdAtFormatted)")
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
@@ -116,10 +118,15 @@ struct SessionTerminateCommand: AsyncParsableCommand {
 // MARK: - Models
 
 struct SessionInfo: Codable {
-    let id: String
-    let tokenId: String?
-    let tokenLabel: String?
-    let connectedAt: String
-    let remoteAddress: String?
-    let bytesTransferred: Int?
+    let id: UUID
+    let state: String
+    let tokenId: String
+    let createdAt: Date
+    let cols: UInt16
+    let rows: UInt16
+
+    var createdAtFormatted: String {
+        let f = ISO8601DateFormatter()
+        return f.string(from: createdAt)
+    }
 }
