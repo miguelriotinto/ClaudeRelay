@@ -7,227 +7,274 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		19B29955DEB2A339E5CF6859 /* StatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9F2F46D97C792F8C65CAF95 /* StatusIndicator.swift */; };
-		3BE5A6D1D7E8F4D31E881012 /* TerminalContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D7AEAF10A6740BC7581F78 /* TerminalContainerView.swift */; };
-		5946B1BACB8146CA30A3F095 /* ConnectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5440AA7E9366B383C57FFC21 /* ConnectionViewModel.swift */; };
-		5F14E4DC7802972C133952E0 /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4410E79BB2DE2D6317BB42E4 /* ClaudeRelayApp.swift */; };
-		731C1F13D1941046B4DECB3A /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152ECF03711B6F1D6C0FBC4 /* SavedConnection.swift */; };
-		73BBAC2602052CC3F8C2AB18 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D054949FEFBDA99929D89D9 /* SessionListView.swift */; };
-		7601DAD7DA8F77DEDEFB8CF8 /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0397C36DC22FA487B7702433 /* ConnectionView.swift */; };
-		857E060DEE8A132A9E484C8D /* SessionListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4781871F07EE1FB9F6481C49 /* SessionListViewModel.swift */; };
-		9C4B086C9D23A3698DC54F74 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = C3467B6302AE9DCDAE591DA8 /* ClaudeRelayClient */; };
-		C4FA5D4D866B1BA3C9443F7B /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9608BCD7444FB3B05618A48 /* TerminalViewModel.swift */; };
-		EA4D1DC61C6847E228A50E79 /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD56E10AC670C09AB2AA26E /* KeyboardAccessory.swift */; };
-		F93E62F26FF83907D24D56F0 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 9A5832E3CE53690D389517DC /* SwiftTerm */; };
+		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
+		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
+		5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA02853D523E6DAF7B5CD68D /* Assets.xcassets */; };
+		6F22772DC964FDAFED10E09C /* ConnectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74261F702CDAF22F4B3FE7F1 /* ConnectionViewModel.swift */; };
+		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
+		840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700712F6C8FC16A5214C345A /* TerminalViewModel.swift */; };
+		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
+		A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E5892147C00AFFADE02948 /* SavedConnection.swift */; };
+		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
+		B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */; };
+		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
+		EE2BA421982FC7392097CDEC /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C29187431B96BC5B17B216E /* ConnectionView.swift */; };
+		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
+		F6F78FBAA4638832F683A18C /* StatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD7489DFB9D14A5CE866690 /* StatusIndicator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0397C36DC22FA487B7702433 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
-		0D054949FEFBDA99929D89D9 /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
-		11761CAF52688932B68B407B /* ClaudeRelayApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		2152ECF03711B6F1D6C0FBC4 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
-		4410E79BB2DE2D6317BB42E4 /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
-		45D7AEAF10A6740BC7581F78 /* TerminalContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalContainerView.swift; sourceTree = "<group>"; };
-		4781871F07EE1FB9F6481C49 /* SessionListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListViewModel.swift; sourceTree = "<group>"; };
-		5440AA7E9366B383C57FFC21 /* ConnectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionViewModel.swift; sourceTree = "<group>"; };
-		7BD56E10AC670C09AB2AA26E /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
-		B9608BCD7444FB3B05618A48 /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
-		C9F2F46D97C792F8C65CAF95 /* StatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicator.swift; sourceTree = "<group>"; };
-		E0B27B60B39821682E88FF23 /*  */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = ""; sourceTree = SOURCE_ROOT; };
+		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
+		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
+		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
+		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
+		6C29187431B96BC5B17B216E /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
+		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
+		74261F702CDAF22F4B3FE7F1 /* ConnectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionViewModel.swift; sourceTree = "<group>"; };
+		7C001E978A6A6C85BABCA076 /* Claude Relay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Claude Relay.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7CDE7061F16DD811CA184B2B /* ClaudeRelay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClaudeRelay; path = .; sourceTree = SOURCE_ROOT; };
+		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
+		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
+		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
+		BA02853D523E6DAF7B5CD68D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DAD7489DFB9D14A5CE866690 /* StatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		F450F3CEF0F99682CD313AE0 /* Frameworks */ = {
+		150BE605ED1B238B4F2F9908 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9C4B086C9D23A3698DC54F74 /* ClaudeRelayClient in Frameworks */,
-				F93E62F26FF83907D24D56F0 /* SwiftTerm in Frameworks */,
+				F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */,
+				CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		21689D86167CADE64604D537 /* Models */ = {
+		1E6EF5C113D73BD28A423C83 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
-				2152ECF03711B6F1D6C0FBC4 /* SavedConnection.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		44DB527B3117AB0A31E0A228 = {
-			isa = PBXGroup;
-			children = (
-				49BE289CD777CAD8AFF29318 /* ClaudeRelayApp */,
-				5F529A4A9FEC266E3F1DA3D0 /* Packages */,
-				D75882604A36E1E5CB619542 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		49BE289CD777CAD8AFF29318 /* ClaudeRelayApp */ = {
-			isa = PBXGroup;
-			children = (
-				4410E79BB2DE2D6317BB42E4 /* ClaudeRelayApp.swift */,
-				21689D86167CADE64604D537 /* Models */,
-				6DE7561EBDCCB1D5AAF54447 /* ViewModels */,
-				8692D43DD67BA446C4366F43 /* Views */,
-			);
-			path = ClaudeRelayApp;
-			sourceTree = "<group>";
-		};
-		5F529A4A9FEC266E3F1DA3D0 /* Packages */ = {
-			isa = PBXGroup;
-			children = (
-				E0B27B60B39821682E88FF23 /*  */,
-			);
-			name = Packages;
-			sourceTree = "<group>";
-		};
-		6DE7561EBDCCB1D5AAF54447 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				5440AA7E9366B383C57FFC21 /* ConnectionViewModel.swift */,
-				4781871F07EE1FB9F6481C49 /* SessionListViewModel.swift */,
-				B9608BCD7444FB3B05618A48 /* TerminalViewModel.swift */,
+				74261F702CDAF22F4B3FE7F1 /* ConnectionViewModel.swift */,
+				AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */,
+				700712F6C8FC16A5214C345A /* TerminalViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
-		8692D43DD67BA446C4366F43 /* Views */ = {
+		3AA098A37E7D398E1EC025E4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0397C36DC22FA487B7702433 /* ConnectionView.swift */,
-				0D054949FEFBDA99929D89D9 /* SessionListView.swift */,
-				45D7AEAF10A6740BC7581F78 /* TerminalContainerView.swift */,
-				CA2E5A704ECBF84AF92F54D0 /* Components */,
+				7C001E978A6A6C85BABCA076 /* Claude Relay.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		3C544709576E8C546087C992 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A5E5892147C00AFFADE02948 /* SavedConnection.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		70BD4C5D5BA2300CBF265C8E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */,
+				6C29187431B96BC5B17B216E /* ConnectionView.swift */,
+				8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */,
+				68A6EA1094483278ADD0146F /* WorkspaceView.swift */,
+				E7C7F2B75F10B4F3A2F3713A /* Components */,
 			);
 			path = Views;
 			sourceTree = "<group>";
 		};
-		CA2E5A704ECBF84AF92F54D0 /* Components */ = {
+		738834D27068F0B0BB3D8599 = {
 			isa = PBXGroup;
 			children = (
-				7BD56E10AC670C09AB2AA26E /* KeyboardAccessory.swift */,
-				C9F2F46D97C792F8C65CAF95 /* StatusIndicator.swift */,
+				FD9BDF9589CD5417F7C454F4 /* ClaudeRelayApp */,
+				7D4E3B0EAF3D5DCAC3E10215 /* Packages */,
+				3AA098A37E7D398E1EC025E4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7D4E3B0EAF3D5DCAC3E10215 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				7CDE7061F16DD811CA184B2B /* ClaudeRelay */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		E7C7F2B75F10B4F3A2F3713A /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */,
+				DAD7489DFB9D14A5CE866690 /* StatusIndicator.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
 		};
-		D75882604A36E1E5CB619542 /* Products */ = {
+		FD9BDF9589CD5417F7C454F4 /* ClaudeRelayApp */ = {
 			isa = PBXGroup;
 			children = (
-				11761CAF52688932B68B407B /* ClaudeRelayApp.app */,
+				BA02853D523E6DAF7B5CD68D /* Assets.xcassets */,
+				203B7144359F258D91797C4E /* ClaudeRelayApp.swift */,
+				3C544709576E8C546087C992 /* Models */,
+				1E6EF5C113D73BD28A423C83 /* ViewModels */,
+				70BD4C5D5BA2300CBF265C8E /* Views */,
 			);
-			name = Products;
+			path = ClaudeRelayApp;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		ADA71A09DE115B5DB053D27C /* ClaudeRelayApp */ = {
+		53D3A67986EB0528C6161974 /* Claude Relay */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8596EB7BDFDE64FE258C3257 /* Build configuration list for PBXNativeTarget "ClaudeRelayApp" */;
+			buildConfigurationList = CF4555A91AE896C6B4C29818 /* Build configuration list for PBXNativeTarget "Claude Relay" */;
 			buildPhases = (
-				59BCFE865608E23AF729888C /* Sources */,
-				F450F3CEF0F99682CD313AE0 /* Frameworks */,
+				EB1D278E6EF68776A629370C /* Sources */,
+				6F5528B189B0D86791C983A9 /* Resources */,
+				150BE605ED1B238B4F2F9908 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = ClaudeRelayApp;
+			name = "Claude Relay";
 			packageProductDependencies = (
-				C3467B6302AE9DCDAE591DA8 /* ClaudeRelayClient */,
-				9A5832E3CE53690D389517DC /* SwiftTerm */,
+				79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */,
+				CB2627EF23FDE67AF2E31A6A /* SwiftTerm */,
 			);
 			productName = ClaudeRelayApp;
-			productReference = 11761CAF52688932B68B407B /* ClaudeRelayApp.app */;
+			productReference = 7C001E978A6A6C85BABCA076 /* Claude Relay.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		EB7AD719A4A67114531F711C /* Project object */ = {
+		B3F1AC50CD8DFE78AB64F3DE /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
 			};
-			buildConfigurationList = 5FF462EF36C0695233163317 /* Build configuration list for PBXProject "ClaudeRelay" */;
+			buildConfigurationList = 51F903A9054604952CC1FF0D /* Build configuration list for PBXProject "ClaudeRelay" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
 				en,
 			);
-			mainGroup = 44DB527B3117AB0A31E0A228;
+			mainGroup = 738834D27068F0B0BB3D8599;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				0D40A41223C478FAB9993E63 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
-				46B6C519CBF42AA0E307D57C /* XCLocalSwiftPackageReference "." */,
+				E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				F4988706144E6DE2A73185C6 /* XCLocalSwiftPackageReference "." */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = D75882604A36E1E5CB619542 /* Products */;
+			productRefGroup = 3AA098A37E7D398E1EC025E4 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				ADA71A09DE115B5DB053D27C /* ClaudeRelayApp */,
+				53D3A67986EB0528C6161974 /* Claude Relay */,
 			);
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		6F5528B189B0D86791C983A9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
-		59BCFE865608E23AF729888C /* Sources */ = {
+		EB1D278E6EF68776A629370C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5F14E4DC7802972C133952E0 /* ClaudeRelayApp.swift in Sources */,
-				7601DAD7DA8F77DEDEFB8CF8 /* ConnectionView.swift in Sources */,
-				5946B1BACB8146CA30A3F095 /* ConnectionViewModel.swift in Sources */,
-				EA4D1DC61C6847E228A50E79 /* KeyboardAccessory.swift in Sources */,
-				731C1F13D1941046B4DECB3A /* SavedConnection.swift in Sources */,
-				73BBAC2602052CC3F8C2AB18 /* SessionListView.swift in Sources */,
-				857E060DEE8A132A9E484C8D /* SessionListViewModel.swift in Sources */,
-				19B29955DEB2A339E5CF6859 /* StatusIndicator.swift in Sources */,
-				3BE5A6D1D7E8F4D31E881012 /* TerminalContainerView.swift in Sources */,
-				C4FA5D4D866B1BA3C9443F7B /* TerminalViewModel.swift in Sources */,
+				B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */,
+				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
+				EE2BA421982FC7392097CDEC /* ConnectionView.swift in Sources */,
+				6F22772DC964FDAFED10E09C /* ConnectionViewModel.swift in Sources */,
+				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
+				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
+				9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */,
+				0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */,
+				F6F78FBAA4638832F683A18C /* StatusIndicator.swift in Sources */,
+				840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */,
+				7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		2C27800A3B35A2CC33D94A53 /* Release */ = {
+		381EE81FE04029B3C83AF93B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = T9WF95GC9T;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = ClaudeRelay;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_VERSION = 5.9;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
-		80428E0871C67A5E125F80EF /* Debug */ = {
+		787A599A77B0E871EA767164 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -290,70 +337,13 @@
 			};
 			name = Debug;
 		};
-		F04CB4F9987164140E0BC5B2 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		FFB3A3E459DAFB12A905558E /* Debug */ = {
+		9C9B26B58B343721F3B13019 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = ClaudeRelay;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -366,31 +356,56 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
+		CFF248D04C9F19E4A6685728 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = T9WF95GC9T;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		5FF462EF36C0695233163317 /* Build configuration list for PBXProject "ClaudeRelay" */ = {
+		51F903A9054604952CC1FF0D /* Build configuration list for PBXProject "ClaudeRelay" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				80428E0871C67A5E125F80EF /* Debug */,
-				F04CB4F9987164140E0BC5B2 /* Release */,
+				787A599A77B0E871EA767164 /* Debug */,
+				381EE81FE04029B3C83AF93B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		8596EB7BDFDE64FE258C3257 /* Build configuration list for PBXNativeTarget "ClaudeRelayApp" */ = {
+		CF4555A91AE896C6B4C29818 /* Build configuration list for PBXNativeTarget "Claude Relay" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FFB3A3E459DAFB12A905558E /* Debug */,
-				2C27800A3B35A2CC33D94A53 /* Release */,
+				9C9B26B58B343721F3B13019 /* Debug */,
+				CFF248D04C9F19E4A6685728 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -398,14 +413,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		46B6C519CBF42AA0E307D57C /* XCLocalSwiftPackageReference "." */ = {
+		F4988706144E6DE2A73185C6 /* XCLocalSwiftPackageReference "." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = .;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		0D40A41223C478FAB9993E63 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+		E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
 			requirement = {
@@ -416,16 +431,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		9A5832E3CE53690D389517DC /* SwiftTerm */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0D40A41223C478FAB9993E63 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
-			productName = SwiftTerm;
-		};
-		C3467B6302AE9DCDAE591DA8 /* ClaudeRelayClient */ = {
+		79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ClaudeRelayClient;
 		};
+		CB2627EF23FDE67AF2E31A6A /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
 /* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = EB7AD719A4A67114531F711C /* Project object */;
+	rootObject = B3F1AC50CD8DFE78AB64F3DE /* Project object */;
 }

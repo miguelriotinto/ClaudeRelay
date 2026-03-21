@@ -42,7 +42,7 @@ final class ConfigManagerTests: XCTestCase {
         let config = RelayConfig.default
         XCTAssertEqual(config.wsPort, 9200)
         XCTAssertEqual(config.adminPort, 9100)
-        XCTAssertEqual(config.detachTimeout, 1800)
+        XCTAssertEqual(config.detachTimeout, 0)
     }
 
     func testConfigDirectoryPath() {

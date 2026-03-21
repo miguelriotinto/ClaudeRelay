@@ -29,7 +29,7 @@ public struct RelayConfig: Codable, Sendable {
     public init(
         wsPort: UInt16 = 9200,
         adminPort: UInt16 = 9100,
-        detachTimeout: Int = 1800,
+        detachTimeout: Int = 0,
         scrollbackSize: Int = 65536,
         tlsCert: String? = nil,
         tlsKey: String? = nil,

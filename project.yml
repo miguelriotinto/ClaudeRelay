@@ -1,4 +1,4 @@
-name: ClaudeRelayApp
+name: ClaudeRelay
 options:
   bundleIdPrefix: com.coderemote
   deploymentTarget:

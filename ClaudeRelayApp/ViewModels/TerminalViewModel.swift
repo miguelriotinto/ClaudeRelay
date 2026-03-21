@@ -2,18 +2,17 @@ import Foundation
 import SwiftUI
 import ClaudeRelayClient
 
-/// Manages terminal I/O and connection state for the terminal view.
+/// Manages terminal I/O state for a single session.
+/// The SessionCoordinator pushes output data via `receiveOutput(_:)` and
+/// this view model buffers it until SwiftTermView is wired up.
 @MainActor
 final class TerminalViewModel: ObservableObject {
 
     // MARK: - Published State
 
     @Published var connectionState: RelayConnection.ConnectionState = .disconnected
-    @Published var terminalOutput: String = ""
 
-    /// Callback invoked with raw terminal output data. SwiftTermView wires
-    /// this up so bytes are fed directly into the TerminalView.
-    /// Setting this flushes any buffered data that arrived before the view was ready.
+    /// Set by SwiftTermView.makeUIView. Flushes pending output on assignment.
     var onTerminalOutput: ((Data) -> Void)? {
         didSet {
             guard let handler = onTerminalOutput, !pendingOutput.isEmpty else { return }
@@ -27,43 +26,44 @@ final class TerminalViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
-    let connection: RelayConnection
     let sessionId: UUID
-    private let bridge: TerminalBridge
-    /// Buffers output that arrives before SwiftTermView is wired up.
+    private let connection: RelayConnection
     private var pendingOutput: [Data] = []
 
     // MARK: - Init
 
-    init(connection: RelayConnection, sessionId: UUID) {
-        self.connection = connection
+    init(sessionId: UUID, connection: RelayConnection) {
         self.sessionId = sessionId
-        self.bridge = TerminalBridge(connection: connection)
+        self.connection = connection
 
-        // Observe connection state changes.
         connection.$state
             .assign(to: &$connectionState)
+    }
 
-        // Wire up terminal output.
-        bridge.onOutput = { [weak self] data in
-            guard let self = self else { return }
-            Task { @MainActor in
-                if let handler = self.onTerminalOutput {
-                    handler(data)
-                } else {
-                    self.pendingOutput.append(data)
-                }
-            }
+    // MARK: - Output (called by SessionCoordinator)
+
+    /// Receives terminal output from the coordinator's I/O routing.
+    func receiveOutput(_ data: Data) {
+        if let handler = onTerminalOutput {
+            handler(data)
+        } else {
+            pendingOutput.append(data)
         }
+    }
 
-        bridge.startReceiving()
+    /// Clears stale state when switching away from this session.
+    /// The old SwiftTermView is destroyed and a fresh one will be created
+    /// on next activation, which re-sets `onTerminalOutput`.
+    func prepareForSwitch() {
+        onTerminalOutput = nil
+        pendingOutput.removeAll()
     }
 
     // MARK: - Input
 
     func sendInput(_ data: Data) {
         Task {
-            try? await bridge.sendInput(data)
+            try? await connection.sendBinary(data)
         }
     }
 
@@ -74,19 +74,7 @@ final class TerminalViewModel: ObservableObject {
 
     func sendResize(cols: UInt16, rows: UInt16) {
         Task {
-            try? await bridge.sendResize(cols: cols, rows: rows)
+            try? await connection.sendResize(cols: cols, rows: rows)
         }
-    }
-
-    // MARK: - Lifecycle
-
-    func detach() {
-        Task {
-            try? await connection.send(.sessionDetach)
-        }
-    }
-
-    func disconnect() {
-        connection.disconnect()
     }
 }

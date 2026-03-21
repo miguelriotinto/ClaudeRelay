@@ -108,6 +108,8 @@ final class RelayMessageHandler: ChannelInboundHandler {
             handleSessionResume(sessionId: sessionId, context: context)
         case .sessionDetach:
             handleSessionDetach(context: context)
+        case .sessionTerminate(let sessionId):
+            handleSessionTerminate(sessionId: sessionId, context: context)
         case .sessionList:
             handleSessionList(context: context)
         case .resize(let cols, let rows):
@@ -248,6 +250,30 @@ final class RelayMessageHandler: ChannelInboundHandler {
             } catch {
                 context.eventLoop.execute {
                     self?.sendServerMessage(.error(code: 500, message: "Detach failed: \(error)"), context: context)
+                }
+            }
+        }
+    }
+
+    // MARK: - Session Terminate
+
+    private func handleSessionTerminate(sessionId: UUID, context: ChannelHandlerContext) {
+        guard let tokenId = authenticatedTokenId else { return }
+        let sessionManager = self.sessionManager
+        Task { [weak self] in
+            do {
+                try await sessionManager.terminateSession(id: sessionId, tokenId: tokenId)
+                context.eventLoop.execute {
+                    self?.sendServerMessage(.sessionTerminated(sessionId: sessionId, reason: "client_request"), context: context)
+                    // If we were attached to this session, clear local state.
+                    if self?.attachedSessionId == sessionId {
+                        self?.attachedSessionId = nil
+                        self?.attachedPTY = nil
+                    }
+                }
+            } catch {
+                context.eventLoop.execute {
+                    self?.sendServerMessage(.error(code: 404, message: "Terminate failed: \(error)"), context: context)
                 }
             }
         }

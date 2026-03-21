@@ -67,7 +67,7 @@ struct ConnectionView: View {
             .navigationDestination(isPresented: $viewModel.isNavigatingToSessions) {
                 if let connection = viewModel.activeConnection,
                    let token = viewModel.activeToken {
-                    SessionListView(connection: connection, token: token)
+                    WorkspaceView(connection: connection, token: token)
                 }
             }
             .alert("Error", isPresented: $viewModel.showError) {

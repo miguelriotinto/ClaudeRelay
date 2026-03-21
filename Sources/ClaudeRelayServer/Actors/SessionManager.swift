@@ -156,17 +156,19 @@ public actor SessionManager {
             }
         }
 
-        // Start detach timeout timer
+        // Start detach timeout timer (0 = never expire).
         let timeoutSeconds = config.detachTimeout
-        let manager = self
-        let timer = Task<Void, Never> {
-            try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds) * 1_000_000_000)
-            if !Task.isCancelled {
-                try? await manager.handleDetachTimeout(sessionId: id)
+        if timeoutSeconds > 0 {
+            let manager = self
+            let timer = Task<Void, Never> {
+                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds) * 1_000_000_000)
+                if !Task.isCancelled {
+                    try? await manager.handleDetachTimeout(sessionId: id)
+                }
             }
+            detachTimers[id]?.cancel()
+            detachTimers[id] = timer
         }
-        detachTimers[id]?.cancel()
-        detachTimers[id] = timer
     }
 
     /// Resume a detached session.

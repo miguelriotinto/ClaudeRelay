@@ -31,21 +31,27 @@ print("ClaudeRelay server running")
 print("  WebSocket: 0.0.0.0:\(config.wsPort)")
 print("  Admin API: 127.0.0.1:\(config.adminPort)")
 
-// Wait for SIGINT/SIGTERM
+// Wait for SIGINT/SIGTERM using async-safe signal handling.
 signal(SIGINT, SIG_IGN)
 signal(SIGTERM, SIG_IGN)
 
-let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
-let sigtermSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+    let sigintSource = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
+    let sigtermSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
 
-let semaphore = DispatchSemaphore(value: 0)
-
-sigintSource.setEventHandler { semaphore.signal() }
-sigtermSource.setEventHandler { semaphore.signal() }
-sigintSource.resume()
-sigtermSource.resume()
-
-semaphore.wait()
+    sigintSource.setEventHandler {
+        sigintSource.cancel()
+        sigtermSource.cancel()
+        continuation.resume()
+    }
+    sigtermSource.setEventHandler {
+        sigintSource.cancel()
+        sigtermSource.cancel()
+        continuation.resume()
+    }
+    sigintSource.resume()
+    sigtermSource.resume()
+}
 
 print("\nShutting down...")
 try await wsServer.stop()

@@ -61,7 +61,7 @@ public actor PTYSession {
             }
             let argv0 = strdup("-zsh")
             let cArgs: [UnsafeMutablePointer<CChar>?] = [argv0, nil]
-            cArgs.withUnsafeBufferPointer { buf in
+            _ = cArgs.withUnsafeBufferPointer { buf in
                 execv("/bin/zsh", buf.baseAddress)
             }
             _exit(1)
@@ -73,8 +73,11 @@ public actor PTYSession {
         self.masterFD = fd
         self.childPID = pid
 
-        // Start reading from the PTY in a nonisolated helper
-        self.readSource = Self.makeReadSource(fd: fd, session: self)
+        // Start reading from the PTY in a nonisolated helper.
+        // Assigning to self in an actor init after calling a static method
+        // is a Swift 6 isolation warning; suppress with assumeIsolated.
+        let readSrc = Self.makeReadSource(fd: fd, session: self)
+        self.assumeIsolated { $0.readSource = readSrc }
     }
 
     // MARK: - Read Source Setup

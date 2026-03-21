@@ -7,6 +7,7 @@ public enum ClientMessage: Equatable, Sendable {
     case sessionAttach(sessionId: UUID)
     case sessionResume(sessionId: UUID)
     case sessionDetach
+    case sessionTerminate(sessionId: UUID)
     case sessionList
     case resize(cols: UInt16, rows: UInt16)
     case ping
@@ -19,8 +20,9 @@ public enum ClientMessage: Equatable, Sendable {
         case .sessionCreate:  return "session_create"
         case .sessionAttach:  return "session_attach"
         case .sessionResume:  return "session_resume"
-        case .sessionDetach:  return "session_detach"
-        case .sessionList:    return "session_list"
+        case .sessionDetach:     return "session_detach"
+        case .sessionTerminate:  return "session_terminate"
+        case .sessionList:       return "session_list"
         case .resize:         return "resize"
         case .ping:           return "ping"
         }
@@ -30,7 +32,7 @@ public enum ClientMessage: Equatable, Sendable {
 
     static let allTypeStrings: Set<String> = [
         "auth_request", "session_create", "session_attach",
-        "session_resume", "session_detach", "session_list", "resize", "ping",
+        "session_resume", "session_detach", "session_terminate", "session_list", "resize", "ping",
     ]
 }
 
@@ -54,6 +56,8 @@ extension ClientMessage: Codable {
             try container.encode(sessionId, forKey: .sessionId)
         case .sessionDetach:
             break
+        case .sessionTerminate(let sessionId):
+            try container.encode(sessionId, forKey: .sessionId)
         case .sessionList:
             break
         case .resize(let cols, let rows):
@@ -80,6 +84,9 @@ extension ClientMessage: Codable {
             return .sessionResume(sessionId: sessionId)
         case "session_detach":
             return .sessionDetach
+        case "session_terminate":
+            let sessionId = try container.decode(UUID.self, forKey: .sessionId)
+            return .sessionTerminate(sessionId: sessionId)
         case "session_list":
             return .sessionList
         case "resize":
