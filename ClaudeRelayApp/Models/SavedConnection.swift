@@ -32,8 +32,8 @@ struct SavedConnectionStore {
     @discardableResult
     static func add(_ connection: ConnectionConfig) -> [ConnectionConfig] {
         var all = loadAll()
-        // Replace if same id exists, otherwise append.
-        if let index = all.firstIndex(where: { $0.id == connection.id }) {
+        // Replace if same host+port exists, otherwise append.
+        if let index = all.firstIndex(where: { $0.host == connection.host && $0.port == connection.port }) {
             all[index] = connection
         } else {
             all.append(connection)

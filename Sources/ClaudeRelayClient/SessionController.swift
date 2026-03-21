@@ -128,32 +128,43 @@ public final class SessionController: ObservableObject {
 
     /// Installs the response handler FIRST, then sends the message, to avoid a race
     /// where the server responds before the handler is installed.
+    /// Includes a 10-second timeout to prevent indefinite hangs.
     private func sendAndWaitForResponse(_ message: ClientMessage) async throws -> ServerMessage {
-        return try await withCheckedThrowingContinuation { continuation in
-            let previousHandler = connection.onServerMessage
+        print("[SessionController] sendAndWaitForResponse: \(message.typeString)")
+        let previousHandler = connection.onServerMessage
 
-            // Install handler BEFORE sending to avoid race condition.
-            connection.onServerMessage = { [weak self] serverMessage in
-                guard Self.responseTypes.contains(serverMessage.typeString) else {
-                    // Not a command response — forward and keep waiting.
-                    previousHandler?(serverMessage)
-                    return
-                }
-                // Restore the previous handler before resuming.
-                self?.connection.onServerMessage = previousHandler
-                continuation.resume(returning: serverMessage)
-            }
-
-            // Now send the message.
-            Task { [weak self] in
-                do {
-                    try await self?.connection.send(message)
-                } catch {
-                    // Restore handler and fail.
-                    self?.connection.onServerMessage = previousHandler
-                    continuation.resume(throwing: error)
+        // Install handler BEFORE sending to avoid race condition.
+        let response: ServerMessage = try await withThrowingTaskGroup(of: ServerMessage.self) { group in
+            group.addTask { @MainActor [connection] in
+                try await withCheckedThrowingContinuation { continuation in
+                    connection.onServerMessage = { serverMessage in
+                        print("[SessionController] received: \(serverMessage.typeString)")
+                        guard Self.responseTypes.contains(serverMessage.typeString) else {
+                            previousHandler?(serverMessage)
+                            return
+                        }
+                        connection.onServerMessage = previousHandler
+                        continuation.resume(returning: serverMessage)
+                    }
                 }
             }
+
+            group.addTask { @MainActor [connection] in
+                // Send after handler is installed (next run loop tick).
+                try await connection.send(message)
+                print("[SessionController] sent: \(message.typeString)")
+                // This task doesn't produce the result — wait for timeout.
+                try await Task.sleep(nanoseconds: 10_000_000_000)
+                throw SessionError.timeout
+            }
+
+            // Return whichever finishes first (the response handler).
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
         }
+
+        connection.onServerMessage = previousHandler
+        return response
     }
 }
