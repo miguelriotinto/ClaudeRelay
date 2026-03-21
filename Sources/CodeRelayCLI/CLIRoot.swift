@@ -5,16 +5,19 @@ public struct ClaudeRelay: ParsableCommand {
         commandName: "claude-relay",
         abstract: "Manage the CodeRelay service",
         subcommands: [
-            // Will be populated in later tasks:
-            // load, unload, start, stop, restart, status, health, token, session, config, logs
+            LoadCommand.self,
+            UnloadCommand.self,
+            StartCommand.self,
+            StopCommand.self,
+            RestartCommand.self,
+            StatusCommand.self,
+            HealthCommand.self,
+            TokenGroup.self,
+            SessionGroup.self,
+            ConfigGroup.self,
+            LogGroup.self,
         ]
     )
-
-    @Flag(name: .long, help: "Output in JSON format")
-    public var json = false
-
-    @Flag(name: .long, help: "Suppress non-essential output")
-    public var quiet = false
 
     public init() {}
 }
