@@ -135,6 +135,7 @@ struct SwiftTermView: UIViewRepresentable {
         weak var terminal: TerminalView?
         var bottomConstraint: NSLayoutConstraint?
         private var currentKeyboardFrame: CGRect?
+        private var lastBounds: CGRect = .zero
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -176,19 +177,19 @@ struct SwiftTermView: UIViewRepresentable {
 
         override func layoutSubviews() {
             super.layoutSubviews()
-            // Defer recalculation so it runs AFTER the rotation animation
-            // commits the final frame, not during the in-flight transform.
-            DispatchQueue.main.async { [weak self] in
-                self?.recalculateInset()
-            }
-        }
+            // Only act when bounds actually change (rotation/resize).
+            guard bounds != lastBounds else { return }
+            lastBounds = bounds
 
-        private func recalculateInset() {
-            guard let kbFrame = currentKeyboardFrame, window != nil else { return }
-            let containerFrame = convert(bounds, to: nil)
-            let overlap = max(0, containerFrame.maxY - kbFrame.origin.y)
-            if bottomConstraint?.constant != -overlap {
-                bottomConstraint?.constant = -overlap
+            // Resign and re-become first responder to force a fresh
+            // keyboard frame notification for the new orientation.
+            // This is exactly what happens when the user taps the
+            // keyboard toggle button (which fixes the overlap).
+            if let terminal = terminal, terminal.isFirstResponder {
+                terminal.resignFirstResponder()
+                DispatchQueue.main.async {
+                    terminal.becomeFirstResponder()
+                }
             }
         }
 

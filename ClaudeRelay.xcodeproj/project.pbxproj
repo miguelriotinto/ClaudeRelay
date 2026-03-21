@@ -31,7 +31,7 @@
 		6C29187431B96BC5B17B216E /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		74261F702CDAF22F4B3FE7F1 /* ConnectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionViewModel.swift; sourceTree = "<group>"; };
-		7C001E978A6A6C85BABCA076 /* Claude Relay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Claude Relay.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CDE7061F16DD811CA184B2B /* ClaudeRelay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClaudeRelay; path = .; sourceTree = SOURCE_ROOT; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
@@ -66,7 +66,7 @@
 		3AA098A37E7D398E1EC025E4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				7C001E978A6A6C85BABCA076 /* Claude Relay.app */,
+				7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -132,9 +132,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		53D3A67986EB0528C6161974 /* Claude Relay */ = {
+		53D3A67986EB0528C6161974 /* ClaudeRelayApp */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CF4555A91AE896C6B4C29818 /* Build configuration list for PBXNativeTarget "Claude Relay" */;
+			buildConfigurationList = CF4555A91AE896C6B4C29818 /* Build configuration list for PBXNativeTarget "ClaudeRelayApp" */;
 			buildPhases = (
 				EB1D278E6EF68776A629370C /* Sources */,
 				6F5528B189B0D86791C983A9 /* Resources */,
@@ -144,13 +144,13 @@
 			);
 			dependencies = (
 			);
-			name = "Claude Relay";
+			name = ClaudeRelayApp;
 			packageProductDependencies = (
 				79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */,
 				CB2627EF23FDE67AF2E31A6A /* SwiftTerm */,
 			);
 			productName = ClaudeRelayApp;
-			productReference = 7C001E978A6A6C85BABCA076 /* Claude Relay.app */;
+			productReference = 7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -161,6 +161,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					53D3A67986EB0528C6161974 = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = 51F903A9054604952CC1FF0D /* Build configuration list for PBXProject "ClaudeRelay" */;
 			developmentRegion = en;
@@ -180,7 +185,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				53D3A67986EB0528C6161974 /* Claude Relay */,
+				53D3A67986EB0528C6161974 /* ClaudeRelayApp */,
 			);
 		};
 /* End PBXProject section */
@@ -342,9 +347,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = T9WF95GC9T;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -354,7 +358,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coderemote.relay;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
@@ -368,9 +372,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = T9WF95GC9T;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -380,7 +383,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coderemote.relay;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
@@ -401,7 +404,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		CF4555A91AE896C6B4C29818 /* Build configuration list for PBXNativeTarget "Claude Relay" */ = {
+		CF4555A91AE896C6B4C29818 /* Build configuration list for PBXNativeTarget "ClaudeRelayApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				9C9B26B58B343721F3B13019 /* Debug */,
