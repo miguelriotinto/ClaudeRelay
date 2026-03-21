@@ -1,12 +1,11 @@
 import SwiftUI
+import SwiftTerm
 import CodeRelayClient
 
 /// Full-screen terminal view with status overlay and keyboard accessory.
 ///
-/// This uses a placeholder for the actual terminal rendering. When the user opens
-/// the project in Xcode and adds the SwiftTerm SPM package, the
-/// `TerminalPlaceholder` can be replaced with a real `SwiftTermView` wrapped in
-/// a `UIViewRepresentable`.
+/// Uses SwiftTerm's `TerminalView` for real terminal emulation including
+/// cursor positioning, colors, and scrollback.
 struct TerminalContainerView: View {
     @StateObject private var viewModel: TerminalViewModel
 
@@ -20,7 +19,7 @@ struct TerminalContainerView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Terminal area
-            TerminalPlaceholder(output: viewModel.terminalOutput)
+            SwiftTermView(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {
                     StatusIndicator(state: viewModel.connectionState)
@@ -45,33 +44,59 @@ struct TerminalContainerView: View {
     }
 }
 
-// MARK: - Terminal Placeholder
+// MARK: - SwiftTerm UIViewRepresentable
 
-/// A placeholder UIViewRepresentable that displays terminal output as text.
-/// Replace this with a SwiftTerm-backed view once the package is added in Xcode.
-struct TerminalPlaceholder: UIViewRepresentable {
-    let output: String
+/// Wraps SwiftTerm's `TerminalView` for use in SwiftUI.
+struct SwiftTermView: UIViewRepresentable {
+    let viewModel: TerminalViewModel
 
-    func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
-        textView.isEditable = false
-        textView.backgroundColor = .black
-        textView.textColor = .green
-        textView.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
-        textView.text = output.isEmpty
-            ? "Terminal View - Connect SwiftTerm here\n\nWaiting for output..."
-            : output
-        return textView
+    func makeUIView(context: Context) -> TerminalView {
+        let terminal = TerminalView(frame: .zero)
+        terminal.delegate = context.coordinator
+
+        // Configure appearance
+        terminal.nativeBackgroundColor = .black
+        terminal.nativeForegroundColor = .white
+
+        // Wire up output from server -> terminal
+        viewModel.onTerminalOutput = { data in
+            let bytes = [UInt8](data)
+            terminal.feed(byteArray: bytes)
+        }
+
+        return terminal
     }
 
-    func updateUIView(_ textView: UITextView, context: Context) {
-        textView.text = output.isEmpty
-            ? "Terminal View - Connect SwiftTerm here\n\nWaiting for output..."
-            : output
-        // Auto-scroll to bottom on new output.
-        if !output.isEmpty {
-            let bottom = NSRange(location: textView.text.count - 1, length: 1)
-            textView.scrollRangeToVisible(bottom)
+    func updateUIView(_ uiView: TerminalView, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(viewModel: viewModel)
+    }
+
+    // MARK: - Coordinator (TerminalViewDelegate)
+
+    class Coordinator: NSObject, TerminalViewDelegate {
+        let viewModel: TerminalViewModel
+
+        init(viewModel: TerminalViewModel) {
+            self.viewModel = viewModel
         }
+
+        func send(source: TerminalView, data: ArraySlice<UInt8>) {
+            Task { @MainActor in
+                viewModel.sendInput(Data(data))
+            }
+        }
+
+        func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+            Task { @MainActor in
+                viewModel.sendResize(cols: UInt16(newCols), rows: UInt16(newRows))
+            }
+        }
+
+        func scrolled(source: TerminalView, position: Double) {}
+        func setTerminalTitle(source: TerminalView, title: String) {}
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+        func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
     }
 }

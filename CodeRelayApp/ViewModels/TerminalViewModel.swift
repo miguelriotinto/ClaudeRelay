@@ -11,6 +11,10 @@ final class TerminalViewModel: ObservableObject {
     @Published var connectionState: RelayConnection.ConnectionState = .disconnected
     @Published var terminalOutput: String = ""
 
+    /// Callback invoked with raw terminal output data. SwiftTermView wires
+    /// this up so bytes are fed directly into the TerminalView.
+    var onTerminalOutput: ((Data) -> Void)?
+
     // MARK: - Dependencies
 
     let connection: RelayConnection
@@ -31,6 +35,11 @@ final class TerminalViewModel: ObservableObject {
         // Wire up terminal output.
         bridge.onOutput = { [weak self] data in
             guard let self = self else { return }
+            // Forward raw bytes to SwiftTerm (if wired up).
+            Task { @MainActor in
+                self.onTerminalOutput?(data)
+            }
+            // Also keep the plain-text accumulator for any fallback UI.
             if let text = String(data: data, encoding: .utf8) {
                 Task { @MainActor in
                     self.terminalOutput += text

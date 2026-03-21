@@ -1,6 +1,7 @@
 import ArgumentParser
 
-public struct ClaudeRelay: ParsableCommand {
+@available(macOS 14.0, *)
+public struct ClaudeRelay: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "claude-relay",
         abstract: "Manage the CodeRelay service",
