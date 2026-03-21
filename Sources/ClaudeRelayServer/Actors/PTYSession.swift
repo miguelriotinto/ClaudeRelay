@@ -28,7 +28,7 @@ public actor PTYSession {
         cols: UInt16,
         rows: UInt16,
         scrollbackSize: Int,
-        command: String = "/usr/local/bin/claude"
+        command: String = "/opt/homebrew/bin/claude"
     ) throws {
         self.sessionId = sessionId
         self.ringBuffer = RingBuffer(capacity: scrollbackSize)
