@@ -193,6 +193,7 @@ Terminal states: `exited`, `failed`, `expired`, `terminated` — no recovery.
 
 - Ring buffer, default 64KB (configurable via `scrollback-size`)
 - While detached: server reads PTY output into buffer
+- When buffer fills: oldest data is silently dropped (ring buffer semantics)
 - On resume: buffer flushed to client, then live streaming resumes
 
 ---
