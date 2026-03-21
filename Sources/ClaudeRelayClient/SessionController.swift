@@ -129,12 +129,28 @@ public final class SessionController: ObservableObject {
 
     // MARK: - Internal Helpers
 
-    /// Installs a one-shot handler on the connection to capture the next server message
-    /// and delivers it via an async continuation.
+    /// Response message types we expect from command requests.
+    /// Messages not in this set are "background" notifications and should be forwarded, not captured.
+    private static let responseTypes: Set<String> = [
+        "auth_success", "auth_failure",
+        "session_created", "session_attached", "session_resumed", "session_detached",
+        "session_list",
+        "error",
+    ]
+
+    /// Installs a filtered handler on the connection to capture the next *response* message
+    /// and delivers it via an async continuation. Background messages (resize_ack, pong,
+    /// session_state, session_terminated, session_expired) are forwarded to the previous
+    /// handler and do not satisfy the wait.
     private func waitForNextServerMessage() async -> ServerMessage {
         await withCheckedContinuation { continuation in
             let previousHandler = connection.onServerMessage
             connection.onServerMessage = { [weak self] message in
+                guard Self.responseTypes.contains(message.typeString) else {
+                    // Not a command response — forward and keep waiting.
+                    previousHandler?(message)
+                    return
+                }
                 // Restore the previous handler before resuming.
                 self?.connection.onServerMessage = previousHandler
                 continuation.resume(returning: message)
