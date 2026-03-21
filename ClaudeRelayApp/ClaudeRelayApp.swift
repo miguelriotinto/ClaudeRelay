@@ -2,9 +2,20 @@ import SwiftUI
 
 @main
 struct ClaudeRelayApp: App {
+    @State private var showSplash = true
+
     var body: some Scene {
         WindowGroup {
-            ConnectionView()
+            ZStack {
+                ConnectionView()
+
+                if showSplash {
+                    SplashScreenView {
+                        showSplash = false
+                    }
+                    .transition(.identity)
+                }
+            }
         }
     }
 }

@@ -2,11 +2,12 @@ import SwiftUI
 import SwiftTerm
 import ClaudeRelayClient
 
-/// Detail pane: thin toolbar + terminal or placeholder.
+/// Detail pane: thin toolbar + terminal + optional key bar.
 struct ActiveTerminalView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @Binding var columnVisibility: NavigationSplitViewVisibility
     var onDisconnect: () -> Void
+    @State private var showKeyBar = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,6 +25,15 @@ struct ActiveTerminalView: View {
                         }
                     } label: {
                         Image(systemName: "sidebar.left")
+                            .font(.system(size: 16))
+                    }
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showKeyBar.toggle()
+                        }
+                    } label: {
+                        Image(systemName: showKeyBar ? "keyboard.fill" : "keyboard")
                             .font(.system(size: 16))
                     }
                 }
@@ -57,6 +67,13 @@ struct ActiveTerminalView: View {
                let vm = coordinator.viewModel(for: id) {
                 SwiftTermView(viewModel: vm)
                     .id(id)
+
+                if showKeyBar {
+                    KeyboardAccessory { data in
+                        vm.sendInput(data)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             } else {
                 ContentUnavailableView(
                     "No Active Session",
@@ -80,35 +97,14 @@ struct ActiveTerminalView: View {
 
 // MARK: - SwiftTerm UIViewRepresentable
 
-/// Wraps SwiftTerm's TerminalView inside a UIKit container that handles
-/// keyboard avoidance via Auto Layout, bypassing SwiftUI's broken handling
-/// of UIKit inputAccessoryView.
 struct SwiftTermView: UIViewRepresentable {
     let viewModel: TerminalViewModel
 
-    func makeUIView(context: Context) -> KeyboardAvoidingContainer {
-        let container = KeyboardAvoidingContainer()
-        container.backgroundColor = .black
-
+    func makeUIView(context: Context) -> TerminalView {
         let terminal = TerminalView(frame: .zero)
         terminal.terminalDelegate = context.coordinator
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
-        terminal.translatesAutoresizingMaskIntoConstraints = false
-
-        container.addSubview(terminal)
-
-        let bottom = terminal.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        NSLayoutConstraint.activate([
-            terminal.topAnchor.constraint(equalTo: container.topAnchor),
-            terminal.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            terminal.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            bottom,
-        ])
-
-        container.terminal = terminal
-        container.bottomConstraint = bottom
-        context.coordinator.terminal = terminal
 
         viewModel.onTerminalOutput = { data in
             let bytes = ArraySlice([UInt8](data))
@@ -116,106 +112,30 @@ struct SwiftTermView: UIViewRepresentable {
             terminal.setNeedsDisplay()
         }
 
+        // Auto-focus for hardware keyboard input.
+        // Hide SwiftTerm's built-in inputAccessoryView — we use our own.
         DispatchQueue.main.async {
             terminal.becomeFirstResponder()
+            terminal.inputAccessoryView?.isHidden = true
+            terminal.inputAccessoryView?.frame.size.height = 0
+            terminal.reloadInputViews()
         }
 
-        return container
+        return terminal
     }
 
-    func updateUIView(_ uiView: KeyboardAvoidingContainer, context: Context) {}
+    func updateUIView(_ uiView: TerminalView, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
         Coordinator(viewModel: viewModel)
     }
 
-    /// Custom container that recalculates keyboard overlap on every layout
-    /// pass — handles rotation, split-view resizing, and initial display.
-    class KeyboardAvoidingContainer: UIView {
-        weak var terminal: TerminalView?
-        var bottomConstraint: NSLayoutConstraint?
-        private var currentKeyboardFrame: CGRect?
-        private var lastBounds: CGRect = .zero
-
-        override init(frame: CGRect) {
-            super.init(frame: frame)
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(keyboardChanged(_:)),
-                name: UIResponder.keyboardWillChangeFrameNotification,
-                object: nil
-            )
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(keyboardHidden(_:)),
-                name: UIResponder.keyboardWillHideNotification,
-                object: nil
-            )
-        }
-
-        required init?(coder: NSCoder) { fatalError() }
-
-        deinit {
-            NotificationCenter.default.removeObserver(self)
-        }
-
-        @objc private func keyboardChanged(_ notification: Notification) {
-            if let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                currentKeyboardFrame = frame
-                updateBottomInset(notification: notification)
-            }
-        }
-
-        @objc private func keyboardHidden(_ notification: Notification) {
-            currentKeyboardFrame = nil
-            let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
-            UIView.animate(withDuration: duration) {
-                self.bottomConstraint?.constant = 0
-                self.layoutIfNeeded()
-            }
-        }
-
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            // Only act when bounds actually change (rotation/resize).
-            guard bounds != lastBounds else { return }
-            lastBounds = bounds
-
-            // Resign and re-become first responder to force a fresh
-            // keyboard frame notification for the new orientation.
-            // This is exactly what happens when the user taps the
-            // keyboard toggle button (which fixes the overlap).
-            if let terminal = terminal, terminal.isFirstResponder {
-                terminal.resignFirstResponder()
-                DispatchQueue.main.async {
-                    terminal.becomeFirstResponder()
-                }
-            }
-        }
-
-        private func updateBottomInset(notification: Notification) {
-            guard let kbFrame = currentKeyboardFrame, window != nil else { return }
-
-            let containerFrame = convert(bounds, to: nil)
-            let overlap = max(0, containerFrame.maxY - kbFrame.origin.y)
-
-            let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? 0.25
-            UIView.animate(withDuration: duration) {
-                self.bottomConstraint?.constant = -overlap
-                self.layoutIfNeeded()
-            }
-        }
-    }
-
     class Coordinator: NSObject, TerminalViewDelegate {
         let viewModel: TerminalViewModel
-        weak var terminal: TerminalView?
 
         init(viewModel: TerminalViewModel) {
             self.viewModel = viewModel
         }
-
-        // MARK: - TerminalViewDelegate
 
         func send(source: TerminalView, data: ArraySlice<UInt8>) {
             Task { @MainActor in

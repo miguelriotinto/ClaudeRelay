@@ -2,60 +2,112 @@ import SwiftUI
 
 /// A horizontal scrollable bar of special keys for terminal interaction.
 struct KeyboardAccessory: View {
-    /// Callback invoked with the byte sequence to send when a key is tapped.
     var onKey: (Data) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(keys, id: \.label) { key in
-                    Button {
-                        onKey(key.data)
-                    } label: {
-                        Text(key.label)
-                            .font(.system(.callout, design: .monospaced))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(6)
-                    }
-                    .buttonStyle(.plain)
-                }
+            HStack(spacing: 6) {
+                // Modifier keys
+                keyButton("esc", icon: "escape") { send(0x1B) }
+                keyButton("ctrl", icon: "control") { send(0x00) } // Ctrl modifier placeholder
+                keyButton("opt", icon: "option") { send(0x00) }
+                keyButton("cmd", icon: "command") { send(0x00) }
+                keyButton("tab", icon: "arrow.right.to.line") { send(0x09) }
+
+                Divider().frame(height: 24)
+
+                // Ctrl combos
+                ctrlComboButton("C", byte: 0x03)   // Ctrl-C (SIGINT)
+                ctrlComboButton("R", byte: 0x12)   // Ctrl-R (reverse search)
+                ctrlComboButton("A", byte: 0x01)   // Ctrl-A (beginning of line)
+                ctrlComboButton("E", byte: 0x05)   // Ctrl-E (end of line)
+                ctrlComboButton("D", byte: 0x04)   // Ctrl-D (EOF)
+                ctrlComboButton("Z", byte: 0x1A)   // Ctrl-Z (suspend)
+                ctrlComboButton("L", byte: 0x0C)   // Ctrl-L (clear)
+
+                Divider().frame(height: 24)
+
+                // Arrow keys
+                keyButton(nil, icon: "arrow.up")    { send(0x1B, 0x5B, 0x41) }
+                keyButton(nil, icon: "arrow.down")  { send(0x1B, 0x5B, 0x42) }
+                keyButton(nil, icon: "arrow.left")  { send(0x1B, 0x5B, 0x44) }
+                keyButton(nil, icon: "arrow.right") { send(0x1B, 0x5B, 0x43) }
+
+                Divider().frame(height: 24)
+
+                // Common characters
+                charButton("|")
+                charButton("/")
+                charButton("~")
+                charButton("-")
+                charButton("_")
             }
             .padding(.horizontal, 8)
         }
-        .frame(height: 44)
-        .background(Color(.systemBackground))
+        .frame(height: 40)
+        .background(Color(.secondarySystemBackground))
     }
 
-    // MARK: - Key Definitions
+    // MARK: - Button builders
 
-    private struct SpecialKey {
-        let label: String
-        let data: Data
+    private func keyButton(_ label: String?, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 13))
+                if let label {
+                    Text(label)
+                        .font(.system(size: 11, weight: .medium))
+                }
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Color(.tertiarySystemBackground))
+            .cornerRadius(5)
+        }
+        .buttonStyle(.plain)
     }
 
-    private var keys: [SpecialKey] {
-        [
-            // Ctrl sends a zero byte (Ctrl-@); the terminal view can interpret
-            // a "Ctrl pressed" state. Here we send the common Ctrl-C as an example.
-            // In practice, the Ctrl key would act as a modifier.
-            SpecialKey(label: "Ctrl", data: Data()),
-            SpecialKey(label: "Tab", data: Data([0x09])),
-            SpecialKey(label: "Esc", data: Data([0x1B])),
-            SpecialKey(label: "\u{2191}", data: Data([0x1B, 0x5B, 0x41])),  // Up arrow: ESC [ A
-            SpecialKey(label: "\u{2193}", data: Data([0x1B, 0x5B, 0x42])),  // Down arrow: ESC [ B
-            SpecialKey(label: "\u{2190}", data: Data([0x1B, 0x5B, 0x44])),  // Left arrow: ESC [ D
-            SpecialKey(label: "\u{2192}", data: Data([0x1B, 0x5B, 0x43])),  // Right arrow: ESC [ C
-            SpecialKey(label: "|", data: Data([0x7C])),
-            SpecialKey(label: "/", data: Data([0x2F])),
-            SpecialKey(label: "~", data: Data([0x7E])),
-        ]
+    private func ctrlComboButton(_ letter: String, byte: UInt8) -> some View {
+        Button { onKey(Data([byte])) } label: {
+            HStack(spacing: 1) {
+                Image(systemName: "control")
+                    .font(.system(size: 10))
+                Text(letter)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .background(Color(.tertiarySystemBackground))
+            .cornerRadius(5)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func charButton(_ char: String) -> some View {
+        Button { onKey(Data(char.utf8)) } label: {
+            Text(char)
+                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundStyle(.primary)
+                .frame(minWidth: 28)
+                .padding(.vertical, 5)
+                .background(Color(.tertiarySystemBackground))
+                .cornerRadius(5)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Helpers
+
+    private func send(_ bytes: UInt8...) {
+        onKey(Data(bytes))
     }
 }
 
 #Preview {
     KeyboardAccessory { data in
-        print("Key pressed: \(data as NSData)")
+        print("Key: \(data as NSData)")
     }
 }

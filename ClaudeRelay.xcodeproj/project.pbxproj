@@ -16,6 +16,7 @@
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
 		A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E5892147C00AFFADE02948 /* SavedConnection.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
+		B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */; };
 		B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */; };
 		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
 		EE2BA421982FC7392097CDEC /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C29187431B96BC5B17B216E /* ConnectionView.swift */; };
@@ -31,6 +32,7 @@
 		6C29187431B96BC5B17B216E /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		74261F702CDAF22F4B3FE7F1 /* ConnectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionViewModel.swift; sourceTree = "<group>"; };
+		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CDE7061F16DD811CA184B2B /* ClaudeRelay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClaudeRelay; path = .; sourceTree = SOURCE_ROOT; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
@@ -85,6 +87,7 @@
 				0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */,
 				6C29187431B96BC5B17B216E /* ConnectionView.swift */,
 				8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */,
+				79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */,
 				68A6EA1094483278ADD0146F /* WorkspaceView.swift */,
 				E7C7F2B75F10B4F3A2F3713A /* Components */,
 			);
@@ -163,7 +166,7 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					53D3A67986EB0528C6161974 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = QHT2YY3LU6;
 					};
 				};
 			};
@@ -214,6 +217,7 @@
 				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
 				9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */,
 				0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */,
+				B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */,
 				F6F78FBAA4638832F683A18C /* StatusIndicator.swift in Sources */,
 				840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */,
 				7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */,
@@ -347,8 +351,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = QHT2YY3LU6;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -358,7 +363,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.coderemote.relay;
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
@@ -372,8 +377,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = QHT2YY3LU6;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -383,7 +389,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.coderemote.relay;
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
