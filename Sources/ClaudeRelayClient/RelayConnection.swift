@@ -150,7 +150,7 @@ public final class RelayConnection: ObservableObject {
                     onServerMessage?(serverMessage)
                 }
             } catch {
-                print("[RelayConnection] Failed to decode message: \(error). Raw: \(text.prefix(200))")
+                print("[RelayConnection] Failed to decode: \(error)")
             }
 
         case .data(let data):

@@ -29,7 +29,7 @@ public enum ServerMessage: Equatable, Sendable {
         case .sessionTerminated:   return "session_terminated"
         case .sessionExpired:      return "session_expired"
         case .sessionState:        return "session_state"
-        case .sessionList:         return "session_list"
+        case .sessionList:         return "session_list_result"
         case .resizeAck:           return "resize_ack"
         case .pong:                return "pong"
         case .error:               return "error"
@@ -41,7 +41,7 @@ public enum ServerMessage: Equatable, Sendable {
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure", "session_created", "session_attached",
         "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "session_list", "resize_ack", "pong", "error",
+        "session_expired", "session_state", "session_list_result", "resize_ack", "pong", "error",
     ]
 }
 
@@ -124,7 +124,7 @@ extension ServerMessage: Codable {
             let sessionId = try container.decode(UUID.self, forKey: .sessionId)
             let state = try container.decode(String.self, forKey: .state)
             return .sessionState(sessionId: sessionId, state: state)
-        case "session_list":
+        case "session_list_result":
             let sessions = try container.decode([SessionInfo].self, forKey: .sessions)
             return .sessionList(sessions: sessions)
         case "resize_ack":

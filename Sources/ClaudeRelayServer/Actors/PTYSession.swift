@@ -40,23 +40,34 @@ public actor PTYSession {
         ws.ws_xpixel = 0
         ws.ws_ypixel = 0
 
+        // Resolve home directory BEFORE fork — NSHomeDirectory() and other
+        // ObjC/Foundation calls are NOT safe in a forked child process.
+        let homeDir = strdup(NSHomeDirectory())
+
         let pid = relay_forkpty(&fd, &ws)
 
         if pid < 0 {
+            free(homeDir)
             throw PTYError.forkFailed(errno)
         }
 
         if pid == 0 {
-            // Child process — start an interactive login shell.
+            // Child process — only use POSIX/C calls here (no ObjC/Foundation).
             setenv("TERM", "xterm-256color", 1)
             setenv("LANG", "en_US.UTF-8", 1)
             setenv("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1)
-            chdir(NSHomeDirectory())
-            let args = ["-zsh"]  // Leading dash = login shell
-            let cArgs = args.map { strdup($0) } + [nil]
-            execv("/bin/zsh", cArgs)
+            if let homeDir = homeDir {
+                chdir(homeDir)
+            }
+            let argv0 = strdup("-zsh")
+            let cArgs: [UnsafeMutablePointer<CChar>?] = [argv0, nil]
+            cArgs.withUnsafeBufferPointer { buf in
+                execv("/bin/zsh", buf.baseAddress)
+            }
             _exit(1)
         }
+
+        free(homeDir)
 
         // Parent process
         self.masterFD = fd

@@ -122,49 +122,84 @@ public final class SessionController: ObservableObject {
     private static let responseTypes: Set<String> = [
         "auth_success", "auth_failure",
         "session_created", "session_attached", "session_resumed", "session_detached",
-        "session_list",
+        "session_list_result",
         "error",
     ]
 
-    /// Installs the response handler FIRST, then sends the message, to avoid a race
-    /// where the server responds before the handler is installed.
-    /// Includes a 10-second timeout to prevent indefinite hangs.
+    /// Installs the response handler synchronously, then sends the message in a task.
+    /// The handler is installed in the `withCheckedThrowingContinuation` body (which
+    /// runs before any suspension), guaranteeing it's in place before the send or any
+    /// incoming message can be processed on the MainActor.
     private func sendAndWaitForResponse(_ message: ClientMessage) async throws -> ServerMessage {
-        print("[SessionController] sendAndWaitForResponse: \(message.typeString)")
         let previousHandler = connection.onServerMessage
+        defer { connection.onServerMessage = previousHandler }
 
-        // Install handler BEFORE sending to avoid race condition.
-        let response: ServerMessage = try await withThrowingTaskGroup(of: ServerMessage.self) { group in
-            group.addTask { @MainActor [connection] in
-                try await withCheckedThrowingContinuation { continuation in
-                    connection.onServerMessage = { serverMessage in
-                        print("[SessionController] received: \(serverMessage.typeString)")
-                        guard Self.responseTypes.contains(serverMessage.typeString) else {
-                            previousHandler?(serverMessage)
-                            return
-                        }
-                        connection.onServerMessage = previousHandler
-                        continuation.resume(returning: serverMessage)
-                    }
-                }
+        let guard_ = ResumeGuard()
+
+        // 1) Install handler SYNCHRONOUSLY on MainActor — guaranteed in place
+        //    before any suspension point.
+        connection.onServerMessage = { serverMessage in
+            guard Self.responseTypes.contains(serverMessage.typeString) else {
+                previousHandler?(serverMessage)
+                return
             }
-
-            group.addTask { @MainActor [connection] in
-                // Send after handler is installed (next run loop tick).
-                try await connection.send(message)
-                print("[SessionController] sent: \(message.typeString)")
-                // This task doesn't produce the result — wait for timeout.
-                try await Task.sleep(nanoseconds: 10_000_000_000)
-                throw SessionError.timeout
-            }
-
-            // Return whichever finishes first (the response handler).
-            let result = try await group.next()!
-            group.cancelAll()
-            return result
+            guard_.pendingValue = serverMessage
         }
 
-        connection.onServerMessage = previousHandler
-        return response
+        // 2) Send the message.
+        try await connection.send(message)
+
+        // 3) If the response already arrived during send, return it.
+        if let value = guard_.pendingValue {
+            return value
+        }
+
+        // 4) Otherwise wait for it with a timeout.
+        return try await withCheckedThrowingContinuation { continuation in
+            guard_.continuation = continuation
+
+            if let value = guard_.pendingValue {
+                guard_.resume(returning: value)
+                return
+            }
+
+            connection.onServerMessage = { serverMessage in
+                guard Self.responseTypes.contains(serverMessage.typeString) else {
+                    previousHandler?(serverMessage)
+                    return
+                }
+                guard_.resume(returning: serverMessage)
+            }
+
+            Task { @MainActor [guard_] in
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                guard_.resume(throwing: SessionError.timeout)
+            }
+        }
+    }
+}
+
+// MARK: - Resume Guard
+
+/// Ensures a `CheckedContinuation` is resumed exactly once.
+/// All access must be on `@MainActor`.
+@MainActor
+private final class ResumeGuard {
+    var continuation: CheckedContinuation<ServerMessage, Error>?
+    var pendingValue: ServerMessage?
+    private var resumed = false
+
+    func resume(returning value: ServerMessage) {
+        guard !resumed else { return }
+        resumed = true
+        continuation?.resume(returning: value)
+        continuation = nil
+    }
+
+    func resume(throwing error: Error) {
+        guard !resumed else { return }
+        resumed = true
+        continuation?.resume(throwing: error)
+        continuation = nil
     }
 }
