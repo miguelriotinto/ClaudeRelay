@@ -108,6 +108,8 @@ final class RelayMessageHandler: ChannelInboundHandler {
             handleSessionResume(sessionId: sessionId, context: context)
         case .sessionDetach:
             handleSessionDetach(context: context)
+        case .sessionList:
+            handleSessionList(context: context)
         case .resize(let cols, let rows):
             handleResize(cols: cols, rows: rows, context: context)
         case .ping:
@@ -247,6 +249,19 @@ final class RelayMessageHandler: ChannelInboundHandler {
                 context.eventLoop.execute {
                     self?.sendServerMessage(.error(code: 500, message: "Detach failed: \(error)"), context: context)
                 }
+            }
+        }
+    }
+
+    // MARK: - Session List
+
+    private func handleSessionList(context: ChannelHandlerContext) {
+        guard let tokenId = authenticatedTokenId else { return }
+        let sessionManager = self.sessionManager
+        Task { [weak self] in
+            let sessions = await sessionManager.listSessionsForToken(tokenId: tokenId)
+            context.eventLoop.execute {
+                self?.sendServerMessage(.sessionList(sessions: sessions), context: context)
             }
         }
     }

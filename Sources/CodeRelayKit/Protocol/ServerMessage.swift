@@ -11,6 +11,7 @@ public enum ServerMessage: Equatable, Sendable {
     case sessionTerminated(sessionId: UUID, reason: String)
     case sessionExpired(sessionId: UUID)
     case sessionState(sessionId: UUID, state: String)
+    case sessionList(sessions: [SessionInfo])
     case resizeAck(cols: UInt16, rows: UInt16)
     case pong
     case error(code: Int, message: String)
@@ -28,6 +29,7 @@ public enum ServerMessage: Equatable, Sendable {
         case .sessionTerminated:   return "session_terminated"
         case .sessionExpired:      return "session_expired"
         case .sessionState:        return "session_state"
+        case .sessionList:         return "session_list"
         case .resizeAck:           return "resize_ack"
         case .pong:                return "pong"
         case .error:               return "error"
@@ -39,7 +41,7 @@ public enum ServerMessage: Equatable, Sendable {
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure", "session_created", "session_attached",
         "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "resize_ack", "pong", "error",
+        "session_expired", "session_state", "session_list", "resize_ack", "pong", "error",
     ]
 }
 
@@ -47,7 +49,7 @@ public enum ServerMessage: Equatable, Sendable {
 
 extension ServerMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case reason, sessionId, cols, rows, state, code, message
+        case reason, sessionId, cols, rows, state, code, message, sessions
     }
 
     public func encodePayload(to encoder: Encoder) throws {
@@ -76,6 +78,8 @@ extension ServerMessage: Codable {
         case .sessionState(let sessionId, let state):
             try container.encode(sessionId, forKey: .sessionId)
             try container.encode(state, forKey: .state)
+        case .sessionList(let sessions):
+            try container.encode(sessions, forKey: .sessions)
         case .resizeAck(let cols, let rows):
             try container.encode(cols, forKey: .cols)
             try container.encode(rows, forKey: .rows)
@@ -120,6 +124,9 @@ extension ServerMessage: Codable {
             let sessionId = try container.decode(UUID.self, forKey: .sessionId)
             let state = try container.decode(String.self, forKey: .state)
             return .sessionState(sessionId: sessionId, state: state)
+        case "session_list":
+            let sessions = try container.decode([SessionInfo].self, forKey: .sessions)
+            return .sessionList(sessions: sessions)
         case "resize_ack":
             let cols = try container.decode(UInt16.self, forKey: .cols)
             let rows = try container.decode(UInt16.self, forKey: .rows)

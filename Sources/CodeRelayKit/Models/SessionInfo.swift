@@ -1,7 +1,7 @@
 import Foundation
 
 /// Contains metadata about a CodeRelay session.
-public struct SessionInfo: Codable, Sendable {
+public struct SessionInfo: Codable, Equatable, Sendable {
     public let id: UUID
     public let state: SessionState
     public let tokenId: String

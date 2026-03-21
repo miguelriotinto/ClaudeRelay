@@ -1,0 +1,40 @@
+name: CodeRelayApp
+options:
+  bundleIdPrefix: com.coderemote
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+packages:
+  CodeRelayClient:
+    path: .
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm.git
+    majorVersion: 1.2.0
+
+targets:
+  CodeRelayApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: CodeRelayApp
+        excludes:
+          - README.md
+    dependencies:
+      - package: CodeRelayClient
+        product: CodeRelayClient
+      - package: SwiftTerm
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coderemote.relay
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        SWIFT_VERSION: "5.9"
+        DEVELOPMENT_TEAM: ""
+        SUPPORTED_PLATFORMS: "iphonesimulator iphoneos"
+        SUPPORTS_MACCATALYST: NO
+        GENERATE_INFOPLIST_FILE: YES

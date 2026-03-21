@@ -52,7 +52,7 @@ struct SwiftTermView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> TerminalView {
         let terminal = TerminalView(frame: .zero)
-        terminal.delegate = context.coordinator
+        terminal.terminalDelegate = context.coordinator
 
         // Configure appearance
         terminal.nativeBackgroundColor = .black
@@ -60,7 +60,7 @@ struct SwiftTermView: UIViewRepresentable {
 
         // Wire up output from server -> terminal
         viewModel.onTerminalOutput = { data in
-            let bytes = [UInt8](data)
+            let bytes = ArraySlice([UInt8](data))
             terminal.feed(byteArray: bytes)
         }
 
@@ -98,5 +98,9 @@ struct SwiftTermView: UIViewRepresentable {
         func setTerminalTitle(source: TerminalView, title: String) {}
         func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
         func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
+        func bell(source: TerminalView) {}
+        func clipboardCopy(source: TerminalView, content: Data) {}
+        func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
+        func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
     }
 }

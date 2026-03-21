@@ -95,6 +95,22 @@ public final class SessionController: ObservableObject {
         }
     }
 
+    /// Lists all sessions owned by the authenticated token.
+    public func listSessions() async throws -> [SessionInfo] {
+        try await connection.send(.sessionList)
+
+        let response = await waitForNextServerMessage()
+
+        switch response {
+        case .sessionList(let sessions):
+            return sessions
+        case .error(_, let message):
+            throw SessionError.unexpectedResponse(message)
+        default:
+            throw SessionError.unexpectedResponse(response.typeString)
+        }
+    }
+
     /// Detaches from the current session without terminating it.
     public func detach() async throws {
         try await connection.send(.sessionDetach)

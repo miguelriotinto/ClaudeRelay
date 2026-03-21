@@ -51,8 +51,13 @@ public struct RelayConfig: Codable, Sendable {
 
     /// The configuration directory: `~/.claude-relay/`.
     public static var configDirectory: URL {
+        #if os(iOS) || os(tvOS) || os(watchOS)
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent(".claude-relay", isDirectory: true)
+        #else
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude-relay", isDirectory: true)
+        #endif
     }
 
     /// The main configuration file: `~/.claude-relay/config.json`.

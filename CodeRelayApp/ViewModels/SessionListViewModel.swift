@@ -37,13 +37,13 @@ final class SessionListViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let controller = SessionController(connection: connection)
-            try await controller.authenticate(token: token)
-            self.sessionController = controller
-            // Note: The current SessionController API does not expose a listSessions
-            // method. In a real implementation, you would send a list request and
-            // parse the response. For now, sessions remain populated from server
-            // messages or manual tracking.
+            let controller = sessionController ?? SessionController(connection: connection)
+            if sessionController == nil {
+                try await controller.authenticate(token: token)
+                sessionController = controller
+            }
+
+            sessions = try await controller.listSessions()
         } catch {
             presentError(error.localizedDescription)
         }
