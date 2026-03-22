@@ -9,6 +9,7 @@ public actor TokenStore {
     private let directory: URL
     private var filePath: URL { directory.appendingPathComponent("tokens.json") }
     private var tokens: [TokenInfo]?
+    private static let ioQueue = DispatchQueue(label: "com.claude.relay.tokenstore-io")
 
     // MARK: - Errors
 
@@ -116,59 +117,64 @@ public actor TokenStore {
         return loaded
     }
 
-    /// Read tokens from disk with shared file lock.
+    /// Read tokens from disk with shared file lock. Runs on a dedicated IO queue.
     private func loadFromDisk() throws -> [TokenInfo] {
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: directory.path) {
-            try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+        let dir = directory
+        let file = filePath
+        return try Self.ioQueue.sync {
+            let fm = FileManager.default
+            if !fm.fileExists(atPath: dir.path) {
+                try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            }
+
+            let path = file.path
+            guard fm.fileExists(atPath: path) else {
+                return []
+            }
+
+            let fd = open(path, O_RDONLY)
+            guard fd >= 0 else { return [] }
+            defer { close(fd) }
+
+            flock(fd, LOCK_SH)
+            defer { flock(fd, LOCK_UN) }
+
+            let data = try Data(contentsOf: file)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            return try decoder.decode([TokenInfo].self, from: data)
         }
-
-        let path = filePath.path
-        guard fm.fileExists(atPath: path) else {
-            return []
-        }
-
-        let fd = open(path, O_RDONLY)
-        guard fd >= 0 else { return [] }
-        defer { close(fd) }
-
-        // Shared lock for reading
-        flock(fd, LOCK_SH)
-        defer { flock(fd, LOCK_UN) }
-
-        let data = try Data(contentsOf: filePath)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([TokenInfo].self, from: data)
     }
 
-    /// Write tokens to disk with exclusive file lock.
+    /// Write tokens to disk with exclusive file lock. Runs on a dedicated IO queue.
     private func save(_ infos: [TokenInfo]) throws {
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: directory.path) {
-            try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+        let dir = directory
+        let file = filePath
+        try Self.ioQueue.sync {
+            let fm = FileManager.default
+            if !fm.fileExists(atPath: dir.path) {
+                try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            }
+
+            let path = file.path
+            if !fm.fileExists(atPath: path) {
+                fm.createFile(atPath: path, contents: nil)
+            }
+
+            let fd = open(path, O_WRONLY)
+            guard fd >= 0 else {
+                throw NSError(domain: "TokenStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot open file for writing"])
+            }
+            defer { close(fd) }
+
+            flock(fd, LOCK_EX)
+            defer { flock(fd, LOCK_UN) }
+
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(infos)
+            try data.write(to: file, options: .atomic)
         }
-
-        let path = filePath.path
-        // Create file if it doesn't exist
-        if !fm.fileExists(atPath: path) {
-            fm.createFile(atPath: path, contents: nil)
-        }
-
-        let fd = open(path, O_WRONLY)
-        guard fd >= 0 else {
-            throw NSError(domain: "TokenStore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot open file for writing"])
-        }
-        defer { close(fd) }
-
-        // Exclusive lock for writing
-        flock(fd, LOCK_EX)
-        defer { flock(fd, LOCK_UN) }
-
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(infos)
-        try data.write(to: filePath, options: .atomic)
     }
 }
