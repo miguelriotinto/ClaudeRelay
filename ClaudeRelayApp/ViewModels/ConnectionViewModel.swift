@@ -39,7 +39,7 @@ final class ConnectionViewModel: ObservableObject {
             presentError("Host is required.")
             return
         }
-        guard let portNumber = UInt16(port) else {
+        guard let portNumber = UInt16(port), portNumber > 0 else {
             presentError("Port must be a number between 1 and 65535.")
             return
         }
