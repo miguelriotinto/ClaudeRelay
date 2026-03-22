@@ -303,6 +303,27 @@ public actor SessionManager {
             .map { $0.info }
     }
 
+    // MARK: - Cleanup
+
+    /// Removes sessions in terminal states (exited, failed, terminated, expired)
+    /// that have been in that state for longer than the grace period.
+    private func purgeTerminalSessions(gracePeriod: TimeInterval = 300) {
+        let cutoff = Date().addingTimeInterval(-gracePeriod)
+        let staleIds = sessions.filter { _, managed in
+            managed.info.state.isTerminal && managed.info.createdAt < cutoff
+        }.map { $0.key }
+
+        for id in staleIds {
+            sessions.removeValue(forKey: id)
+            detachTimers[id]?.cancel()
+            detachTimers.removeValue(forKey: id)
+        }
+
+        if !staleIds.isEmpty {
+            print("[SessionManager] Purged \(staleIds.count) terminal session(s)")
+        }
+    }
+
     // MARK: - Internal Handlers
 
     private func handlePTYExit(sessionId: UUID) {
@@ -324,6 +345,8 @@ public actor SessionManager {
         // Clean up timer
         detachTimers[sessionId]?.cancel()
         detachTimers[sessionId] = nil
+
+        purgeTerminalSessions()
     }
 
     private func handleDetachTimeout(sessionId: UUID) {
@@ -348,5 +371,7 @@ public actor SessionManager {
                 await pty.terminate()
             }
         }
+
+        purgeTerminalSessions()
     }
 }
