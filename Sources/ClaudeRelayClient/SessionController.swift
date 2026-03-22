@@ -133,10 +133,9 @@ public final class SessionController: ObservableObject {
         "error",
     ]
 
-    /// Installs the response handler synchronously, then sends the message in a task.
-    /// The handler is installed in the `withCheckedThrowingContinuation` body (which
-    /// runs before any suspension), guaranteeing it's in place before the send or any
-    /// incoming message can be processed on the MainActor.
+    /// Installs a single response handler synchronously on MainActor, then sends.
+    /// The handler resumes the continuation if available, or stores the value for
+    /// the synchronous check after send. No handler reinstallation needed.
     private func sendAndWaitForResponse(_ message: ClientMessage) async throws -> ServerMessage {
         let previousHandler = connection.onServerMessage
         defer { connection.onServerMessage = previousHandler }
@@ -144,13 +143,18 @@ public final class SessionController: ObservableObject {
         let guard_ = ResumeGuard()
 
         // 1) Install handler SYNCHRONOUSLY on MainActor — guaranteed in place
-        //    before any suspension point.
+        //    before any suspension point. Handler either resumes the continuation
+        //    (if we're waiting) or stores the value (if response beats the await).
         connection.onServerMessage = { serverMessage in
             guard Self.responseTypes.contains(serverMessage.typeString) else {
                 previousHandler?(serverMessage)
                 return
             }
-            guard_.pendingValue = serverMessage
+            if guard_.continuation != nil {
+                guard_.resume(returning: serverMessage)
+            } else {
+                guard_.pendingValue = serverMessage
+            }
         }
 
         // 2) Send the message.
@@ -165,17 +169,10 @@ public final class SessionController: ObservableObject {
         return try await withCheckedThrowingContinuation { continuation in
             guard_.continuation = continuation
 
+            // Check again — response may have arrived between step 3 and here.
             if let value = guard_.pendingValue {
                 guard_.resume(returning: value)
                 return
-            }
-
-            connection.onServerMessage = { serverMessage in
-                guard Self.responseTypes.contains(serverMessage.typeString) else {
-                    previousHandler?(serverMessage)
-                    return
-                }
-                guard_.resume(returning: serverMessage)
             }
 
             guard_.timeoutTask = Task { @MainActor [guard_] in
