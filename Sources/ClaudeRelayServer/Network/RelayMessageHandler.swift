@@ -16,6 +16,8 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private var attachedPTY: PTYSession?
     private var context: ChannelHandlerContext?
     private var authTimeout: Scheduled<Void>?
+    private let jsonEncoder = JSONEncoder()
+    private let jsonDecoder = JSONDecoder()
 
     init(sessionManager: SessionManager, tokenStore: TokenStore) {
         self.sessionManager = sessionManager
@@ -72,7 +74,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
 
         let envelope: MessageEnvelope
         do {
-            envelope = try JSONDecoder().decode(MessageEnvelope.self, from: jsonData)
+            envelope = try jsonDecoder.decode(MessageEnvelope.self, from: jsonData)
         } catch {
             sendServerMessage(.error(code: 400, message: "Invalid message format"), context: context)
             return
@@ -340,7 +342,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private func sendServerMessage(_ message: ServerMessage, context: ChannelHandlerContext) {
         let envelope = MessageEnvelope.server(message)
         do {
-            let data = try JSONEncoder().encode(envelope)
+            let data = try jsonEncoder.encode(envelope)
             var buffer = context.channel.allocator.buffer(capacity: data.count)
             buffer.writeBytes(data)
             let frame = WebSocketFrame(fin: true, opcode: .text, data: buffer)
