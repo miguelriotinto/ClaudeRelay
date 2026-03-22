@@ -114,6 +114,7 @@ final class SessionCoordinator: ObservableObject {
             if let currentId = activeSessionId {
                 try? await controller.detach()
                 terminalViewModels[currentId]?.prepareForSwitch()
+                terminalViewModels[currentId] = nil
             }
 
             let sessionId = try await controller.createSession()
@@ -142,6 +143,7 @@ final class SessionCoordinator: ObservableObject {
             if let currentId = activeSessionId {
                 try? await controller.detach()
                 terminalViewModels[currentId]?.prepareForSwitch()
+                terminalViewModels[currentId] = nil
             }
 
             try await controller.resumeSession(id: id)
