@@ -47,7 +47,10 @@ final class ConnectionViewModel: ObservableObject {
         isConnecting = true
         defer { isConnecting = false }
 
+        // Reuse existing connection's ID to avoid orphaning Keychain tokens.
+        let existingId = savedConnections.first { $0.host == host && $0.port == portNumber }?.id
         let config = ConnectionConfig(
+            id: existingId ?? UUID(),
             name: name.isEmpty ? host : name,
             host: host,
             port: portNumber,
