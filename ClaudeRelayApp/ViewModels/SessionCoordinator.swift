@@ -206,6 +206,8 @@ final class SessionCoordinator: ObservableObject {
     /// is still alive and, if not, reconnects + re-authenticates + resumes
     /// the previously active session transparently.
     func handleForegroundTransition() async {
+        guard !isRecovering else { return }
+
         let alive = await connection.isAlive()
         if alive { return }
 
@@ -218,7 +220,9 @@ final class SessionCoordinator: ObservableObject {
         do {
             try await connection.forceReconnect()
         } catch {
-            presentError("Reconnection failed: \(error.localizedDescription)")
+            if !(error is CancellationError) {
+                presentError("Reconnection failed: \(error.localizedDescription)")
+            }
             return
         }
 
@@ -248,6 +252,9 @@ final class SessionCoordinator: ObservableObject {
                 try await controller.resumeSession(id: activeId)
                 wireTerminalOutput(to: activeId)
             }
+        } catch is CancellationError {
+            // Task cancelled during lock/unlock — don't show error, auto-reconnect will retry
+            print("[SessionCoordinator] Restore cancelled (lifecycle), will retry on next foreground")
         } catch {
             // Session may have been terminated server-side while we were away
             if activeSessionId != nil {
