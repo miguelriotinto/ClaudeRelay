@@ -48,6 +48,7 @@ public final class RelayConnection: ObservableObject {
 
     /// Called after a successful auto-reconnect (exponential backoff).
     /// Use this to re-authenticate and resume the active session.
+    /// NOTE: Callers should capture [weak coordinator] in the closure to avoid retain cycles.
     public var onReconnected: (() -> Void)?
 
     // MARK: - Private Properties

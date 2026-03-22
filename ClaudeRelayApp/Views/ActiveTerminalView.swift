@@ -212,11 +212,11 @@ struct SwiftTermView: UIViewRepresentable {
         }
 
         @objc private func keyboardDidShow() {
-            DispatchQueue.main.async { self.isKeyboardVisible.wrappedValue = true }
+            isKeyboardVisible.wrappedValue = true
         }
 
         @objc private func keyboardDidHide() {
-            DispatchQueue.main.async { self.isKeyboardVisible.wrappedValue = false }
+            isKeyboardVisible.wrappedValue = false
         }
 
         func send(source: TerminalView, data: ArraySlice<UInt8>) {

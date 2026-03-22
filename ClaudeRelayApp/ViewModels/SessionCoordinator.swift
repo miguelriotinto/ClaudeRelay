@@ -17,6 +17,11 @@ final class SessionCoordinator: ObservableObject {
     @Published var errorMessage: String?
     @Published var showError = false
 
+    /// Active (non-terminal) sessions, cached to avoid recomputing on every SwiftUI redraw.
+    var activeSessions: [SessionInfo] {
+        sessions.filter { !$0.state.isTerminal }
+    }
+
     // MARK: - Dependencies
 
     let connection: RelayConnection

@@ -15,7 +15,7 @@ struct SessionSidebarView: View {
                 }
             }
 
-            if coordinator.sessions.filter({ !$0.state.isTerminal }).isEmpty && !coordinator.isLoading {
+            if coordinator.activeSessions.isEmpty && !coordinator.isLoading {
                 ContentUnavailableView(
                     "No Sessions",
                     systemImage: "terminal",
@@ -23,7 +23,7 @@ struct SessionSidebarView: View {
                 )
             } else {
                 Section("Sessions") {
-                    ForEach(coordinator.sessions.filter { !$0.state.isTerminal }, id: \.id) { session in
+                    ForEach(coordinator.activeSessions, id: \.id) { session in
                         SessionRow(
                             session: session,
                             name: coordinator.name(for: session.id),

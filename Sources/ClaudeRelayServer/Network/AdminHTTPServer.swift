@@ -9,6 +9,7 @@ public final class AdminHTTPServer {
     private let group: EventLoopGroup
     private let sessionManager: SessionManager
     private let tokenStore: TokenStore
+    private let rateLimiter = RateLimiter(maxAttempts: 30, windowSeconds: 60)
     private let port: UInt16
     private var channel: Channel?
 
@@ -23,7 +24,7 @@ public final class AdminHTTPServer {
     public func start() async throws {
         let sessionManager = self.sessionManager
         let tokenStore = self.tokenStore
-        let wsPort = self.port  // We don't have wsPort here but AdminRoutes needs config
+        let rateLimiter = self.rateLimiter
 
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 256)
@@ -32,7 +33,8 @@ public final class AdminHTTPServer {
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     let handler = AdminHTTPHandler(
                         sessionManager: sessionManager,
-                        tokenStore: tokenStore
+                        tokenStore: tokenStore,
+                        rateLimiter: rateLimiter
                     )
                     return channel.pipeline.addHandler(handler)
                 }
@@ -56,13 +58,15 @@ final class AdminHTTPHandler: ChannelInboundHandler {
 
     private let sessionManager: SessionManager
     private let tokenStore: TokenStore
+    private let rateLimiter: RateLimiter
 
     private var requestHead: HTTPRequestHead?
     private var requestBody: ByteBuffer?
 
-    init(sessionManager: SessionManager, tokenStore: TokenStore) {
+    init(sessionManager: SessionManager, tokenStore: TokenStore, rateLimiter: RateLimiter) {
         self.sessionManager = sessionManager
         self.tokenStore = tokenStore
+        self.rateLimiter = rateLimiter
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -79,8 +83,21 @@ final class AdminHTTPHandler: ChannelInboundHandler {
             let body = requestBody
             let sessionManager = self.sessionManager
             let tokenStore = self.tokenStore
+            let rateLimiter = self.rateLimiter
+
+            // Extract client IP for rate limiting
+            let remoteIP = context.remoteAddress?.description ?? "unknown"
 
             Task {
+                // Check rate limit before processing
+                if await rateLimiter.isBlocked(ip: remoteIP) {
+                    let response = AdminResponse.error("Too many requests", status: 429)
+                    context.eventLoop.execute {
+                        self.writeResponse(response, context: context)
+                    }
+                    return
+                }
+
                 let response = await AdminRoutes.handle(
                     method: head.method,
                     uri: head.uri,
@@ -88,6 +105,12 @@ final class AdminHTTPHandler: ChannelInboundHandler {
                     sessionManager: sessionManager,
                     tokenStore: tokenStore
                 )
+
+                // Track failures (4xx/5xx) for rate limiting
+                if response.statusCode >= 400 {
+                    await rateLimiter.recordFailure(ip: remoteIP)
+                }
+
                 context.eventLoop.execute {
                     self.writeResponse(response, context: context)
                 }

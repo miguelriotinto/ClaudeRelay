@@ -69,8 +69,9 @@ final class RelayMessageHandler: ChannelInboundHandler {
 
     private func handleTextFrame(_ frame: WebSocketFrame, context: ChannelHandlerContext) {
         var data = frame.unmaskedData
-        guard let bytes = data.readBytes(length: data.readableBytes) else { return }
-        let jsonData = Data(bytes)
+        let readable = data.readableBytes
+        guard readable > 0 else { return }
+        let jsonData = data.withUnsafeReadableBytes { Data($0) }
 
         let envelope: MessageEnvelope
         do {
