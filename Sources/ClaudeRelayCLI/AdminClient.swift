@@ -13,9 +13,15 @@ public final class AdminClient {
         self.session = URLSession.shared
     }
 
+    /// Build a URL from the base and a path that may contain query strings.
+    /// Unlike `appendingPathComponent`, this preserves `?` and `&` in paths.
+    private func buildURL(_ path: String) -> URL {
+        URL(string: baseURL.absoluteString + path)!
+    }
+
     /// GET request, returns decoded JSON.
     public func get<T: Decodable>(_ path: String) async throws -> T {
-        let url = baseURL.appendingPathComponent(path)
+        let url = buildURL(path)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         return try await perform(request)
@@ -23,7 +29,7 @@ public final class AdminClient {
 
     /// POST request with optional body, returns decoded JSON.
     public func post<T: Decodable>(_ path: String, body: (any Encodable)? = nil) async throws -> T {
-        let url = baseURL.appendingPathComponent(path)
+        let url = buildURL(path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         if let body = body {
@@ -35,7 +41,7 @@ public final class AdminClient {
 
     /// PUT request with body, returns decoded JSON.
     public func put<T: Decodable>(_ path: String, body: any Encodable) async throws -> T {
-        let url = baseURL.appendingPathComponent(path)
+        let url = buildURL(path)
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.httpBody = try JSONEncoder().encode(AnyEncodable(body))
@@ -45,7 +51,7 @@ public final class AdminClient {
 
     /// DELETE request.
     public func delete(_ path: String) async throws {
-        let url = baseURL.appendingPathComponent(path)
+        let url = buildURL(path)
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
 
@@ -63,7 +69,7 @@ public final class AdminClient {
 
     /// Check if service is running (GET /health, handle connection refused).
     public func isServiceRunning() async -> Bool {
-        let url = baseURL.appendingPathComponent("/health")
+        let url = buildURL("/health")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 3

@@ -13,7 +13,9 @@ enum AdminRoutes {
         sessionManager: SessionManager,
         tokenStore: TokenStore
     ) async -> AdminResponse {
-        let path = uri.split(separator: "?").first.map(String.init) ?? uri
+        let parts = uri.split(separator: "?", maxSplits: 1)
+        let path = parts.first.map(String.init) ?? uri
+        let query: String? = parts.count > 1 ? String(parts[1]) : nil
         let components = path.split(separator: "/").map(String.init)
 
         switch (method, components.first) {
@@ -36,7 +38,7 @@ enum AdminRoutes {
         case (.PUT, "config"):
             return handlePutConfig(components, body: body)
         case (.GET, "logs"):
-            return handleLogs(components)
+            return handleLogs(components, query: query)
         default:
             return .error("Not found", status: 404)
         }
@@ -248,9 +250,21 @@ enum AdminRoutes {
 
     // MARK: - Logs
 
-    private static func handleLogs(_ components: [String]) -> AdminResponse {
+    private static func handleLogs(_ components: [String], query: String?) -> AdminResponse {
         guard components == ["logs"] else { return .error("Not found", status: 404) }
-        return .json(["logs": [String](), "message": "Log collection not yet implemented"])
+
+        var lineCount = 50
+        if let query = query {
+            for param in query.split(separator: "&") {
+                let parts = param.split(separator: "=", maxSplits: 1)
+                if parts.count == 2, parts[0] == "lines", let val = Int(parts[1]) {
+                    lineCount = min(max(val, 1), 2000)
+                }
+            }
+        }
+
+        let entries = RelayLogger.store.recent(count: lineCount)
+        return .json(["entries": entries])
     }
 }
 

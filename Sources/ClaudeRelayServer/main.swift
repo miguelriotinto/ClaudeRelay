@@ -27,6 +27,7 @@ let adminServer = AdminHTTPServer(
 try await wsServer.start()
 try await adminServer.start()
 
+RelayLogger.log(category: "server", "Server started — WebSocket: 0.0.0.0:\(config.wsPort), Admin: 127.0.0.1:\(config.adminPort)")
 print("ClaudeRelay server running")
 print("  WebSocket: 0.0.0.0:\(config.wsPort)")
 print("  Admin API: 127.0.0.1:\(config.adminPort)")
@@ -53,6 +54,7 @@ await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>)
     sigtermSource.resume()
 }
 
+RelayLogger.log(category: "server", "Shutdown signal received")
 print("\nShutting down...")
 try await wsServer.stop()
 try await adminServer.stop()

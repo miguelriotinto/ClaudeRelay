@@ -26,15 +26,20 @@ final class RelayMessageHandler: ChannelInboundHandler {
 
     func channelActive(context: ChannelHandlerContext) {
         self.context = context
+        let remote = context.remoteAddress?.description ?? "unknown"
+        RelayLogger.log(category: "connection", "WebSocket connected from \(remote)")
         // Start 10-second auth timer
         authTimeout = context.eventLoop.scheduleTask(in: .seconds(10)) { [weak self] in
             guard let self = self, !self.isAuthenticated else { return }
+            RelayLogger.log(.error, category: "auth", "Auth timeout for \(remote)")
             self.sendServerMessage(.error(code: 401, message: "Authentication timeout"), context: context)
             context.close(promise: nil)
         }
     }
 
     func channelInactive(context: ChannelHandlerContext) {
+        let remote = context.remoteAddress?.description ?? "unknown"
+        RelayLogger.log(category: "connection", "WebSocket disconnected from \(remote)")
         authTimeout?.cancel()
         cleanupSession()
         self.context = nil
@@ -152,8 +157,10 @@ final class RelayMessageHandler: ChannelInboundHandler {
                     self.authenticatedTokenId = info.id
                     self.authTimeout?.cancel()
                     self.authTimeout = nil
+                    RelayLogger.log(category: "auth", "Auth success for token \(info.id)")
                     self.sendServerMessage(.authSuccess, context: context)
                 } else {
+                    RelayLogger.log(.error, category: "auth", "Auth failed — invalid token")
                     self.sendServerMessage(.authFailure(reason: "Invalid token"), context: context)
                 }
             }
@@ -171,6 +178,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
                 let sessionId = info.id
                 // Attach immediately
                 let (attachedInfo, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
+                RelayLogger.log(category: "session", "Session created: \(sessionId)")
                 context.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
@@ -179,6 +187,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
                     self.wirePTYOutput(pty: pty, context: context)
                 }
             } catch {
+                RelayLogger.log(.error, category: "session", "Session create failed: \(error)")
                 context.eventLoop.execute {
                     self?.sendServerMessage(.error(code: 500, message: "Failed to create session: \(error)"), context: context)
                 }
@@ -194,6 +203,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
         Task { [weak self] in
             do {
                 let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
+                RelayLogger.log(category: "session", "Session attached: \(sessionId)")
                 context.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
@@ -202,6 +212,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
                     self.wirePTYOutput(pty: pty, context: context)
                 }
             } catch {
+                RelayLogger.log(.error, category: "session", "Attach failed for \(sessionId): \(error)")
                 context.eventLoop.execute {
                     self?.sendServerMessage(.error(code: 404, message: "Attach failed: \(error)"), context: context)
                 }
@@ -217,6 +228,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
         Task { [weak self] in
             do {
                 let (info, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
+                RelayLogger.log(category: "session", "Session resumed: \(sessionId)")
                 // Read scrollback history to send to client
                 let buffered = await pty.readBuffer()
                 context.eventLoop.execute {
@@ -249,6 +261,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
         Task { [weak self] in
             do {
                 try await sessionManager.detachSession(id: sessionId)
+                RelayLogger.log(category: "session", "Session detached: \(sessionId)")
                 context.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = nil
@@ -271,6 +284,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
         Task { [weak self] in
             do {
                 try await sessionManager.terminateSession(id: sessionId, tokenId: tokenId)
+                RelayLogger.log(category: "session", "Session terminated: \(sessionId)")
                 context.eventLoop.execute {
                     self?.sendServerMessage(.sessionTerminated(sessionId: sessionId, reason: "client_request"), context: context)
                     // If we were attached to this session, clear local state.

@@ -98,6 +98,7 @@ final class AdminHTTPHandler: ChannelInboundHandler {
                     return
                 }
 
+                RelayLogger.log(category: "admin", "\(head.method) \(head.uri)")
                 let response = await AdminRoutes.handle(
                     method: head.method,
                     uri: head.uri,
