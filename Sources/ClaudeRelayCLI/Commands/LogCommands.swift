@@ -65,15 +65,17 @@ struct LogTailCommand: AsyncParsableCommand {
             print("Following logs (Ctrl+C to stop)...")
         }
 
-        var lastCount = 0
+        var lastSeenEntry: String?
 
         while !Task.isCancelled {
             do {
-                let response: LogResponse = try await client.get("/logs?lines=20")
+                let response: LogResponse = try await client.get("/logs?lines=50")
 
                 let entries = response.entries
-                if entries.count > lastCount {
-                    let newEntries = entries.suffix(entries.count - lastCount)
+                if let lastSeen = lastSeenEntry,
+                   let lastIndex = entries.lastIndex(of: lastSeen) {
+                    // Print only entries after the last one we saw
+                    let newEntries = entries.suffix(from: entries.index(after: lastIndex))
                     for entry in newEntries {
                         if globals.json {
                             print(#"{"log": "\#(entry)"}"#)
@@ -81,8 +83,19 @@ struct LogTailCommand: AsyncParsableCommand {
                             print(entry)
                         }
                     }
-                    lastCount = entries.count
+                } else if lastSeenEntry == nil {
+                    // First poll — don't print history, just establish baseline
+                } else {
+                    // Last seen entry not found (log rotated) — print all
+                    for entry in entries {
+                        if globals.json {
+                            print(#"{"log": "\#(entry)"}"#)
+                        } else {
+                            print(entry)
+                        }
+                    }
                 }
+                lastSeenEntry = entries.last
             } catch let error as AdminClientError where error == .serviceNotRunning {
                 print("Service is not running.")
                 throw ExitCode.failure
