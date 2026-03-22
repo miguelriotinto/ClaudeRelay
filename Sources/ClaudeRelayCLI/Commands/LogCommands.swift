@@ -7,7 +7,7 @@ struct LogGroup: AsyncParsableCommand {
         abstract: "View service logs",
         subcommands: [
             LogShowCommand.self,
-            LogTailCommand.self,
+            LogTailCommand.self
         ]
     )
 }

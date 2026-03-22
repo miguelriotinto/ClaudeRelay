@@ -25,10 +25,10 @@ public final class WebSocketServer {
         let tokenStore = self.tokenStore
 
         let upgrader = NIOWebSocketServerUpgrader(
-            shouldUpgrade: { channel, head in
+            shouldUpgrade: { channel, _ in
                 channel.eventLoop.makeSucceededFuture(HTTPHeaders())
             },
-            upgradePipelineHandler: { channel, req in
+            upgradePipelineHandler: { channel, _ in
                 let handler = RelayMessageHandler(
                     sessionManager: sessionManager,
                     tokenStore: tokenStore
@@ -44,7 +44,7 @@ public final class WebSocketServer {
                 let httpHandler = HTTPByteBufferResponsePartHandler()
                 let config: NIOHTTPServerUpgradeConfiguration = (
                     upgraders: [upgrader],
-                    completionHandler: { ctx in
+                    completionHandler: { _ in
                         // Remove HTTP handlers after upgrade
                     }
                 )

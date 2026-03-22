@@ -13,7 +13,8 @@ final class ProtocolMessageTests: XCTestCase {
     // MARK: - Helper
 
     private func jsonObject(_ data: Data) throws -> [String: Any] {
-        try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let obj = try JSONSerialization.jsonObject(with: data)
+        return try XCTUnwrap(obj as? [String: Any])
     }
 
     // MARK: - ClientMessage Encoding Structure
@@ -249,7 +250,7 @@ final class ProtocolMessageTests: XCTestCase {
             .sessionResume(sessionId: id),
             .sessionDetach,
             .resize(cols: 80, rows: 24),
-            .ping,
+            .ping
         ]
 
         for original in messages {
@@ -281,7 +282,7 @@ final class ProtocolMessageTests: XCTestCase {
             .sessionState(sessionId: id, state: "idle"),
             .resizeAck(cols: 120, rows: 40),
             .pong,
-            .error(code: 500, message: "internal"),
+            .error(code: 500, message: "internal")
         ]
 
         for original in messages {

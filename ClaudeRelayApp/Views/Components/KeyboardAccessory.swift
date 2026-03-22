@@ -28,9 +28,9 @@ struct KeyboardAccessory: View {
                 Divider().frame(height: 24)
 
                 // Arrow keys
-                keyButton(nil, icon: "arrow.up")    { send(0x1B, 0x5B, 0x41) }
-                keyButton(nil, icon: "arrow.down")  { send(0x1B, 0x5B, 0x42) }
-                keyButton(nil, icon: "arrow.left")  { send(0x1B, 0x5B, 0x44) }
+                keyButton(nil, icon: "arrow.up") { send(0x1B, 0x5B, 0x41) }
+                keyButton(nil, icon: "arrow.down") { send(0x1B, 0x5B, 0x42) }
+                keyButton(nil, icon: "arrow.left") { send(0x1B, 0x5B, 0x44) }
                 keyButton(nil, icon: "arrow.right") { send(0x1B, 0x5B, 0x43) }
 
                 Divider().frame(height: 24)

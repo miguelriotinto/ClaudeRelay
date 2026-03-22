@@ -8,7 +8,7 @@ struct SessionGroup: AsyncParsableCommand {
         subcommands: [
             SessionListCommand.self,
             SessionInspectCommand.self,
-            SessionTerminateCommand.self,
+            SessionTerminateCommand.self
         ]
     )
 }

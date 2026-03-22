@@ -130,7 +130,7 @@ public final class SessionController: ObservableObject {
         "auth_success", "auth_failure",
         "session_created", "session_attached", "session_resumed", "session_detached",
         "session_list_result",
-        "error",
+        "error"
     ]
 
     /// Installs a single response handler synchronously on MainActor, then sends.

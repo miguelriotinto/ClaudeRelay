@@ -86,21 +86,26 @@ final class RelayMessageHandler: ChannelInboundHandler {
             return
         }
 
-        // If not authenticated, only allow auth_request and ping
         if !isAuthenticated {
-            switch clientMessage {
-            case .authRequest(let token):
-                handleAuth(token: token, context: context)
-            case .ping:
-                sendServerMessage(.pong, context: context)
-            default:
-                sendServerMessage(.error(code: 401, message: "Not authenticated"), context: context)
-            }
-            return
+            handleUnauthenticatedMessage(clientMessage, context: context)
+        } else {
+            handleAuthenticatedMessage(clientMessage, context: context)
         }
+    }
 
-        // Authenticated message dispatch
-        switch clientMessage {
+    private func handleUnauthenticatedMessage(_ message: ClientMessage, context: ChannelHandlerContext) {
+        switch message {
+        case .authRequest(let token):
+            handleAuth(token: token, context: context)
+        case .ping:
+            sendServerMessage(.pong, context: context)
+        default:
+            sendServerMessage(.error(code: 401, message: "Not authenticated"), context: context)
+        }
+    }
+
+    private func handleAuthenticatedMessage(_ message: ClientMessage, context: ChannelHandlerContext) {
+        switch message {
         case .authRequest:
             sendServerMessage(.error(code: 400, message: "Already authenticated"), context: context)
         case .sessionCreate:

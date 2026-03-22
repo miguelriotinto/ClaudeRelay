@@ -8,7 +8,7 @@ struct ConfigGroup: AsyncParsableCommand {
         subcommands: [
             ConfigShowCommand.self,
             ConfigSetCommand.self,
-            ConfigValidateCommand.self,
+            ConfigValidateCommand.self
         ]
     )
 }

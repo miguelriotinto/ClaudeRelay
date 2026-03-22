@@ -32,7 +32,7 @@ public enum ClientMessage: Equatable, Sendable {
 
     static let allTypeStrings: Set<String> = [
         "auth_request", "session_create", "session_attach",
-        "session_resume", "session_detach", "session_terminate", "session_list", "resize", "ping",
+        "session_resume", "session_detach", "session_terminate", "session_list", "resize", "ping"
     ]
 }
 

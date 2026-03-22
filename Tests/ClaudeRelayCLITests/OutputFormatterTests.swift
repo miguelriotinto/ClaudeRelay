@@ -50,7 +50,7 @@ final class OutputFormatterTests: XCTestCase {
         let headers = ["ID", "Name", "Status"]
         let rows = [
             ["1", "alpha", "active"],
-            ["2", "beta", "inactive"],
+            ["2", "beta", "inactive"]
         ]
         let output = OutputFormatter.formatTable(headers: headers, rows: rows)
 

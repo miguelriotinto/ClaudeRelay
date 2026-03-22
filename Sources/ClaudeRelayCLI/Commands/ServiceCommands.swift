@@ -96,7 +96,7 @@ struct LoadCommand: AsyncParsableCommand {
     private func findServerBinary() -> String {
         let candidates = [
             "/usr/local/bin/claude-relay-server",
-            FileManager.default.homeDirectoryForCurrentUser.path + "/.claude-relay/bin/claude-relay-server",
+            FileManager.default.homeDirectoryForCurrentUser.path + "/.claude-relay/bin/claude-relay-server"
         ]
 
         // Check build directory relative to CLI binary

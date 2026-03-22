@@ -299,6 +299,6 @@ final class SessionCoordinator: ObservableObject {
         "Lyanna", "Rhaegar", "Aemon", "Qyburn", "Septa",
         "Ros", "Talisa", "Edmure", "Blackfish", "Walder Frey",
         "Loras", "Renly", "Robert", "Lancel", "Hot Pie",
-        "Nymeria", "Ghost", "Drogon", "Rhaegal", "Viserion",
+        "Nymeria", "Ghost", "Drogon", "Rhaegal", "Viserion"
     ]
 }

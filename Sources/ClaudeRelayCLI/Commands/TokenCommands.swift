@@ -10,7 +10,7 @@ struct TokenGroup: AsyncParsableCommand {
             TokenListCommand.self,
             TokenDeleteCommand.self,
             TokenRotateCommand.self,
-            TokenInspectCommand.self,
+            TokenInspectCommand.self
         ]
     )
 }

@@ -41,7 +41,7 @@ public enum ServerMessage: Equatable, Sendable {
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure", "session_created", "session_attached",
         "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "session_list_result", "resize_ack", "pong", "error",
+        "session_expired", "session_state", "session_list_result", "resize_ack", "pong", "error"
     ]
 }
 
