@@ -98,7 +98,7 @@ public actor PTYSession: PTYSessionProtocol {
     private static func makeReadSource(fd: Int32, session: PTYSession) -> DispatchSourceRead {
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .global())
 
-        source.setEventHandler { [session] in
+        source.setEventHandler { [weak source, session] in
             let bufferSize = 8192
             var buffer = [UInt8](repeating: 0, count: bufferSize)
             let bytesRead = read(fd, &buffer, bufferSize)
@@ -109,7 +109,8 @@ public actor PTYSession: PTYSessionProtocol {
                     await session.handleOutput(data)
                 }
             } else {
-                // EOF or error — child process exited
+                // EOF or error — cancel source to stop firing and close FD
+                source?.cancel()
                 Task {
                     await session.handleExit()
                 }

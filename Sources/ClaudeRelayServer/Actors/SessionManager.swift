@@ -370,6 +370,13 @@ public actor SessionManager {
             rows: managed.info.rows
         )
         managed.info = newInfo
+
+        // Terminate PTY to close master FD and free the kernel PTY pair
+        if let pty = managed.ptySession {
+            Task {
+                await pty.terminate()
+            }
+        }
         managed.ptySession = nil
         managed.terminalSince = Date()
         sessions[sessionId] = managed
