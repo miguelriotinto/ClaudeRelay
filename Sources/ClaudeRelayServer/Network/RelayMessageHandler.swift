@@ -18,6 +18,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private var authTimeout: Scheduled<Void>?
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
+    private static let maxTextFrameSize = 1_000_000 // 1MB
 
     init(sessionManager: SessionManager, tokenStore: TokenStore) {
         self.sessionManager = sessionManager
@@ -76,6 +77,11 @@ final class RelayMessageHandler: ChannelInboundHandler {
         var data = frame.unmaskedData
         let readable = data.readableBytes
         guard readable > 0 else { return }
+        if readable > Self.maxTextFrameSize {
+            sendServerMessage(.error(code: 413, message: "Message too large"), context: context)
+            context.close(promise: nil)
+            return
+        }
         let jsonData = data.withUnsafeReadableBytes { Data($0) }
 
         let envelope: MessageEnvelope
