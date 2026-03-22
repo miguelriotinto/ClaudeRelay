@@ -12,17 +12,11 @@ final class TerminalViewModel: ObservableObject {
 
     @Published var connectionState: RelayConnection.ConnectionState = .disconnected
 
-    /// Set by SwiftTermView.makeUIView. Flushes pending output on assignment.
-    var onTerminalOutput: ((Data) -> Void)? {
-        didSet {
-            guard let handler = onTerminalOutput, !pendingOutput.isEmpty else { return }
-            let buffered = pendingOutput
-            pendingOutput.removeAll()
-            for chunk in buffered {
-                handler(chunk)
-            }
-        }
-    }
+    /// Set by SwiftTermView.makeUIView. Does NOT auto-flush — call `terminalReady()` after first layout.
+    var onTerminalOutput: ((Data) -> Void)?
+
+    /// Whether the terminal has received its first sizeChanged callback (i.e. is laid out).
+    private var terminalSized = false
 
     // MARK: - Dependencies
 
@@ -44,10 +38,28 @@ final class TerminalViewModel: ObservableObject {
 
     /// Receives terminal output from the coordinator's I/O routing.
     func receiveOutput(_ data: Data) {
-        if let handler = onTerminalOutput {
+        if terminalSized, let handler = onTerminalOutput {
             handler(data)
         } else {
             pendingOutput.append(data)
+        }
+    }
+
+    /// Called by the Coordinator after the first `sizeChanged` — terminal is now laid out.
+    /// Flushes any buffered scrollback with a reset prefix so it renders at the correct size.
+    func terminalReady() {
+        guard !terminalSized, let handler = onTerminalOutput else { return }
+        terminalSized = true
+
+        if !pendingOutput.isEmpty {
+            // Soft reset + clear screen before replaying scrollback at the new dimensions.
+            let reset = Data("\u{1b}[!p\u{1b}[H\u{1b}[2J".utf8)
+            handler(reset)
+            let buffered = pendingOutput
+            pendingOutput.removeAll()
+            for chunk in buffered {
+                handler(chunk)
+            }
         }
     }
 
@@ -56,6 +68,7 @@ final class TerminalViewModel: ObservableObject {
     /// on next activation, which re-sets `onTerminalOutput`.
     func prepareForSwitch() {
         onTerminalOutput = nil
+        terminalSized = false
         pendingOutput.removeAll()
     }
 

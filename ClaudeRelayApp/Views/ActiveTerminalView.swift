@@ -228,6 +228,7 @@ struct SwiftTermView: UIViewRepresentable {
         func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
             Task { @MainActor in
                 viewModel.sendResize(cols: UInt16(newCols), rows: UInt16(newRows))
+                viewModel.terminalReady()
             }
         }
 
