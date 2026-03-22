@@ -44,7 +44,7 @@ public actor SessionManager {
         tokenId: String,
         cols: UInt16 = 80,
         rows: UInt16 = 24
-    ) throws -> SessionInfo {
+    ) async throws -> SessionInfo {
         let id = UUID()
         let now = Date()
 
@@ -73,13 +73,12 @@ public actor SessionManager {
 
         var managed = ManagedSession(info: activeInfo, ptySession: pty)
 
-        // Set up exit handler to transition to .exited
+        // Set up exit handler BEFORE storing — guarantees handler is in place
+        // before any EOF from the read source can fire handleExit().
         let manager = self
-        Task { [id] in
-            await pty.setExitHandler {
-                Task {
-                    await manager.handlePTYExit(sessionId: id)
-                }
+        await pty.setExitHandler {
+            Task {
+                await manager.handlePTYExit(sessionId: id)
             }
         }
 
