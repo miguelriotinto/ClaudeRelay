@@ -60,6 +60,7 @@ public final class RelayConnection: ObservableObject {
     private var reconnectAttempt = 0
     private let maxReconnectDelay: TimeInterval = 30
     private var shouldReconnect = false
+    private var isReconnecting = false
     private var connectionGeneration: UInt64 = 0
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
@@ -208,11 +209,12 @@ public final class RelayConnection: ObservableObject {
     private func handleDisconnection() {
         webSocketTask = nil
 
-        guard shouldReconnect, let config = config, let token = token else {
-            state = .disconnected
+        guard !isReconnecting, shouldReconnect, let config = config, let token = token else {
+            if !isReconnecting { state = .disconnected }
             return
         }
 
+        isReconnecting = true
         state = .reconnecting
         attemptReconnect(config: config, token: token)
     }
@@ -229,12 +231,17 @@ public final class RelayConnection: ObservableObject {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
 
-            guard let self, self.shouldReconnect else { return }
+            guard let self, self.shouldReconnect else {
+                self?.isReconnecting = false
+                return
+            }
 
             do {
                 try await self.connect(config: config, token: token)
+                self.isReconnecting = false
                 self.onReconnected?()
             } catch {
+                self.isReconnecting = false
                 self.handleDisconnection()
             }
         }
