@@ -7,11 +7,8 @@ struct KeyboardAccessory: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                // Modifier keys
+                // Special keys
                 keyButton("esc", icon: "escape") { send(0x1B) }
-                keyButton("ctrl", icon: "control") { send(0x00) } // Ctrl modifier placeholder
-                keyButton("opt", icon: "option") { send(0x00) }
-                keyButton("cmd", icon: "command") { send(0x00) }
                 keyButton("tab", icon: "arrow.right.to.line") { send(0x09) }
 
                 Divider().frame(height: 24)
