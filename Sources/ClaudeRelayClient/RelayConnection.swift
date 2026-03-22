@@ -46,14 +46,20 @@ public final class RelayConnection: ObservableObject {
     /// Called when terminal output (binary) data is received from the server.
     public var onTerminalOutput: ((Data) -> Void)?
 
+    /// Called after a successful auto-reconnect (exponential backoff).
+    /// Use this to re-authenticate and resume the active session.
+    public var onReconnected: (() -> Void)?
+
     // MARK: - Private Properties
 
     private var webSocketTask: URLSessionWebSocketTask?
+    private var urlSession: URLSession?
     private var config: ConnectionConfig?
     private var token: String?
     private var reconnectAttempt = 0
     private let maxReconnectDelay: TimeInterval = 30
     private var shouldReconnect = false
+    private var connectionGeneration: UInt64 = 0
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
@@ -70,15 +76,23 @@ public final class RelayConnection: ObservableObject {
         self.shouldReconnect = true
         self.reconnectAttempt = 0
 
+        // Invalidate previous URLSession to free resources.
+        urlSession?.invalidateAndCancel()
+
+        // Bump generation so stale receive-loop callbacks become no-ops.
+        connectionGeneration &+= 1
+        let generation = connectionGeneration
+
         state = .connecting
 
         let session = URLSession(configuration: .default)
+        self.urlSession = session
         let task = session.webSocketTask(with: config.wsURL)
         self.webSocketTask = task
         task.resume()
 
         state = .connected
-        receiveLoop()
+        receiveLoop(generation: generation)
     }
 
     /// Disconnects from the server. Does not attempt reconnection.
@@ -86,6 +100,8 @@ public final class RelayConnection: ObservableObject {
         shouldReconnect = false
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
         state = .disconnected
     }
 
@@ -144,18 +160,19 @@ public final class RelayConnection: ObservableObject {
 
     // MARK: - Receive Loop
 
-    private func receiveLoop() {
-        guard let task = webSocketTask else { return }
+    private func receiveLoop(generation: UInt64) {
+        guard let task = webSocketTask, generation == connectionGeneration else { return }
 
         task.receive { [weak self] result in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                // If the generation has changed, a new connection superseded us — bail out.
+                guard let self, generation == self.connectionGeneration else { return }
 
                 switch result {
                 case .success(let message):
                     self.reconnectAttempt = 0
                     self.handleWebSocketMessage(message)
-                    self.receiveLoop()
+                    self.receiveLoop(generation: generation)
 
                 case .failure:
                     self.handleDisconnection()
@@ -208,10 +225,11 @@ public final class RelayConnection: ObservableObject {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
 
-            guard let self = self, self.shouldReconnect else { return }
+            guard let self, self.shouldReconnect else { return }
 
             do {
                 try await self.connect(config: config, token: token)
+                self.onReconnected?()
             } catch {
                 self.handleDisconnection()
             }

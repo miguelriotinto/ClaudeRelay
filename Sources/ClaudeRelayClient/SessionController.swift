@@ -178,7 +178,7 @@ public final class SessionController: ObservableObject {
                 guard_.resume(returning: serverMessage)
             }
 
-            Task { @MainActor [guard_] in
+            guard_.timeoutTask = Task { @MainActor [guard_] in
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
                 guard_.resume(throwing: SessionError.timeout)
             }
@@ -194,11 +194,13 @@ public final class SessionController: ObservableObject {
 private final class ResumeGuard {
     var continuation: CheckedContinuation<ServerMessage, Error>?
     var pendingValue: ServerMessage?
+    var timeoutTask: Task<Void, Never>?
     private var resumed = false
 
     func resume(returning value: ServerMessage) {
         guard !resumed else { return }
         resumed = true
+        timeoutTask?.cancel()
         continuation?.resume(returning: value)
         continuation = nil
     }
@@ -206,6 +208,7 @@ private final class ResumeGuard {
     func resume(throwing error: Error) {
         guard !resumed else { return }
         resumed = true
+        timeoutTask?.cancel()
         continuation?.resume(throwing: error)
         continuation = nil
     }

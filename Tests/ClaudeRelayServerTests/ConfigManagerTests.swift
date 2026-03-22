@@ -9,7 +9,7 @@ final class ConfigManagerTests: XCTestCase {
         // Verify config loads without error and has valid port values
         XCTAssertGreaterThan(config.wsPort, 0)
         XCTAssertGreaterThan(config.adminPort, 0)
-        XCTAssertGreaterThan(config.detachTimeout, 0)
+        XCTAssertGreaterThanOrEqual(config.detachTimeout, 0)
         XCTAssertGreaterThan(config.scrollbackSize, 0)
         XCTAssertFalse(config.logLevel.isEmpty)
     }

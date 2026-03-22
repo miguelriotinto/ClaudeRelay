@@ -1,5 +1,8 @@
 import ArgumentParser
 import Foundation
+import ClaudeRelayKit
+
+private let serviceLabel = "com.claude.relay"
 
 // MARK: - Load
 
@@ -15,7 +18,10 @@ struct LoadCommand: AsyncParsableCommand {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let relayDir = "\(homeDir)/.claude-relay"
         let launchAgentsDir = "\(homeDir)/Library/LaunchAgents"
-        let plistPath = "\(launchAgentsDir)/com.coderemote.relay.plist"
+        let plistPath = "\(launchAgentsDir)/\(serviceLabel).plist"
+
+        // Update config.json if ports were specified on the command line.
+        try updateConfigIfNeeded()
 
         // Find server binary
         let serverBinary = findServerBinary()
@@ -32,7 +38,7 @@ struct LoadCommand: AsyncParsableCommand {
         <plist version="1.0">
         <dict>
             <key>Label</key>
-            <string>com.coderemote.relay</string>
+            <string>\(serviceLabel)</string>
             <key>ProgramArguments</key>
             <array>
                 <string>\(serverBinary)</string>
@@ -54,24 +60,49 @@ struct LoadCommand: AsyncParsableCommand {
         // Load via launchctl
         try runLaunchctl(["load", plistPath])
 
+        let config = try ConfigManager.load()
         if !globals.quiet {
             print("Service installed and started.")
-            print("Plist: \(plistPath)")
+            print("  WebSocket: 0.0.0.0:\(config.wsPort)")
+            print("  Admin API: 127.0.0.1:\(config.adminPort)")
+            print("  Plist:     \(plistPath)")
         }
     }
 
+    /// If the user passed --ws-port or --admin-port, update config.json
+    /// so the server picks up the new values on startup.
+    private func updateConfigIfNeeded() throws {
+        // Only write if at least one port was explicitly provided.
+        // Check: adminPort has a non-default value or wsPort was specified.
+        let wsPortProvided = globals.wsPort != nil
+        let adminPortProvided = ProcessInfo.processInfo.arguments.contains("--admin-port")
+            || ProcessInfo.processInfo.arguments.contains("-p")
+
+        guard wsPortProvided || adminPortProvided else { return }
+
+        try ConfigManager.ensureDirectory()
+        var config = (try? ConfigManager.load()) ?? .default
+
+        if let ws = globals.wsPort {
+            config.wsPort = ws
+        }
+        if adminPortProvided {
+            config.adminPort = globals.adminPort
+        }
+
+        try ConfigManager.save(config)
+    }
+
     private func findServerBinary() -> String {
-        // Check common locations
         let candidates = [
-            Bundle.main.bundlePath + "/code-relay-server",
-            "/usr/local/bin/code-relay-server",
-            FileManager.default.homeDirectoryForCurrentUser.path + "/.claude-relay/bin/code-relay-server",
+            "/usr/local/bin/claude-relay-server",
+            FileManager.default.homeDirectoryForCurrentUser.path + "/.claude-relay/bin/claude-relay-server",
         ]
 
-        // Also check build directory relative to CLI binary
+        // Check build directory relative to CLI binary
         let cliPath = CommandLine.arguments[0]
-        if let buildDir = URL(string: cliPath)?.deletingLastPathComponent().path {
-            let buildCandidate = buildDir + "/code-relay-server"
+        if let cliURL = URL(string: "file://" + cliPath) {
+            let buildCandidate = cliURL.deletingLastPathComponent().path + "/claude-relay-server"
             if FileManager.default.isExecutableFile(atPath: buildCandidate) {
                 return buildCandidate
             }
@@ -84,7 +115,7 @@ struct LoadCommand: AsyncParsableCommand {
         }
 
         // Default fallback
-        return "/usr/local/bin/code-relay-server"
+        return "/usr/local/bin/claude-relay-server"
     }
 }
 
@@ -100,11 +131,10 @@ struct UnloadCommand: AsyncParsableCommand {
 
     func run() async throws {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        let plistPath = "\(homeDir)/Library/LaunchAgents/com.coderemote.relay.plist"
+        let plistPath = "\(homeDir)/Library/LaunchAgents/\(serviceLabel).plist"
 
         try runLaunchctl(["unload", plistPath])
 
-        // Remove plist file
         let fm = FileManager.default
         if fm.fileExists(atPath: plistPath) {
             try fm.removeItem(atPath: plistPath)
@@ -127,7 +157,7 @@ struct StartCommand: AsyncParsableCommand {
     @OptionGroup var globals: GlobalOptions
 
     func run() async throws {
-        try runLaunchctl(["start", "com.coderemote.relay"])
+        try runLaunchctl(["start", serviceLabel])
         if !globals.quiet {
             print("Service started.")
         }
@@ -145,7 +175,7 @@ struct StopCommand: AsyncParsableCommand {
     @OptionGroup var globals: GlobalOptions
 
     func run() async throws {
-        try runLaunchctl(["stop", "com.coderemote.relay"])
+        try runLaunchctl(["stop", serviceLabel])
         if !globals.quiet {
             print("Service stopped.")
         }
@@ -163,8 +193,8 @@ struct RestartCommand: AsyncParsableCommand {
     @OptionGroup var globals: GlobalOptions
 
     func run() async throws {
-        try runLaunchctl(["stop", "com.coderemote.relay"])
-        try runLaunchctl(["start", "com.coderemote.relay"])
+        try runLaunchctl(["stop", serviceLabel])
+        try runLaunchctl(["start", serviceLabel])
         if !globals.quiet {
             print("Service restarted.")
         }

@@ -9,7 +9,7 @@ public struct RelayConfig: Codable, Sendable {
     /// Admin API listening port.
     public var adminPort: UInt16
 
-    /// Seconds of inactivity before a detached session is reaped.
+    /// Seconds before a detached session is reaped. 0 = never expire (default).
     public var detachTimeout: Int
 
     /// Maximum scrollback buffer size in bytes.

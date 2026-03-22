@@ -13,6 +13,7 @@ final class SessionCoordinator: ObservableObject {
     @Published var activeSessionId: UUID?
     @Published var sessionNames: [UUID: String] = [:]
     @Published var isLoading = false
+    @Published private(set) var isRecovering = false
     @Published var errorMessage: String?
     @Published var showError = false
 
@@ -29,6 +30,12 @@ final class SessionCoordinator: ObservableObject {
         self.connection = connection
         self.token = token
         sessionNames = Self.loadNames()
+
+        connection.onReconnected = { [weak self] in
+            Task { @MainActor [weak self] in
+                await self?.handleAutoReconnect()
+            }
+        }
     }
 
     // MARK: - Names
@@ -100,6 +107,7 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Create
 
     func createNewSession() async {
+        guard !isRecovering else { return }
         do {
             let controller = try await ensureAuthenticated()
 
@@ -126,7 +134,7 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Switch
 
     func switchToSession(id: UUID) async {
-        guard id != activeSessionId else { return }
+        guard !isRecovering, id != activeSessionId else { return }
 
         do {
             let controller = try await ensureAuthenticated()
@@ -156,6 +164,7 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Terminate
 
     func terminateSession(id: UUID) async {
+        guard !isRecovering else { return }
         do {
             try await connection.send(.sessionTerminate(sessionId: id))
             // If it was the active session, clear state.
@@ -177,7 +186,7 @@ final class SessionCoordinator: ObservableObject {
         terminalViewModels[sessionId]
     }
 
-    // MARK: - Foreground Recovery
+    // MARK: - Connection Recovery
 
     /// Called when the app returns to the foreground. Checks if the WebSocket
     /// is still alive and, if not, reconnects + re-authenticates + resumes
@@ -188,6 +197,9 @@ final class SessionCoordinator: ObservableObject {
 
         print("[SessionCoordinator] Connection dead after foreground — reconnecting")
 
+        isRecovering = true
+        defer { isRecovering = false }
+
         // 1. Force-reconnect the transport
         do {
             try await connection.forceReconnect()
@@ -196,19 +208,34 @@ final class SessionCoordinator: ObservableObject {
             return
         }
 
-        // 2. Force re-authentication (server doesn't know this new WebSocket)
+        // 2. Re-auth + resume
+        await restoreSession()
+    }
+
+    /// Called when RelayConnection's exponential-backoff auto-reconnect succeeds.
+    /// The transport is up but the server doesn't know us — re-auth + resume.
+    private func handleAutoReconnect() async {
+        print("[SessionCoordinator] Auto-reconnect succeeded — re-authenticating")
+
+        isRecovering = true
+        defer { isRecovering = false }
+
+        await restoreSession()
+    }
+
+    /// Shared recovery path: re-authenticate and resume the active session.
+    private func restoreSession() async {
         sessionController?.resetAuth()
 
         do {
             let controller = try await ensureAuthenticated()
 
-            // 3. Resume the session that was active before backgrounding
             if let activeId = activeSessionId {
                 try await controller.resumeSession(id: activeId)
                 wireTerminalOutput(to: activeId)
             }
         } catch {
-            // Session may have been terminated server-side while backgrounded
+            // Session may have been terminated server-side while we were away
             if activeSessionId != nil {
                 activeSessionId = nil
                 presentError("Session could not be restored: \(error.localizedDescription)")
@@ -230,11 +257,10 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Private
 
     private func wireTerminalOutput(to sessionId: UUID) {
+        // The callback fires from the receive loop which is already on MainActor,
+        // so no extra Task hop is needed.
         connection.onTerminalOutput = { [weak self] data in
-            guard let self = self else { return }
-            Task { @MainActor in
-                self.terminalViewModels[sessionId]?.receiveOutput(data)
-            }
+            self?.terminalViewModels[sessionId]?.receiveOutput(data)
         }
     }
 

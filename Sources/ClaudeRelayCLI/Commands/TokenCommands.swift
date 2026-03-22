@@ -83,21 +83,23 @@ struct TokenListCommand: AsyncParsableCommand {
 struct TokenDeleteCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "delete",
-        abstract: "Delete a token"
+        abstract: "Delete one or more tokens"
     )
 
     @OptionGroup var globals: GlobalOptions
 
-    @Argument(help: "Token ID to delete")
-    var id: String
+    @Argument(help: "Token ID(s) to delete")
+    var ids: [String]
 
     func run() async throws {
         let client = AdminClient(port: globals.port)
 
         do {
-            try await client.delete("/tokens/\(id)")
-            if !globals.quiet {
-                print("Token \(id) deleted.")
+            for id in ids {
+                try await client.delete("/tokens/\(id)")
+                if !globals.quiet {
+                    print("Token \(id) deleted.")
+                }
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             printServiceNotRunning()
