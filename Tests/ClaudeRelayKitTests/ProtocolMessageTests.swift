@@ -352,6 +352,25 @@ final class ProtocolMessageTests: XCTestCase {
         XCTAssertEqual(reason, "timeout")
     }
 
+    // MARK: - session_list_result Regression
+
+    /// Regression test: session_list used to collide with client's session_list
+    /// type string. Server now uses "session_list_result". This test ensures
+    /// the server response decodes as .server, not .client.
+    func testSessionListResultDecodesAsServer() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let json = """
+        {"type":"session_list_result","payload":{"sessions":[{"id":"\(id.uuidString)","state":"active-attached","tokenId":"tok_1","createdAt":1735689600.0,"cols":80,"rows":24}]}}
+        """
+        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
+        guard case .server(.sessionList(let sessions)) = envelope else {
+            XCTFail("Expected .server(.sessionList), got \(envelope)")
+            return
+        }
+        XCTAssertEqual(sessions.count, 1)
+        XCTAssertEqual(sessions[0].id, id)
+    }
+
     // MARK: - Equatable
 
     func testClientMessageEquatable() {
