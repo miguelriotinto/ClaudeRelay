@@ -1,5 +1,4 @@
 import Foundation
-import ClaudeRelayKit
 
 /// Manages loading and saving of RelayConfig from disk.
 public final class ConfigManager: Sendable {

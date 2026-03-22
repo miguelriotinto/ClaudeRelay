@@ -8,10 +8,59 @@ struct ActiveTerminalView: View {
     @Binding var columnVisibility: NavigationSplitViewVisibility
     var onDisconnect: () -> Void
     @State private var showKeyBar = false
+    @State private var isKeyboardVisible = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Thin custom toolbar
+        ZStack(alignment: .bottomTrailing) {
+            VStack(spacing: 0) {
+                // Terminal or placeholder
+                if let id = coordinator.activeSessionId,
+                   let vm = coordinator.viewModel(for: id) {
+                    SwiftTermView(viewModel: vm, isKeyboardVisible: $isKeyboardVisible)
+                        .id(id)
+
+                    if showKeyBar {
+                        KeyboardAccessory { data in
+                            vm.sendInput(data)
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                } else {
+                    ContentUnavailableView(
+                        "No Active Session",
+                        systemImage: "terminal",
+                        description: Text("Swipe from the left edge or create a new session.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+
+            // Floating keyboard toggle button
+            Button {
+                if isKeyboardVisible {
+                    NotificationCenter.default.post(
+                        name: .terminalResignFocus, object: nil
+                    )
+                } else {
+                    NotificationCenter.default.post(
+                        name: .terminalRequestFocus, object: nil
+                    )
+                }
+            } label: {
+                Image(systemName: isKeyboardVisible
+                      ? "keyboard.chevron.compact.down"
+                      : "keyboard")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.gray.opacity(0.5))
+                    .clipShape(Circle())
+            }
+            .padding(.trailing, 16)
+            .padding(.bottom, 12)
+        }
+        .safeAreaInset(edge: .top) {
+            // Thin custom toolbar — sits below the status bar automatically
             HStack(spacing: 16) {
                 HStack(spacing: 12) {
                     Button { onDisconnect() } label: {
@@ -61,28 +110,8 @@ struct ActiveTerminalView: View {
             .padding(.horizontal, 16)
             .frame(height: 36)
             .background(Color(.systemBackground))
-
-            // Terminal or placeholder
-            if let id = coordinator.activeSessionId,
-               let vm = coordinator.viewModel(for: id) {
-                SwiftTermView(viewModel: vm)
-                    .id(id)
-
-                if showKeyBar {
-                    KeyboardAccessory { data in
-                        vm.sendInput(data)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            } else {
-                ContentUnavailableView(
-                    "No Active Session",
-                    systemImage: "terminal",
-                    description: Text("Swipe from the left edge or create a new session.")
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
         }
+        .ignoresSafeArea(.container, edges: .horizontal)
         .toolbar(.hidden, for: .navigationBar)
     }
 
@@ -97,8 +126,16 @@ struct ActiveTerminalView: View {
 
 // MARK: - SwiftTerm UIViewRepresentable
 
+// MARK: - Notification for requesting terminal focus
+
+extension Notification.Name {
+    static let terminalRequestFocus = Notification.Name("terminalRequestFocus")
+    static let terminalResignFocus = Notification.Name("terminalResignFocus")
+}
+
 struct SwiftTermView: UIViewRepresentable {
     let viewModel: TerminalViewModel
+    @Binding var isKeyboardVisible: Bool
 
     func makeUIView(context: Context) -> TerminalView {
         let terminal = TerminalView(frame: .zero)
@@ -112,13 +149,24 @@ struct SwiftTermView: UIViewRepresentable {
             terminal.setNeedsDisplay()
         }
 
-        // Auto-focus for hardware keyboard input.
-        // Hide SwiftTerm's built-in inputAccessoryView — we use our own.
+        // Hide SwiftTerm's built-in inputAccessoryView — we use a floating button instead.
         DispatchQueue.main.async {
-            terminal.becomeFirstResponder()
+            _ = terminal.becomeFirstResponder()
             terminal.inputAccessoryView?.isHidden = true
             terminal.inputAccessoryView?.frame.size.height = 0
             terminal.reloadInputViews()
+        }
+
+        // Listen for focus/resign requests from the floating keyboard button.
+        context.coordinator.focusObserver = NotificationCenter.default.addObserver(
+            forName: .terminalRequestFocus, object: nil, queue: .main
+        ) { _ in
+            _ = terminal.becomeFirstResponder()
+        }
+        context.coordinator.resignObserver = NotificationCenter.default.addObserver(
+            forName: .terminalResignFocus, object: nil, queue: .main
+        ) { _ in
+            _ = terminal.resignFirstResponder()
         }
 
         return terminal
@@ -126,15 +174,51 @@ struct SwiftTermView: UIViewRepresentable {
 
     func updateUIView(_ uiView: TerminalView, context: Context) {}
 
+    static func dismantleUIView(_ uiView: TerminalView, coordinator: Coordinator) {
+        if let observer = coordinator.focusObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = coordinator.resignObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        coordinator.removeKeyboardObservers()
+    }
+
     func makeCoordinator() -> Coordinator {
-        Coordinator(viewModel: viewModel)
+        Coordinator(viewModel: viewModel, isKeyboardVisible: $isKeyboardVisible)
     }
 
     class Coordinator: NSObject, TerminalViewDelegate {
         let viewModel: TerminalViewModel
+        var isKeyboardVisible: Binding<Bool>
+        var focusObserver: Any?
+        var resignObserver: Any?
 
-        init(viewModel: TerminalViewModel) {
+        init(viewModel: TerminalViewModel, isKeyboardVisible: Binding<Bool>) {
             self.viewModel = viewModel
+            self.isKeyboardVisible = isKeyboardVisible
+            super.init()
+
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(keyboardDidShow),
+                name: UIResponder.keyboardDidShowNotification, object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(keyboardDidHide),
+                name: UIResponder.keyboardDidHideNotification, object: nil
+            )
+        }
+
+        func removeKeyboardObservers() {
+            NotificationCenter.default.removeObserver(self)
+        }
+
+        @objc private func keyboardDidShow() {
+            DispatchQueue.main.async { self.isKeyboardVisible.wrappedValue = true }
+        }
+
+        @objc private func keyboardDidHide() {
+            DispatchQueue.main.async { self.isKeyboardVisible.wrappedValue = false }
         }
 
         func send(source: TerminalView, data: ArraySlice<UInt8>) {

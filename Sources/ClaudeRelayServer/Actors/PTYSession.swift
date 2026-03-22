@@ -74,10 +74,8 @@ public actor PTYSession {
         self.childPID = pid
 
         // Start reading from the PTY in a nonisolated helper.
-        // Assigning to self in an actor init after calling a static method
-        // is a Swift 6 isolation warning; suppress with assumeIsolated.
         let readSrc = Self.makeReadSource(fd: fd, session: self)
-        self.assumeIsolated { $0.readSource = readSrc }
+        self.readSource = readSrc
     }
 
     // MARK: - Read Source Setup
