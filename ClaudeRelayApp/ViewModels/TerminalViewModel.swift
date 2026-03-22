@@ -52,11 +52,9 @@ final class TerminalViewModel: ObservableObject {
         terminalSized = true
 
         if !pendingOutput.isEmpty {
-            // Clear screen before replaying scrollback at the correct dimensions.
-            // Do NOT use ESC[!p (soft reset) — it triggers DA queries whose responses
-            // accumulate in the server's ring buffer on each resume cycle.
-            let clear = Data("\u{1b}[H\u{1b}[2J".utf8)
-            handler(clear)
+            // Flush buffered scrollback now that the terminal is sized correctly.
+            // No escape sequence prefix — deferring until sizeChanged is sufficient
+            // to avoid garbled rendering. Avoid ESC[!p which triggers DA responses.
             let buffered = pendingOutput
             pendingOutput.removeAll()
             for chunk in buffered {

@@ -166,11 +166,10 @@ public actor PTYSession {
         _ = relay_set_winsize(masterFD, rows, cols)
     }
 
-    /// Read and clear the ring buffer contents (for resume, send scrollback history to client).
-    /// Clears the buffer so DA responses and other terminal artifacts don't accumulate
-    /// across multiple resume cycles.
+    /// Read the ring buffer contents (for resume, send scrollback history to client).
+    /// Does not clear — new output continues to accumulate for subsequent resumes.
     public func readBuffer() -> Data {
-        return ringBuffer.flush()
+        return ringBuffer.read()
     }
 
     /// Clean up: kill child process, close fd.
