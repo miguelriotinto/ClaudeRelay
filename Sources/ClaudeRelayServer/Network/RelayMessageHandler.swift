@@ -16,6 +16,8 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private var attachedPTY: (any PTYSessionProtocol)?
     private var context: ChannelHandlerContext?
     private var authTimeout: Scheduled<Void>?
+    private var authAttempts = 0
+    private static let maxAuthAttempts = 3
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
     private static let maxTextFrameSize = 1_000_000 // 1MB
@@ -166,8 +168,14 @@ final class RelayMessageHandler: ChannelInboundHandler {
                     RelayLogger.log(category: "auth", "Auth success for token \(info.id)")
                     self.sendServerMessage(.authSuccess, context: context)
                 } else {
-                    RelayLogger.log(.error, category: "auth", "Auth failed — invalid token")
+                    self.authAttempts += 1
+                    let remote = context.remoteAddress?.description ?? "unknown"
+                    RelayLogger.log(.error, category: "auth", "Auth failed — invalid token (attempt \(self.authAttempts)/\(Self.maxAuthAttempts)) from \(remote)")
                     self.sendServerMessage(.authFailure(reason: "Invalid token"), context: context)
+                    if self.authAttempts >= Self.maxAuthAttempts {
+                        RelayLogger.log(.error, category: "auth", "Max auth attempts reached, closing connection from \(remote)")
+                        context.close(promise: nil)
+                    }
                 }
             }
         }
