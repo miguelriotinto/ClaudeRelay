@@ -21,6 +21,7 @@ public actor SessionManager {
     struct ManagedSession {
         var info: SessionInfo
         var ptySession: PTYSession?
+        var terminalSince: Date?
     }
 
     // MARK: - Init
@@ -269,6 +270,7 @@ public actor SessionManager {
             rows: managed.info.rows
         )
         managed.info = newInfo
+        managed.terminalSince = Date()
         sessions[id] = managed
 
         // Terminate PTY
@@ -338,7 +340,7 @@ public actor SessionManager {
     private func purgeTerminalSessions(gracePeriod: TimeInterval = 300) {
         let cutoff = Date().addingTimeInterval(-gracePeriod)
         let staleIds = sessions.filter { _, managed in
-            managed.info.state.isTerminal && managed.info.createdAt < cutoff
+            managed.info.state.isTerminal && (managed.terminalSince ?? managed.info.createdAt) < cutoff
         }.map { $0.key }
 
         for id in staleIds {
@@ -369,6 +371,7 @@ public actor SessionManager {
         )
         managed.info = newInfo
         managed.ptySession = nil
+        managed.terminalSince = Date()
         sessions[sessionId] = managed
 
         // Clean up timer
@@ -392,6 +395,7 @@ public actor SessionManager {
             rows: managed.info.rows
         )
         managed.info = newInfo
+        managed.terminalSince = Date()
         sessions[sessionId] = managed
 
         // Clean up timer entry
