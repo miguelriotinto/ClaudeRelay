@@ -29,7 +29,7 @@ struct TokenCreateCommand: AsyncParsableCommand {
     var label: String?
 
     @Option(name: .long, help: "Token expiry in days, or 'never' for non-expiring tokens")
-    var expires: String
+    var expires: String = "never"
 
     func run() async throws {
         let expiryDays: Int?
