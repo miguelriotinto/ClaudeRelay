@@ -16,6 +16,7 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var isRecovering = false
     @Published var errorMessage: String?
     @Published var showError = false
+    @Published var connectionTimedOut = false
 
     /// Active (non-terminal) sessions, cached to avoid recomputing on every SwiftUI redraw.
     var activeSessions: [SessionInfo] {
@@ -221,7 +222,7 @@ final class SessionCoordinator: ObservableObject {
             try await connection.forceReconnect()
         } catch {
             if !(error is CancellationError) {
-                presentError("Reconnection failed: \(error.localizedDescription)")
+                connectionTimedOut = true
             }
             return
         }
@@ -259,8 +260,9 @@ final class SessionCoordinator: ObservableObject {
             // Session may have been terminated server-side while we were away
             if activeSessionId != nil {
                 activeSessionId = nil
-                presentError("Session could not be restored: \(error.localizedDescription)")
             }
+            connectionTimedOut = true
+            return
         }
 
         await fetchSessions()

@@ -9,8 +9,10 @@ struct WorkspaceView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
     @State private var showSidebarSheet = false
     @Environment(\.dismiss) private var dismiss
+    @Binding var showTimeoutAlert: Bool
 
-    init(connection: RelayConnection, token: String) {
+    init(connection: RelayConnection, token: String, showTimeoutAlert: Binding<Bool>) {
+        _showTimeoutAlert = showTimeoutAlert
         _coordinator = StateObject(wrappedValue: SessionCoordinator(
             connection: connection,
             token: token
@@ -87,6 +89,12 @@ struct WorkspaceView: View {
                 Task {
                     await coordinator.handleForegroundTransition()
                 }
+            }
+        }
+        .onChange(of: coordinator.connectionTimedOut) { _, timedOut in
+            if timedOut {
+                showTimeoutAlert = true
+                dismiss()
             }
         }
         .alert("Error", isPresented: $coordinator.showError) {

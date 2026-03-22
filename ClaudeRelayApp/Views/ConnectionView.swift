@@ -4,6 +4,7 @@ import ClaudeRelayClient
 /// Host/token configuration screen. Entry point of the app.
 struct ConnectionView: View {
     @StateObject private var viewModel = ConnectionViewModel()
+    @State private var showTimeoutAlert = false
 
     var body: some View {
         NavigationStack {
@@ -67,13 +68,22 @@ struct ConnectionView: View {
             .navigationDestination(isPresented: $viewModel.isNavigatingToSessions) {
                 if let connection = viewModel.activeConnection,
                    let token = viewModel.activeToken {
-                    WorkspaceView(connection: connection, token: token)
+                    WorkspaceView(
+                        connection: connection,
+                        token: token,
+                        showTimeoutAlert: $showTimeoutAlert
+                    )
                 }
             }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(viewModel.errorMessage ?? "Unknown error")
+            }
+            .alert("Connection Timed Out", isPresented: $showTimeoutAlert) {
+                Button("Reconnect", role: .cancel) {}
+            } message: {
+                Text("Connection timed out. Please reconnect.")
             }
         }
     }
