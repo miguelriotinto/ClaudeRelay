@@ -152,10 +152,18 @@ public actor PTYSession {
             let count = data.count
             while totalWritten < count {
                 let written = Foundation.write(masterFD, ptr.advanced(by: totalWritten), count - totalWritten)
-                if written <= 0 {
+                if written > 0 {
+                    totalWritten += written
+                } else if written == 0 {
+                    break
+                } else {
+                    let err = errno
+                    if err == EAGAIN || err == EINTR {
+                        continue
+                    }
+                    print("[PTYSession \(sessionId)] write error: errno \(err)")
                     break
                 }
-                totalWritten += written
             }
         }
     }
