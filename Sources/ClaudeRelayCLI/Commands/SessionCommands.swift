@@ -27,7 +27,7 @@ struct SessionListCommand: AsyncParsableCommand {
         let client = AdminClient(port: globals.port)
 
         do {
-            let sessions: [SessionInfo] = try await client.get("/sessions")
+            let sessions: [CLISessionInfo] = try await client.get("/sessions")
 
             if globals.json {
                 print(OutputFormatter.formatJSON(sessions))
@@ -75,7 +75,7 @@ struct SessionInspectCommand: AsyncParsableCommand {
         let client = AdminClient(port: globals.port)
 
         do {
-            let session: SessionInfo = try await client.get("/sessions/\(id)")
+            let session: CLISessionInfo = try await client.get("/sessions/\(id)")
 
             if globals.json {
                 print(OutputFormatter.formatJSON(session))
@@ -129,7 +129,7 @@ struct SessionTerminateCommand: AsyncParsableCommand {
 
 // MARK: - Models
 
-struct SessionInfo: Codable {
+struct CLISessionInfo: Codable {
     let id: UUID
     let state: String
     let tokenId: String
