@@ -56,6 +56,10 @@ struct TokenCreateCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             printServiceNotRunning()
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -87,6 +91,10 @@ struct TokenListCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             printServiceNotRunning()
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -116,6 +124,10 @@ struct TokenDeleteCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             printServiceNotRunning()
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -147,6 +159,10 @@ struct TokenRotateCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             printServiceNotRunning()
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -182,6 +198,10 @@ struct TokenInspectCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             printServiceNotRunning()
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }

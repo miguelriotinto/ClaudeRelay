@@ -50,6 +50,10 @@ struct SessionListCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -84,6 +88,10 @@ struct SessionInspectCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -111,6 +119,10 @@ struct SessionTerminateCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }

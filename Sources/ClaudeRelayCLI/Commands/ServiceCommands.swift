@@ -233,6 +233,10 @@ struct StatusCommand: AsyncParsableCommand {
             } else {
                 print("Service is not running.")
             }
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }

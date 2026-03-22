@@ -40,6 +40,10 @@ struct LogShowCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -81,7 +85,10 @@ struct LogTailCommand: AsyncParsableCommand {
                 }
             } catch let error as AdminClientError where error == .serviceNotRunning {
                 print("Service is not running.")
-                return
+                throw ExitCode.failure
+            } catch {
+                print("Error: \(error.localizedDescription)")
+                throw ExitCode.failure
             }
 
             try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds

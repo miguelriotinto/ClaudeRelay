@@ -40,6 +40,10 @@ struct ConfigShowCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -71,6 +75,10 @@ struct ConfigSetCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
@@ -122,6 +130,10 @@ struct ConfigValidateCommand: AsyncParsableCommand {
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
             print("Service is not running.")
+            throw ExitCode.failure
+        } catch {
+            print("Error: \(error.localizedDescription)")
+            throw ExitCode.failure
         }
     }
 }
