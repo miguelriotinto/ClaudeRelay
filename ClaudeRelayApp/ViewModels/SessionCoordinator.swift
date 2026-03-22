@@ -92,7 +92,14 @@ final class SessionCoordinator: ObservableObject {
 
     // MARK: - Session List
 
+    private var lastFetchTime: Date = .distantPast
+
     func fetchSessions() async {
+        // Debounce: skip if fetched within the last 500ms
+        let now = Date()
+        guard now.timeIntervalSince(lastFetchTime) >= 0.5 else { return }
+        lastFetchTime = now
+
         isLoading = true
         defer { isLoading = false }
 

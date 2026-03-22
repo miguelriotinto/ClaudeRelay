@@ -150,12 +150,10 @@ struct SwiftTermView: UIViewRepresentable {
         }
 
         // Hide SwiftTerm's built-in inputAccessoryView — we use a floating button instead.
-        DispatchQueue.main.async {
-            _ = terminal.becomeFirstResponder()
-            terminal.inputAccessoryView?.isHidden = true
-            terminal.inputAccessoryView?.frame.size.height = 0
-            terminal.reloadInputViews()
-        }
+        _ = terminal.becomeFirstResponder()
+        terminal.inputAccessoryView?.isHidden = true
+        terminal.inputAccessoryView?.frame.size.height = 0
+        terminal.reloadInputViews()
 
         // Listen for focus/resign requests from the floating keyboard button.
         context.coordinator.focusObserver = NotificationCenter.default.addObserver(

@@ -10,11 +10,17 @@ import Security
 
 extension Data {
     /// Base64URL encoding without padding (RFC 4648 Section 5).
+    /// Single-pass transformation instead of 3 separate string scans.
     func base64URLEncodedString() -> String {
-        base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
+        var result = base64EncodedString()
+        result.unicodeScalars.removeAll(where: { $0 == "=" })
+        return String(result.map { ch in
+            switch ch {
+            case "+": return "-"
+            case "/": return "_"
+            default: return ch
+            }
+        })
     }
 }
 

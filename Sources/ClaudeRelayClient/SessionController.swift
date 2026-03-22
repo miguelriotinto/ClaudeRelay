@@ -176,7 +176,7 @@ public final class SessionController: ObservableObject {
             }
 
             guard_.timeoutTask = Task { @MainActor [guard_] in
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
                 guard_.resume(throwing: SessionError.timeout)
             }
         }

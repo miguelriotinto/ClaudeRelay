@@ -340,11 +340,12 @@ public actor SessionManager {
             rows: managed.info.rows
         )
         managed.info = newInfo
+        managed.ptySession = nil
         sessions[sessionId] = managed
 
         // Clean up timer
         detachTimers[sessionId]?.cancel()
-        detachTimers[sessionId] = nil
+        detachTimers.removeValue(forKey: sessionId)
 
         purgeTerminalSessions()
     }
@@ -364,6 +365,9 @@ public actor SessionManager {
         )
         managed.info = newInfo
         sessions[sessionId] = managed
+
+        // Clean up timer entry
+        detachTimers.removeValue(forKey: sessionId)
 
         // Terminate PTY
         if let pty = managed.ptySession {

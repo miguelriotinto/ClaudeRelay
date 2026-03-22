@@ -164,7 +164,7 @@ public final class RelayConnection: ObservableObject {
         guard let task = webSocketTask, generation == connectionGeneration else { return }
 
         task.receive { [weak self] result in
-            Task { @MainActor [weak self] in
+            Task { @MainActor in
                 // If the generation has changed, a new connection superseded us — bail out.
                 guard let self, generation == self.connectionGeneration else { return }
 
@@ -219,8 +219,11 @@ public final class RelayConnection: ObservableObject {
     private func attemptReconnect(config: ConnectionConfig, token: String) {
         reconnectAttempt += 1
 
-        // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at maxReconnectDelay.
-        let delay = min(pow(2.0, Double(reconnectAttempt - 1)), maxReconnectDelay)
+        // Exponential backoff with jitter: base delay 1s, 2s, 4s, 8s, ...
+        // capped at maxReconnectDelay, plus ±25% random jitter.
+        let baseDelay = min(pow(2.0, Double(reconnectAttempt - 1)), maxReconnectDelay)
+        let jitter = baseDelay * Double.random(in: -0.25...0.25)
+        let delay = max(0.5, baseDelay + jitter)
 
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))

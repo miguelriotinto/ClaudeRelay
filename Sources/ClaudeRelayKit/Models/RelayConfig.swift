@@ -50,7 +50,7 @@ public struct RelayConfig: Codable, Sendable {
     public static let `default` = RelayConfig()
 
     /// The configuration directory: `~/.claude-relay/`.
-    public static var configDirectory: URL {
+    public static let configDirectory: URL = {
         #if os(iOS) || os(tvOS) || os(watchOS)
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             .appendingPathComponent(".claude-relay", isDirectory: true)
@@ -58,15 +58,11 @@ public struct RelayConfig: Codable, Sendable {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude-relay", isDirectory: true)
         #endif
-    }
+    }()
 
     /// The main configuration file: `~/.claude-relay/config.json`.
-    public static var configFile: URL {
-        configDirectory.appendingPathComponent("config.json")
-    }
+    public static let configFile: URL = configDirectory.appendingPathComponent("config.json")
 
     /// The tokens file: `~/.claude-relay/tokens.json`.
-    public static var tokensFile: URL {
-        configDirectory.appendingPathComponent("tokens.json")
-    }
+    public static let tokensFile: URL = configDirectory.appendingPathComponent("tokens.json")
 }

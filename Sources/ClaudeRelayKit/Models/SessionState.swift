@@ -22,19 +22,25 @@ public enum SessionState: String, Codable, Sendable {
         }
     }
 
+    // Static transition sets — allocated once, not per call.
+    private static let startingTransitions: Set<SessionState> = [.activeAttached, .failed]
+    private static let attachedTransitions: Set<SessionState> = [.activeDetached, .exited, .failed, .terminated]
+    private static let detachedTransitions: Set<SessionState> = [.resuming, .expired, .exited, .failed, .terminated]
+    private static let resumingTransitions: Set<SessionState> = [.activeAttached, .failed, .terminated]
+
     /// Returns whether a transition from this state to the given target state is valid.
     public func canTransition(to target: SessionState) -> Bool {
         switch self {
         case .created:
             return target == .starting
         case .starting:
-            return [.activeAttached, .failed].contains(target)
+            return Self.startingTransitions.contains(target)
         case .activeAttached:
-            return [.activeDetached, .exited, .failed, .terminated].contains(target)
+            return Self.attachedTransitions.contains(target)
         case .activeDetached:
-            return [.resuming, .expired, .exited, .failed, .terminated].contains(target)
+            return Self.detachedTransitions.contains(target)
         case .resuming:
-            return [.activeAttached, .failed, .terminated].contains(target)
+            return Self.resumingTransitions.contains(target)
         case .exited, .failed, .terminated, .expired:
             return false
         }

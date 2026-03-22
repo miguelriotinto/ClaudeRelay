@@ -346,9 +346,13 @@ final class RelayMessageHandler: ChannelInboundHandler {
             var buffer = context.channel.allocator.buffer(capacity: data.count)
             buffer.writeBytes(data)
             let frame = WebSocketFrame(fin: true, opcode: .text, data: buffer)
-            context.writeAndFlush(wrapOutboundOut(frame), promise: nil)
+            let promise = context.eventLoop.makePromise(of: Void.self)
+            promise.futureResult.whenFailure { error in
+                print("[RelayMessageHandler] Write failed: \(error)")
+            }
+            context.writeAndFlush(wrapOutboundOut(frame), promise: promise)
         } catch {
-            // Encoding failure — not much we can do
+            print("[RelayMessageHandler] JSON encode failed for \(message): \(error)")
         }
     }
 
@@ -356,6 +360,10 @@ final class RelayMessageHandler: ChannelInboundHandler {
         var buffer = context.channel.allocator.buffer(capacity: data.count)
         buffer.writeBytes(data)
         let frame = WebSocketFrame(fin: true, opcode: .binary, data: buffer)
-        context.writeAndFlush(wrapOutboundOut(frame), promise: nil)
+        let promise = context.eventLoop.makePromise(of: Void.self)
+        promise.futureResult.whenFailure { error in
+            print("[RelayMessageHandler] Binary write failed (\(data.count) bytes): \(error)")
+        }
+        context.writeAndFlush(wrapOutboundOut(frame), promise: promise)
     }
 }
