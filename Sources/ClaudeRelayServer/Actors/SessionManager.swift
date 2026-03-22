@@ -282,6 +282,8 @@ public actor SessionManager {
         // Cancel detach timer
         detachTimers[id]?.cancel()
         detachTimers[id] = nil
+
+        purgeTerminalSessions()
     }
 
     /// List all sessions.
@@ -307,12 +309,12 @@ public actor SessionManager {
     // MARK: - Shutdown
 
     /// Terminates all active sessions. Called during graceful server shutdown.
-    public func shutdown() {
+    public func shutdown() async {
+        // Collect PTYs to terminate
+        var ptysToTerminate: [any PTYSessionProtocol] = []
         for (id, managed) in sessions where !managed.info.state.isTerminal {
             if let pty = managed.ptySession {
-                Task {
-                    await pty.terminate()
-                }
+                ptysToTerminate.append(pty)
             }
             var updated = managed
             updated.info = SessionInfo(
@@ -324,6 +326,12 @@ public actor SessionManager {
                 rows: managed.info.rows
             )
             sessions[id] = updated
+        }
+        // Await all PTY terminations in parallel
+        await withTaskGroup(of: Void.self) { group in
+            for pty in ptysToTerminate {
+                group.addTask { await pty.terminate() }
+            }
         }
         // Cancel all detach timers
         for (_, timer) in detachTimers {
@@ -413,6 +421,8 @@ public actor SessionManager {
                 await pty.terminate()
             }
         }
+        managed.ptySession = nil
+        sessions[sessionId] = managed
 
         purgeTerminalSessions()
     }

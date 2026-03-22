@@ -230,15 +230,20 @@ enum AdminRoutes {
     private static func applyConfigValue(_ value: Any, forKey key: String, to config: inout RelayConfig) throws {
         switch key {
         case "wsPort":
-            if let val = value as? Int { config.wsPort = UInt16(val) }
+            guard let val = value as? Int else { throw ConfigError(message: "wsPort must be an integer") }
+            config.wsPort = UInt16(val)
         case "adminPort":
-            if let val = value as? Int { config.adminPort = UInt16(val) }
+            guard let val = value as? Int else { throw ConfigError(message: "adminPort must be an integer") }
+            config.adminPort = UInt16(val)
         case "detachTimeout":
-            if let val = value as? Int { config.detachTimeout = val }
+            guard let val = value as? Int else { throw ConfigError(message: "detachTimeout must be an integer") }
+            config.detachTimeout = val
         case "scrollbackSize":
-            if let val = value as? Int { config.scrollbackSize = val }
+            guard let val = value as? Int else { throw ConfigError(message: "scrollbackSize must be an integer") }
+            config.scrollbackSize = val
         case "logLevel":
-            if let val = value as? String { config.logLevel = val }
+            guard let val = value as? String else { throw ConfigError(message: "logLevel must be a string") }
+            config.logLevel = val
         case "tlsCert":
             config.tlsCert = value as? String
         case "tlsKey":

@@ -24,7 +24,7 @@ public final class LogStore: @unchecked Sendable {
         lock.lock()
         entries.append(entry)
         if entries.count > maxEntries {
-            entries.removeFirst(entries.count - maxEntries)
+            entries.removeFirst()
         }
         lock.unlock()
     }

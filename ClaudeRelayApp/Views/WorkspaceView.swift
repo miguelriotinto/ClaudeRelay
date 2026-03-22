@@ -83,6 +83,7 @@ struct WorkspaceView: View {
         }
         .onDisappear {
             coordinator.detachActive()
+            coordinator.connection.disconnect()
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {

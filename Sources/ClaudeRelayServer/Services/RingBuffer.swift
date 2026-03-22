@@ -36,11 +36,16 @@ public struct RingBuffer: Sendable {
             return
         }
 
-        for byte in bytes {
-            storage[head] = byte
-            head = (head + 1) % capacity
+        let count = bytes.count
+        let spaceToEnd = capacity - head
+        if count <= spaceToEnd {
+            storage.replaceSubrange(head..<head + count, with: bytes)
+        } else {
+            storage.replaceSubrange(head..<capacity, with: bytes[0..<spaceToEnd])
+            storage.replaceSubrange(0..<count - spaceToEnd, with: bytes[spaceToEnd...])
         }
-        filled = min(filled + bytes.count, capacity)
+        head = (head + count) % capacity
+        filled = min(filled + count, capacity)
     }
 
     /// Returns all buffered data in order without clearing.

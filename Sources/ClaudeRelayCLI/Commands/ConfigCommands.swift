@@ -114,6 +114,14 @@ struct ConfigValidateCommand: AsyncParsableCommand {
                 }
             }
 
+            if let wsPort = config["wsPort"], let adminPort = config["adminPort"] {
+                let ws = Int(wsPort.description) ?? 0
+                let admin = Int(adminPort.description) ?? 0
+                if ws > 0 && ws == admin {
+                    errors.append("wsPort and adminPort cannot be the same (\(ws))")
+                }
+            }
+
             if globals.json {
                 let result = ValidationResult(valid: errors.isEmpty, errors: errors)
                 print(OutputFormatter.formatJSON(result))

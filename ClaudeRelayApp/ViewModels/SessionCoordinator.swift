@@ -256,6 +256,7 @@ final class SessionCoordinator: ObservableObject {
         } catch is CancellationError {
             // Task cancelled during lock/unlock — don't show error, auto-reconnect will retry
             print("[SessionCoordinator] Restore cancelled (lifecycle), will retry on next foreground")
+            return
         } catch {
             // Session may have been terminated server-side while we were away
             if activeSessionId != nil {

@@ -20,7 +20,8 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private static let maxAuthAttempts = 3
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
-    private static let maxTextFrameSize = 1_000_000 // 1MB
+    private static let maxTextFrameSize = 1_000_000   // 1MB
+    private static let maxBinaryFrameSize = 1_000_000 // 1MB
 
     init(sessionManager: SessionManager, tokenStore: TokenStore) {
         self.sessionManager = sessionManager
@@ -145,6 +146,10 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private func handleBinaryFrame(_ frame: WebSocketFrame, context: ChannelHandlerContext) {
         guard isAuthenticated, let pty = attachedPTY else { return }
         var data = frame.unmaskedData
+        if data.readableBytes > Self.maxBinaryFrameSize {
+            sendServerMessage(.error(code: 413, message: "Binary frame too large"), context: context)
+            return
+        }
         guard let bytes = data.readBytes(length: data.readableBytes) else { return }
         let inputData = Data(bytes)
         Task {
