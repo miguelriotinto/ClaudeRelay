@@ -303,6 +303,34 @@ public actor SessionManager {
             .map { $0.info }
     }
 
+    // MARK: - Shutdown
+
+    /// Terminates all active sessions. Called during graceful server shutdown.
+    public func shutdown() {
+        for (id, managed) in sessions where !managed.info.state.isTerminal {
+            if let pty = managed.ptySession {
+                Task {
+                    await pty.terminate()
+                }
+            }
+            var updated = managed
+            updated.info = SessionInfo(
+                id: managed.info.id,
+                state: .terminated,
+                tokenId: managed.info.tokenId,
+                createdAt: managed.info.createdAt,
+                cols: managed.info.cols,
+                rows: managed.info.rows
+            )
+            sessions[id] = updated
+        }
+        // Cancel all detach timers
+        for (_, timer) in detachTimers {
+            timer.cancel()
+        }
+        detachTimers.removeAll()
+    }
+
     // MARK: - Cleanup
 
     /// Removes sessions in terminal states (exited, failed, terminated, expired)

@@ -59,6 +59,7 @@ await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>)
 
 RelayLogger.log(category: "server", "Shutdown signal received")
 print("\nShutting down...")
+await sessionManager.shutdown()
 try await wsServer.stop()
 try await adminServer.stop()
 try await group.shutdownGracefully()
