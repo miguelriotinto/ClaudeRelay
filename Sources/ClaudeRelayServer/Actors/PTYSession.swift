@@ -1,6 +1,19 @@
 import Foundation
 import CPTYShim
 
+// MARK: - PTYSessionProtocol
+
+public protocol PTYSessionProtocol: Actor {
+    var sessionId: UUID { get }
+    func setOutputHandler(_ handler: @escaping @Sendable (Data) -> Void)
+    func setExitHandler(_ handler: @escaping @Sendable () -> Void)
+    func clearOutputHandler()
+    func write(_ data: Data)
+    func resize(cols: UInt16, rows: UInt16)
+    func readBuffer() -> Data
+    func terminate()
+}
+
 // MARK: - PTYError
 
 public enum PTYError: Error {
@@ -9,7 +22,7 @@ public enum PTYError: Error {
 
 // MARK: - PTYSession Actor
 
-public actor PTYSession {
+public actor PTYSession: PTYSessionProtocol {
     public let sessionId: UUID
 
     private let masterFD: Int32

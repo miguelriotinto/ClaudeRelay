@@ -13,7 +13,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private var isAuthenticated = false
     private var authenticatedTokenId: String?
     private var attachedSessionId: UUID?
-    private var attachedPTY: PTYSession?
+    private var attachedPTY: (any PTYSessionProtocol)?
     private var context: ChannelHandlerContext?
     private var authTimeout: Scheduled<Void>?
     private let jsonEncoder = JSONEncoder()
@@ -337,7 +337,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
 
     // MARK: - PTY Output Wiring
 
-    private func wirePTYOutput(pty: PTYSession, context: ChannelHandlerContext) {
+    private func wirePTYOutput(pty: any PTYSessionProtocol, context: ChannelHandlerContext) {
         Task {
             await pty.setOutputHandler { [weak self] data in
                 context.eventLoop.execute {

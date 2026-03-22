@@ -13,22 +13,28 @@ public enum SessionError: Error {
 // MARK: - SessionManager Actor
 
 public actor SessionManager {
+    public typealias PTYFactory = @Sendable (UUID, UInt16, UInt16, Int) throws -> any PTYSessionProtocol
+
     public let config: RelayConfig
     public let tokenStore: TokenStore
+    private let ptyFactory: PTYFactory
     private var sessions: [UUID: ManagedSession] = [:]
     private var detachTimers: [UUID: Task<Void, Never>] = [:]
 
     struct ManagedSession {
         var info: SessionInfo
-        var ptySession: PTYSession?
+        var ptySession: (any PTYSessionProtocol)?
         var terminalSince: Date?
     }
 
     // MARK: - Init
 
-    public init(config: RelayConfig, tokenStore: TokenStore) {
+    public init(config: RelayConfig, tokenStore: TokenStore, ptyFactory: PTYFactory? = nil) {
         self.config = config
         self.tokenStore = tokenStore
+        self.ptyFactory = ptyFactory ?? { id, cols, rows, scrollback in
+            try PTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        }
     }
 
     // MARK: - Public API
@@ -53,13 +59,7 @@ public actor SessionManager {
         )
 
         // Create PTY session
-        let pty = try PTYSession(
-            sessionId: id,
-            cols: cols,
-            rows: rows,
-            scrollbackSize: config.scrollbackSize,
-            command: "/bin/cat"
-        )
+        let pty = try ptyFactory(id, cols, rows, config.scrollbackSize)
 
         // Transition starting -> activeAttached
         let activeInfo = SessionInfo(
@@ -93,7 +93,7 @@ public actor SessionManager {
     public func attachSession(
         id: UUID,
         tokenId: String
-    ) throws -> (SessionInfo, PTYSession) {
+    ) throws -> (SessionInfo, any PTYSessionProtocol) {
         guard var managed = sessions[id] else {
             throw SessionError.notFound(id)
         }
@@ -176,7 +176,7 @@ public actor SessionManager {
     public func resumeSession(
         id: UUID,
         tokenId: String
-    ) throws -> (SessionInfo, Data, PTYSession) {
+    ) throws -> (SessionInfo, Data, any PTYSessionProtocol) {
         guard var managed = sessions[id] else {
             throw SessionError.notFound(id)
         }

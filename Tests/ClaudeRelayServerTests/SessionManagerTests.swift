@@ -3,6 +3,29 @@ import Foundation
 @testable import ClaudeRelayServer
 @testable import ClaudeRelayKit
 
+// MARK: - MockPTYSession
+
+actor MockPTYSession: PTYSessionProtocol {
+    let sessionId: UUID
+    private var outputHandler: (@Sendable (Data) -> Void)?
+    private var exitHandler: (@Sendable () -> Void)?
+    private var terminated = false
+
+    init(sessionId: UUID, cols: UInt16, rows: UInt16, scrollbackSize: Int) {
+        self.sessionId = sessionId
+    }
+
+    func setOutputHandler(_ handler: @escaping @Sendable (Data) -> Void) { outputHandler = handler }
+    func setExitHandler(_ handler: @escaping @Sendable () -> Void) { exitHandler = handler }
+    func clearOutputHandler() { outputHandler = nil }
+    func write(_ data: Data) {}
+    func resize(cols: UInt16, rows: UInt16) {}
+    func readBuffer() -> Data { Data() }
+    func terminate() { terminated = true }
+}
+
+// MARK: - SessionManagerTests
+
 final class SessionManagerTests: XCTestCase {
 
     private var tempDir: URL!
@@ -31,7 +54,9 @@ final class SessionManagerTests: XCTestCase {
 
     func testCreateSession() async throws {
         let (_, tokenInfo) = try await createTestToken()
-        let manager = SessionManager(config: config, tokenStore: tokenStore)
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
 
         let session = try await manager.createSession(tokenId: tokenInfo.id, cols: 80, rows: 24)
 
@@ -43,7 +68,9 @@ final class SessionManagerTests: XCTestCase {
 
     func testListSessions() async throws {
         let (_, tokenInfo) = try await createTestToken()
-        let manager = SessionManager(config: config, tokenStore: tokenStore)
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
 
         _ = try await manager.createSession(tokenId: tokenInfo.id)
         _ = try await manager.createSession(tokenId: tokenInfo.id)
@@ -54,7 +81,9 @@ final class SessionManagerTests: XCTestCase {
 
     func testTerminateSession() async throws {
         let (_, tokenInfo) = try await createTestToken()
-        let manager = SessionManager(config: config, tokenStore: tokenStore)
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
 
         let session = try await manager.createSession(tokenId: tokenInfo.id)
         try await manager.terminateSession(id: session.id, tokenId: tokenInfo.id)
@@ -66,7 +95,9 @@ final class SessionManagerTests: XCTestCase {
     func testSessionOwnership() async throws {
         let (_, tokenA) = try await createTestToken()
         let (_, tokenB) = try await tokenStore.create(label: "other")
-        let manager = SessionManager(config: config, tokenStore: tokenStore)
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
 
         let session = try await manager.createSession(tokenId: tokenA.id)
 
@@ -90,7 +121,9 @@ final class SessionManagerTests: XCTestCase {
 
     func testDetachAndResume() async throws {
         let (_, tokenInfo) = try await createTestToken()
-        let manager = SessionManager(config: config, tokenStore: tokenStore)
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
 
         let session = try await manager.createSession(tokenId: tokenInfo.id)
 
@@ -111,7 +144,9 @@ final class SessionManagerTests: XCTestCase {
     func testListSessionsForToken() async throws {
         let (_, tokenA) = try await createTestToken()
         let (_, tokenB) = try await tokenStore.create(label: "other")
-        let manager = SessionManager(config: config, tokenStore: tokenStore)
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
 
         _ = try await manager.createSession(tokenId: tokenA.id)
         _ = try await manager.createSession(tokenId: tokenA.id)
@@ -125,7 +160,9 @@ final class SessionManagerTests: XCTestCase {
     }
 
     func testInspectNonexistentSession() async throws {
-        let manager = SessionManager(config: config, tokenStore: tokenStore)
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
 
         do {
             _ = try await manager.inspectSession(id: UUID())
