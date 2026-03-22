@@ -366,6 +366,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
     // MARK: - Send Helpers
 
     private func sendServerMessage(_ message: ServerMessage, context: ChannelHandlerContext) {
+        guard context.channel.isActive else { return }
         let envelope = MessageEnvelope.server(message)
         do {
             let data = try jsonEncoder.encode(envelope)
@@ -383,6 +384,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
     }
 
     private func sendBinaryData(_ data: Data, context: ChannelHandlerContext) {
+        guard context.channel.isActive else { return }
         var buffer = context.channel.allocator.buffer(capacity: data.count)
         buffer.writeBytes(data)
         let frame = WebSocketFrame(fin: true, opcode: .binary, data: buffer)
