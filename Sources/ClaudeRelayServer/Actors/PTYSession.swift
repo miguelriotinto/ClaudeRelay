@@ -182,17 +182,28 @@ public actor PTYSession {
         readSource = nil
 
         // Send SIGTERM to the child
-        kill(childPID, SIGTERM)
+        let pid = childPID
+        let sid = sessionId
+        if kill(pid, SIGTERM) != 0 {
+            print("[PTYSession \(sid)] SIGTERM failed for pid \(pid): errno \(errno)")
+        }
 
         // Schedule SIGKILL after 5 seconds if the process hasn't exited
-        let pid = childPID
         DispatchQueue.global().asyncAfter(deadline: .now() + 5.0) {
             var status: Int32 = 0
             let result = waitpid(pid, &status, WNOHANG)
             if result == 0 {
                 // Process still running, force kill
-                kill(pid, SIGKILL)
-                waitpid(pid, &status, 0)
+                if kill(pid, SIGKILL) != 0 {
+                    print("[PTYSession \(sid)] SIGKILL failed for pid \(pid): errno \(errno)")
+                }
+                let reapResult = waitpid(pid, &status, 0)
+                if reapResult == -1 {
+                    print("[PTYSession \(sid)] waitpid failed for pid \(pid): errno \(errno)")
+                }
+            } else if result == -1 {
+                // Child already reaped or invalid pid
+                print("[PTYSession \(sid)] waitpid(WNOHANG) returned -1 for pid \(pid): errno \(errno)")
             }
         }
     }
