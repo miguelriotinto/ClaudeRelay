@@ -180,6 +180,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
         let sessionManager = self.sessionManager
         Task { [weak self] in
             do {
+                await self?.autoDetachIfNeeded()
                 let info = try await sessionManager.createSession(tokenId: tokenId)
                 let sessionId = info.id
                 // Attach immediately
@@ -208,6 +209,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
         let sessionManager = self.sessionManager
         Task { [weak self] in
             do {
+                await self?.autoDetachIfNeeded()
                 let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session attached: \(sessionId)")
                 context.eventLoop.execute {
@@ -233,6 +235,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
         let sessionManager = self.sessionManager
         Task { [weak self] in
             do {
+                await self?.autoDetachIfNeeded()
                 let (info, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session resumed: \(sessionId)")
                 // Read scrollback history to send to client
@@ -333,6 +336,21 @@ final class RelayMessageHandler: ChannelInboundHandler {
                 self?.sendServerMessage(.resizeAck(cols: cols, rows: rows), context: context)
             }
         }
+    }
+
+    // MARK: - Auto-Detach
+
+    /// Detaches the currently attached session (if any) before attaching a new one.
+    /// Must be called from the event loop (inside context.eventLoop.execute or channelRead).
+    private func autoDetachIfNeeded() async {
+        guard let sessionId = attachedSessionId else { return }
+        let sessionManager = self.sessionManager
+        if let pty = attachedPTY {
+            await pty.clearOutputHandler()
+        }
+        attachedSessionId = nil
+        attachedPTY = nil
+        try? await sessionManager.detachSession(id: sessionId)
     }
 
     // MARK: - PTY Output Wiring
