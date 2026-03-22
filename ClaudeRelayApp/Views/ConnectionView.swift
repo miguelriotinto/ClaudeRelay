@@ -53,7 +53,7 @@ struct ConnectionView: View {
                                     Text(config.name)
                                         .font(.body)
                                         .foregroundStyle(.primary)
-                                    Text("\(config.host):\(config.port)")
+                                    Text(verbatim: "\(config.host):\(config.port)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

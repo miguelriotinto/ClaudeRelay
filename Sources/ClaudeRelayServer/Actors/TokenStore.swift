@@ -15,11 +15,14 @@ public actor TokenStore {
 
     public enum TokenStoreError: Error, LocalizedError {
         case tokenNotFound(id: String)
+        case tokenExpired(id: String)
 
         public var errorDescription: String? {
             switch self {
             case .tokenNotFound(let id):
                 return "Token with id '\(id)' not found."
+            case .tokenExpired(let id):
+                return "Token with id '\(id)' has expired."
             }
         }
     }
@@ -33,9 +36,9 @@ public actor TokenStore {
     // MARK: - Public API
 
     /// Generate a new token, persist it, and return the plaintext + info.
-    public func create(label: String?) throws -> (plaintext: String, info: TokenInfo) {
+    public func create(label: String?, expiryDays: Int? = nil) throws -> (plaintext: String, info: TokenInfo) {
         let loaded = try ensureLoaded()
-        let (plaintext, info) = TokenGenerator.generate(label: label)
+        let (plaintext, info) = TokenGenerator.generate(label: label, expiryDays: expiryDays)
         var mutable = loaded
         mutable.append(info)
         try save(mutable)
@@ -44,10 +47,14 @@ public actor TokenStore {
     }
 
     /// Validate a plaintext token against stored hashes. Updates `lastUsedAt` on match.
+    /// Returns `nil` if the token is not found or has expired.
     public func validate(token: String) -> TokenInfo? {
         let loaded = (try? ensureLoaded()) ?? []
         let hash = TokenGenerator.hash(token)
         guard let index = loaded.firstIndex(where: { $0.tokenHash == hash }) else {
+            return nil
+        }
+        if loaded[index].isExpired {
             return nil
         }
         var mutable = loaded
@@ -87,7 +94,8 @@ public actor TokenStore {
             tokenHash: generated.tokenHash,
             label: existing.label,
             createdAt: existing.createdAt,
-            lastUsedAt: nil
+            lastUsedAt: nil,
+            expiresAt: existing.expiresAt
         )
 
         loaded[index] = rotated

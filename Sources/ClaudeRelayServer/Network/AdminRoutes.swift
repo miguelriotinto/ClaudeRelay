@@ -123,18 +123,23 @@ enum AdminRoutes {
 
     private static func createToken(body: ByteBuffer?, tokenStore: TokenStore) async -> AdminResponse {
         var label: String?
+        var expiryDays: Int?
         if let body = body, let bytes = body.getBytes(at: body.readerIndex, length: body.readableBytes) {
             if let parsed = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any] {
                 label = parsed["label"] as? String
+                expiryDays = parsed["expiryDays"] as? Int
             }
         }
         do {
-            let (plaintext, info) = try await tokenStore.create(label: label)
-            let result: [String: Any] = [
+            let (plaintext, info) = try await tokenStore.create(label: label, expiryDays: expiryDays)
+            var result: [String: Any] = [
                 "token": plaintext,
                 "id": info.id,
                 "label": info.label ?? ""
             ]
+            if let expiresAt = info.expiresAt {
+                result["expiresAt"] = ISO8601DateFormatter().string(from: expiresAt)
+            }
             return .json(result, status: 201)
         } catch {
             return .error("Failed to create token: \(error)", status: 500)

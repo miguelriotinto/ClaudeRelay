@@ -33,7 +33,13 @@ public enum TokenGenerator {
     ///
     /// - Parameter label: Optional human-readable label for the token.
     /// - Returns: A tuple of the plaintext token (43 chars, base64URL) and its `TokenInfo`.
-    public static func generate(label: String? = nil) -> (plaintext: String, info: TokenInfo) {
+    /// Generates a new random token and its associated `TokenInfo`.
+    ///
+    /// - Parameters:
+    ///   - label: Optional human-readable label for the token.
+    ///   - expiryDays: Number of days until the token expires. `nil` means never expires.
+    /// - Returns: A tuple of the plaintext token (43 chars, base64URL) and its `TokenInfo`.
+    public static func generate(label: String? = nil, expiryDays: Int? = nil) -> (plaintext: String, info: TokenInfo) {
         // 32 cryptographically secure random bytes
         var bytes = [UInt8](repeating: 0, count: 32)
         let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
@@ -48,11 +54,15 @@ public enum TokenGenerator {
         // Short ID from UUID
         let id = String(UUID().uuidString.prefix(8)).lowercased()
 
+        let now = Date()
+        let expiresAt = expiryDays.map { now.addingTimeInterval(Double($0) * 86400) }
+
         let info = TokenInfo(
             id: id,
             tokenHash: tokenHash,
             label: label,
-            createdAt: Date()
+            createdAt: now,
+            expiresAt: expiresAt
         )
 
         return (plaintext, info)

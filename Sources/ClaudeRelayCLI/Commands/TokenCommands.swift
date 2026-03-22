@@ -28,17 +28,30 @@ struct TokenCreateCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Label for the token")
     var label: String?
 
+    @Option(name: .long, help: "Token expiry in days, or 'never' for non-expiring tokens")
+    var expires: String
+
     func run() async throws {
+        let expiryDays: Int?
+        if expires.lowercased() == "never" {
+            expiryDays = nil
+        } else {
+            guard let days = Int(expires), days > 0 else {
+                print("Error: --expires must be a positive number of days or 'never'")
+                throw ExitCode.validationFailure
+            }
+            expiryDays = days
+        }
+
         let client = AdminClient(port: globals.port)
 
         do {
-            let body = TokenCreateRequest(label: label)
+            let body = TokenCreateRequest(label: label, expiryDays: expiryDays)
             let response: TokenCreateResponse = try await client.post("/tokens", body: body)
 
             if globals.json {
                 print(OutputFormatter.formatJSON(response))
             } else {
-                // Print only the plaintext token so it can be piped
                 print(response.plaintext)
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
@@ -66,9 +79,9 @@ struct TokenListCommand: AsyncParsableCommand {
             if globals.json {
                 print(OutputFormatter.formatJSON(tokens))
             } else {
-                let headers = ["ID", "LABEL", "PREFIX", "CREATED", "LAST USED"]
+                let headers = ["ID", "LABEL", "PREFIX", "CREATED", "EXPIRES", "LAST USED"]
                 let rows = tokens.map { t in
-                    [t.id, t.label ?? "-", t.prefix ?? "-", t.createdAt, t.lastUsedAt ?? "never"]
+                    [t.id, t.label ?? "-", t.prefix ?? "-", t.createdAt, t.expiresAt ?? "never", t.lastUsedAt ?? "never"]
                 }
                 print(OutputFormatter.formatTable(headers: headers, rows: rows))
             }
@@ -164,6 +177,7 @@ struct TokenInspectCommand: AsyncParsableCommand {
                 print("Label:      \(token.label ?? "-")")
                 print("Prefix:     \(token.prefix ?? "-")")
                 print("Created:    \(token.createdAt)")
+                print("Expires:    \(token.expiresAt ?? "never")")
                 print("Last Used:  \(token.lastUsedAt ?? "never")")
             }
         } catch let error as AdminClientError where error == .serviceNotRunning {
@@ -176,12 +190,14 @@ struct TokenInspectCommand: AsyncParsableCommand {
 
 struct TokenCreateRequest: Encodable {
     let label: String?
+    let expiryDays: Int?
 }
 
 struct TokenCreateResponse: Codable {
     let token: String
     let id: String
     let label: String?
+    let expiresAt: String?
 
     /// Convenience alias for the raw token string.
     var plaintext: String { token }
@@ -192,6 +208,7 @@ struct TokenInfo: Codable {
     let label: String?
     let prefix: String?
     let createdAt: String
+    let expiresAt: String?
     let lastUsedAt: String?
 }
 

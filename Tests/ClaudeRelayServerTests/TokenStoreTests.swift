@@ -73,6 +73,47 @@ final class TokenStoreTests: XCTestCase {
         XCTAssertEqual(newResult?.id, oldInfo.id)
     }
 
+    func testExpiredTokenRejected() async throws {
+        let store = TokenStore(directory: tempDir)
+        // Create a token that expired yesterday (expiryDays = 0 won't work, so create manually)
+        let (plaintext, _) = try await store.create(label: "expiring", expiryDays: 1)
+
+        // Validate should work before expiry
+        let valid = await store.validate(token: plaintext)
+        XCTAssertNotNil(valid)
+
+        // Now create a token that's already expired by using a negative-like approach:
+        // We'll directly create a TokenInfo with an expiresAt in the past
+        let hash = TokenGenerator.hash(plaintext)
+        let loaded = await store.list()
+        // Manually overwrite with an expired date by creating a fresh store
+        let store2 = TokenStore(directory: tempDir)
+        let (expiredPlaintext, _) = try await store2.create(label: "already-expired", expiryDays: -1)
+        let result = await store2.validate(token: expiredPlaintext)
+        XCTAssertNil(result, "Expired token should be rejected")
+    }
+
+    func testNonExpiringToken() async throws {
+        let store = TokenStore(directory: tempDir)
+        let (plaintext, info) = try await store.create(label: "forever", expiryDays: nil)
+
+        XCTAssertNil(info.expiresAt)
+        XCTAssertFalse(info.isExpired)
+
+        let validated = await store.validate(token: plaintext)
+        XCTAssertNotNil(validated)
+    }
+
+    func testExpiryPreservedOnRotate() async throws {
+        let store = TokenStore(directory: tempDir)
+        let (_, original) = try await store.create(label: "rotate-expiry", expiryDays: 30)
+
+        XCTAssertNotNil(original.expiresAt)
+
+        let (_, rotated) = try await store.rotate(id: original.id)
+        XCTAssertEqual(rotated.expiresAt, original.expiresAt)
+    }
+
     func testPersistence() async throws {
         let store1 = TokenStore(directory: tempDir)
         let (plaintext, info) = try await store1.create(label: "persist")

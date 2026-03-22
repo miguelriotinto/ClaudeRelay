@@ -17,17 +17,28 @@ public struct TokenInfo: Codable, Sendable, Identifiable {
     /// When the token was last used for authentication.
     public var lastUsedAt: Date?
 
+    /// When the token expires. `nil` means the token never expires.
+    public let expiresAt: Date?
+
+    /// Whether the token has expired.
+    public var isExpired: Bool {
+        guard let expiresAt else { return false }
+        return Date() >= expiresAt
+    }
+
     public init(
         id: String,
         tokenHash: String,
         label: String? = nil,
         createdAt: Date = Date(),
-        lastUsedAt: Date? = nil
+        lastUsedAt: Date? = nil,
+        expiresAt: Date? = nil
     ) {
         self.id = id
         self.tokenHash = tokenHash
         self.label = label
         self.createdAt = createdAt
         self.lastUsedAt = lastUsedAt
+        self.expiresAt = expiresAt
     }
 }
