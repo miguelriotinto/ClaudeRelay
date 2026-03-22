@@ -32,6 +32,9 @@ print("ClaudeRelay server running")
 print("  WebSocket: 0.0.0.0:\(config.wsPort)")
 print("  Admin API: 127.0.0.1:\(config.adminPort)")
 
+// Auto-reap child processes (PTY shells) to prevent zombies.
+signal(SIGCHLD, SIG_IGN)
+
 // Wait for SIGINT/SIGTERM using async-safe signal handling.
 signal(SIGINT, SIG_IGN)
 signal(SIGTERM, SIG_IGN)
