@@ -18,6 +18,7 @@ struct ActiveTerminalView: View {
                    let vm = coordinator.viewModel(for: id) {
                     SwiftTermView(viewModel: vm, isKeyboardVisible: $isKeyboardVisible)
                         .id(id)
+                        .transaction { $0.animation = nil }
 
                     if showKeyBar {
                         KeyboardAccessory { data in
