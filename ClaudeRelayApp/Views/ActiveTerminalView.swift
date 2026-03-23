@@ -9,6 +9,7 @@ struct ActiveTerminalView: View {
     var onDisconnect: () -> Void
     @State private var showKeyBar = false
     @State private var isKeyboardVisible = false
+    @State private var keyBarCooldown = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -18,13 +19,11 @@ struct ActiveTerminalView: View {
                    let vm = coordinator.viewModel(for: id) {
                     SwiftTermView(viewModel: vm, isKeyboardVisible: $isKeyboardVisible)
                         .id(id)
-                        .transaction { $0.animation = nil }
 
                     if showKeyBar {
                         KeyboardAccessory { data in
                             vm.sendInput(data)
                         }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 } else {
                     ContentUnavailableView(
@@ -79,13 +78,17 @@ struct ActiveTerminalView: View {
                     }
 
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showKeyBar.toggle()
+                        showKeyBar.toggle()
+                        keyBarCooldown = true
+                        Task {
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            keyBarCooldown = false
                         }
                     } label: {
                         Image(systemName: showKeyBar ? "keyboard.fill" : "keyboard")
                             .font(.system(size: 16))
                     }
+                    .disabled(keyBarCooldown)
                 }
 
                 Spacer()
