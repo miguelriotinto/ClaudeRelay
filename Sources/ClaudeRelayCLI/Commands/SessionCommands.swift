@@ -48,11 +48,8 @@ struct SessionListCommand: AsyncParsableCommand {
                     print(OutputFormatter.formatTable(headers: headers, rows: rows))
                 }
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            print("Service is not running.")
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -86,11 +83,8 @@ struct SessionInspectCommand: AsyncParsableCommand {
                 print("Size:      \(session.cols)x\(session.rows)")
                 print("Created:   \(session.createdAtFormatted)")
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            print("Service is not running.")
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -117,11 +111,8 @@ struct SessionTerminateCommand: AsyncParsableCommand {
             if !globals.quiet {
                 print("Session \(id) terminated.")
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            print("Service is not running.")
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }

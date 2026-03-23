@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 import ClaudeRelayClient
 
 /// Drives the ConnectionView form and manages saved connections.
@@ -26,10 +27,23 @@ final class ConnectionViewModel: ObservableObject {
     @Published var activeToken: String?
     @Published var isNavigatingToSessions: Bool = false
 
+    /// Server liveness and session counts, forwarded from the status checker.
+    @Published var serverStatuses: [UUID: ServerStatus] = [:]
+
+    private let statusChecker = ServerStatusChecker()
+
     // MARK: - Init
 
     init() {
         savedConnections = SavedConnectionStore.loadAll()
+        // Forward nested ObservableObject changes so SwiftUI observes them.
+        statusChecker.$statuses.assign(to: &$serverStatuses)
+        statusChecker.startPolling(connections: savedConnections)
+    }
+
+    /// Trigger an immediate status refresh (e.g. when the view appears).
+    func refreshStatuses() {
+        statusChecker.refresh(connections: savedConnections)
     }
 
     // MARK: - Actions
@@ -89,6 +103,7 @@ final class ConnectionViewModel: ObservableObject {
 
     func saveConnection(_ config: ConnectionConfig) {
         savedConnections = SavedConnectionStore.add(config)
+        statusChecker.refresh(connections: savedConnections)
     }
 
     func deleteConnection(at offsets: IndexSet) {
@@ -97,6 +112,7 @@ final class ConnectionViewModel: ObservableObject {
             try? AuthManager.shared.deleteToken(for: config.id)
             savedConnections = SavedConnectionStore.delete(id: config.id)
         }
+        statusChecker.refresh(connections: savedConnections)
     }
 
     // MARK: - Helpers

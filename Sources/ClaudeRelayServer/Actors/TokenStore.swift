@@ -103,6 +103,18 @@ public actor TokenStore {
         return (newPlaintext, rotated)
     }
 
+    /// Rename a token's label.
+    public func rename(id: String, label: String) throws -> TokenInfo {
+        var loaded = try ensureLoaded()
+        guard let index = loaded.firstIndex(where: { $0.id == id }) else {
+            throw TokenStoreError.tokenNotFound(id: id)
+        }
+        loaded[index].label = label
+        try save(loaded)
+        tokens = loaded
+        return loaded[index]
+    }
+
     /// Return a single token info by id.
     public func inspect(id: String) throws -> TokenInfo {
         let loaded = try ensureLoaded()

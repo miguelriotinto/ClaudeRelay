@@ -29,6 +29,8 @@ final class SessionCoordinator: ObservableObject {
     private let token: String
     private var sessionController: SessionController?
     private var terminalViewModels: [UUID: TerminalViewModel] = [:]
+    var recoveryTask: Task<Void, Never>?
+    private var isTornDown = false
 
     // MARK: - Init
 
@@ -207,7 +209,7 @@ final class SessionCoordinator: ObservableObject {
     /// is still alive and, if not, reconnects + re-authenticates + resumes
     /// the previously active session transparently.
     func handleForegroundTransition() async {
-        guard !isRecovering else { return }
+        guard !isRecovering, !isTornDown else { return }
 
         let alive = await connection.isAlive()
         if alive { return }
@@ -221,6 +223,7 @@ final class SessionCoordinator: ObservableObject {
         do {
             try await connection.forceReconnect()
         } catch {
+            guard !isTornDown else { return }
             if !(error is CancellationError) {
                 connectionTimedOut = true
             }
@@ -228,6 +231,7 @@ final class SessionCoordinator: ObservableObject {
         }
 
         // 2. Re-auth + resume
+        guard !isTornDown else { return }
         await restoreSession()
     }
 
@@ -249,16 +253,16 @@ final class SessionCoordinator: ObservableObject {
         do {
             let controller = try await ensureAuthenticated()
 
+            guard !isTornDown else { return }
             if let activeId = activeSessionId {
                 try await controller.resumeSession(id: activeId)
                 wireTerminalOutput(to: activeId)
             }
         } catch is CancellationError {
-            // Task cancelled during lock/unlock — don't show error, auto-reconnect will retry
             print("[SessionCoordinator] Restore cancelled (lifecycle), will retry on next foreground")
             return
         } catch {
-            // Session may have been terminated server-side while we were away
+            guard !isTornDown else { return }
             if activeSessionId != nil {
                 activeSessionId = nil
             }
@@ -266,16 +270,22 @@ final class SessionCoordinator: ObservableObject {
             return
         }
 
-        await fetchSessions()
+        if !isTornDown {
+            await fetchSessions()
+        }
     }
 
     // MARK: - Cleanup
 
-    func detachActive() {
-        guard activeSessionId != nil else { return }
-        Task {
-            try? await sessionController?.detach()
+    /// Cancel any in-flight recovery, detach, and disconnect.
+    func tearDown() {
+        isTornDown = true
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        if activeSessionId != nil {
+            Task { try? await sessionController?.detach() }
         }
+        connection.disconnect()
     }
 
     // MARK: - Private

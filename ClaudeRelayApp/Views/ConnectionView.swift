@@ -47,16 +47,35 @@ struct ConnectionView: View {
                 if !viewModel.savedConnections.isEmpty {
                     Section("Saved Connections") {
                         ForEach(viewModel.savedConnections) { config in
+                            let status = viewModel.serverStatuses[config.id]
                             Button {
                                 viewModel.fillFromSaved(config)
                             } label: {
-                                VStack(alignment: .leading, spacing: 2) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text(config.name)
                                         .font(.body)
                                         .foregroundStyle(.primary)
                                     Text(verbatim: "\(config.host):\(config.port)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    HStack(spacing: 12) {
+                                        HStack(spacing: 4) {
+                                            Circle()
+                                                .fill(status?.isLive == true ? .green : .red)
+                                                .frame(width: 8, height: 8)
+                                            Text("Live")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        HStack(spacing: 4) {
+                                            Text("Sessions:")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                            Text("\(status?.sessionCount ?? 0)")
+                                                .font(.caption2.monospacedDigit())
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -64,6 +83,7 @@ struct ConnectionView: View {
                     }
                 }
             }
+            .onAppear { viewModel.refreshStatuses() }
             .navigationTitle("ClaudeRelay")
             .navigationDestination(isPresented: $viewModel.isNavigatingToSessions) {
                 if let connection = viewModel.activeConnection,

@@ -10,6 +10,7 @@ struct TokenGroup: AsyncParsableCommand {
             TokenListCommand.self,
             TokenDeleteCommand.self,
             TokenRotateCommand.self,
+            TokenRenameCommand.self,
             TokenInspectCommand.self
         ]
     )
@@ -54,11 +55,8 @@ struct TokenCreateCommand: AsyncParsableCommand {
             } else {
                 print(response.plaintext)
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            printServiceNotRunning()
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -89,11 +87,8 @@ struct TokenListCommand: AsyncParsableCommand {
                 }
                 print(OutputFormatter.formatTable(headers: headers, rows: rows))
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            printServiceNotRunning()
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -122,11 +117,8 @@ struct TokenDeleteCommand: AsyncParsableCommand {
                     print("Token \(id) deleted.")
                 }
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            printServiceNotRunning()
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -157,11 +149,43 @@ struct TokenRotateCommand: AsyncParsableCommand {
                 // Print only the plaintext token so it can be piped
                 print(response.plaintext)
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            printServiceNotRunning()
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
+            throw ExitCode.failure
+        }
+    }
+}
+
+// MARK: - Rename
+
+struct TokenRenameCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "rename",
+        abstract: "Rename a token's label"
+    )
+
+    @OptionGroup var globals: GlobalOptions
+
+    @Argument(help: "Token ID to rename")
+    var id: String
+
+    @Argument(help: "New label")
+    var label: String
+
+    func run() async throws {
+        let client = AdminClient(port: globals.port)
+
+        do {
+            let body = TokenRenameRequest(label: label)
+            let token: TokenInfo = try await client.patch("/tokens/\(id)", body: body)
+
+            if globals.json {
+                print(OutputFormatter.formatJSON(token))
+            } else if !globals.quiet {
+                print("Token \(id) renamed to '\(token.label ?? label)'.")
+            }
+        } catch {
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -196,11 +220,8 @@ struct TokenInspectCommand: AsyncParsableCommand {
                 print("Expires:    \(token.expiresAt ?? "never")")
                 print("Last Used:  \(token.lastUsedAt ?? "never")")
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            printServiceNotRunning()
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -211,6 +232,10 @@ struct TokenInspectCommand: AsyncParsableCommand {
 struct TokenCreateRequest: Encodable {
     let label: String?
     let expiryDays: Int?
+}
+
+struct TokenRenameRequest: Encodable {
+    let label: String
 }
 
 struct TokenCreateResponse: Codable {
@@ -232,8 +257,3 @@ struct TokenInfo: Codable {
     let lastUsedAt: String?
 }
 
-// MARK: - Helper
-
-private func printServiceNotRunning() {
-    print("Service is not running.")
-}

@@ -38,11 +38,8 @@ struct ConfigShowCommand: AsyncParsableCommand {
                 }
                 print(OutputFormatter.formatTable(headers: headers, rows: rows))
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            print("Service is not running.")
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -73,11 +70,8 @@ struct ConfigSetCommand: AsyncParsableCommand {
             if !globals.quiet {
                 print("Set \(key) = \(value)")
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            print("Service is not running.")
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }
@@ -136,11 +130,8 @@ struct ConfigValidateCommand: AsyncParsableCommand {
                     throw ExitCode.failure
                 }
             }
-        } catch let error as AdminClientError where error == .serviceNotRunning {
-            print("Service is not running.")
-            throw ExitCode.failure
         } catch {
-            print("Error: \(error.localizedDescription)")
+            print(OutputFormatter.formatError(error, json: globals.json))
             throw ExitCode.failure
         }
     }

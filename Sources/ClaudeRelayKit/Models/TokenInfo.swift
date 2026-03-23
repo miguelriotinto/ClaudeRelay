@@ -9,7 +9,7 @@ public struct TokenInfo: Codable, Sendable, Identifiable {
     public let tokenHash: String
 
     /// Optional human-readable label.
-    public let label: String?
+    public var label: String?
 
     /// When the token was created.
     public let createdAt: Date

@@ -82,12 +82,11 @@ struct WorkspaceView: View {
             }
         }
         .onDisappear {
-            coordinator.detachActive()
-            coordinator.connection.disconnect()
+            coordinator.tearDown()
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                Task {
+                coordinator.recoveryTask = Task {
                     await coordinator.handleForegroundTransition()
                 }
             }

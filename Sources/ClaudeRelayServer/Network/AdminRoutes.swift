@@ -33,6 +33,8 @@ enum AdminRoutes {
             return await handleGetTokens(components, tokenStore: tokenStore)
         case (.DELETE, "tokens"):
             return await handleDeleteToken(components, tokenStore: tokenStore)
+        case (.PATCH, "tokens"):
+            return await handlePatchToken(components, body: body, tokenStore: tokenStore)
         case (.GET, "config"):
             return handleGetConfig(components)
         case (.PUT, "config"):
@@ -189,6 +191,26 @@ enum AdminRoutes {
         do {
             try await tokenStore.delete(id: components[1])
             return .json(["status": "deleted"])
+        } catch {
+            return .error("Token not found", status: 404)
+        }
+    }
+
+    private static func handlePatchToken(
+        _ components: [String],
+        body: ByteBuffer?,
+        tokenStore: TokenStore
+    ) async -> AdminResponse {
+        guard components.count == 2 else { return .error("Not found", status: 404) }
+        guard let body = body,
+              let bytes = body.getBytes(at: body.readerIndex, length: body.readableBytes),
+              let parsed = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+              let label = parsed["label"] as? String else {
+            return .error("Missing label in body", status: 400)
+        }
+        do {
+            let info = try await tokenStore.rename(id: components[1], label: label)
+            return .encodable(info)
         } catch {
             return .error("Token not found", status: 404)
         }

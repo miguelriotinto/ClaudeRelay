@@ -76,6 +76,46 @@ public enum OutputFormatter {
         return ([headerLine, separator] + dataLines).joined(separator: "\n")
     }
 
+    // MARK: - Error
+
+    /// Format an error for output. When `json` is true, emits structured JSON.
+    public static func formatError(_ error: Error, json: Bool) -> String {
+        if json {
+            if let clientError = error as? AdminClientError {
+                switch clientError {
+                case .serviceNotRunning:
+                    return formatJSON(JSONError(error: "Service is not running"))
+                case .httpError(let statusCode, let body):
+                    let message = parseErrorMessage(from: body) ?? "HTTP \(statusCode)"
+                    return formatJSON(JSONError(error: message, status: statusCode))
+                case .decodingError(let err):
+                    return formatJSON(JSONError(error: "Failed to decode response: \(err)"))
+                }
+            }
+            return formatJSON(JSONError(error: error.localizedDescription))
+        }
+
+        if let clientError = error as? AdminClientError, clientError == .serviceNotRunning {
+            return "Service is not running."
+        }
+        return "Error: \(error.localizedDescription)"
+    }
+
+    private struct JSONError: Encodable {
+        let error: String
+        var status: Int?
+    }
+
+    /// Try to extract the "error" value from a JSON body string.
+    private static func parseErrorMessage(from body: String) -> String? {
+        guard let data = body.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let message = obj["error"] as? String else {
+            return nil
+        }
+        return message
+    }
+
     // MARK: - Private Helpers
 
     private static func formatUptime(_ seconds: Int) -> String {
