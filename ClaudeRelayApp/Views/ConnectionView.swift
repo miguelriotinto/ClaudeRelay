@@ -83,21 +83,7 @@ struct ConnectionView: View {
                     }
                 }
             }
-            .onAppear {
-                viewModel.resetNavigationState()
-                viewModel.refreshStatuses()
-            }
             .navigationTitle("ClaudeRelay")
-            .navigationDestination(isPresented: $viewModel.isNavigatingToSessions) {
-                if let connection = viewModel.activeConnection,
-                   let token = viewModel.activeToken {
-                    WorkspaceView(
-                        connection: connection,
-                        token: token,
-                        showTimeoutAlert: $showTimeoutAlert
-                    )
-                }
-            }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -107,6 +93,19 @@ struct ConnectionView: View {
                 Button("Reconnect", role: .cancel) {}
             } message: {
                 Text("Connection timed out. Please reconnect.")
+            }
+        }
+        .fullScreenCover(isPresented: $viewModel.isNavigatingToSessions) {
+            viewModel.resetNavigationState()
+            viewModel.refreshStatuses()
+        } content: {
+            if let connection = viewModel.activeConnection,
+               let token = viewModel.activeToken {
+                WorkspaceView(
+                    connection: connection,
+                    token: token,
+                    showTimeoutAlert: $showTimeoutAlert
+                )
             }
         }
     }

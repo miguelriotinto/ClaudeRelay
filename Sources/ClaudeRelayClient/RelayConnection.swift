@@ -108,12 +108,31 @@ public final class RelayConnection: ObservableObject {
     }
 
     /// Checks whether the WebSocket is still alive by sending a ping.
+    /// Returns false if no pong is received within 3 seconds.
     public func isAlive() async -> Bool {
         guard let task = webSocketTask, state == .connected else { return false }
-        return await withCheckedContinuation { continuation in
-            task.sendPing { error in
-                continuation.resume(returning: error == nil)
+        // Race ping against a 3-second timeout. AsyncStream is used instead of
+        // CheckedContinuation because sendPing's callback can fire multiple times
+        // (e.g., once on pong, again when URLSession.invalidateAndCancel() runs
+        // during disconnect). Extra yields after finish() are safely ignored.
+        return await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                let stream = AsyncStream<Bool> { continuation in
+                    task.sendPing { error in
+                        continuation.yield(error == nil)
+                        continuation.finish()
+                    }
+                }
+                for await value in stream { return value }
+                return false
             }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                return false
+            }
+            let result = await group.next() ?? false
+            group.cancelAll()
+            return result
         }
     }
 
