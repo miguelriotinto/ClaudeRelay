@@ -92,6 +92,13 @@ final class ConnectionViewModel: ObservableObject {
         }
     }
 
+    /// Clear stale navigation state so the view becomes interactive again.
+    func resetNavigationState() {
+        isNavigatingToSessions = false
+        activeConnection = nil
+        activeToken = nil
+    }
+
     func fillFromSaved(_ config: ConnectionConfig) {
         name = config.name
         host = config.host

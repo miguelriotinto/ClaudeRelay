@@ -83,7 +83,10 @@ struct ConnectionView: View {
                     }
                 }
             }
-            .onAppear { viewModel.refreshStatuses() }
+            .onAppear {
+                viewModel.resetNavigationState()
+                viewModel.refreshStatuses()
+            }
             .navigationTitle("ClaudeRelay")
             .navigationDestination(isPresented: $viewModel.isNavigatingToSessions) {
                 if let connection = viewModel.activeConnection,
