@@ -104,7 +104,6 @@ struct ActiveTerminalView: View {
                     }
 
                     Button {
-                        NotificationCenter.default.post(name: .terminalFreezeScroll, object: nil)
                         showKeyBar.toggle()
                     } label: {
                         Image(systemName: showKeyBar ? "keyboard.fill" : "keyboard")
@@ -217,32 +216,6 @@ struct ActiveTerminalView: View {
 extension Notification.Name {
     static let terminalRequestFocus = Notification.Name("terminalRequestFocus")
     static let terminalResignFocus = Notification.Name("terminalResignFocus")
-    static let terminalFreezeScroll = Notification.Name("terminalFreezeScroll")
-}
-
-/// Subclass that blocks `layoutSubviews` during key-bar animation so
-/// SwiftTerm's `updateScroller()` never fires and content doesn't scroll.
-final class FreezableTerminalView: TerminalView {
-    private var isLayoutFrozen = false
-
-    override func layoutSubviews() {
-        guard !isLayoutFrozen else { return }
-        super.layoutSubviews()
-    }
-
-    func freezeLayout() {
-        isLayoutFrozen = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            self?.unfreezeLayout()
-        }
-    }
-
-    func unfreezeLayout() {
-        guard isLayoutFrozen else { return }
-        isLayoutFrozen = false
-        setNeedsLayout()
-        layoutIfNeeded()
-    }
 }
 
 struct SwiftTermView: UIViewRepresentable {
@@ -250,7 +223,7 @@ struct SwiftTermView: UIViewRepresentable {
     @Binding var isKeyboardVisible: Bool
 
     func makeUIView(context: Context) -> TerminalView {
-        let terminal = FreezableTerminalView(frame: .zero)
+        let terminal = TerminalView(frame: .zero)
         terminal.terminalDelegate = context.coordinator
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
@@ -278,13 +251,6 @@ struct SwiftTermView: UIViewRepresentable {
         ) { _ in
             _ = terminal.resignFirstResponder()
         }
-        context.coordinator.terminalView = terminal
-        context.coordinator.freezeObserver = NotificationCenter.default.addObserver(
-            forName: .terminalFreezeScroll, object: nil, queue: .main
-        ) { _ in
-            context.coordinator.freezeScroll()
-        }
-
         return terminal
     }
 
@@ -297,10 +263,6 @@ struct SwiftTermView: UIViewRepresentable {
         if let observer = coordinator.resignObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        if let observer = coordinator.freezeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        coordinator.unfreezeScroll()
         coordinator.removeKeyboardObservers()
     }
 
@@ -313,8 +275,6 @@ struct SwiftTermView: UIViewRepresentable {
         var isKeyboardVisible: Binding<Bool>
         var focusObserver: Any?
         var resignObserver: Any?
-        var freezeObserver: Any?
-        weak var terminalView: FreezableTerminalView?
 
         init(viewModel: TerminalViewModel, isKeyboardVisible: Binding<Bool>) {
             self.viewModel = viewModel
@@ -341,14 +301,6 @@ struct SwiftTermView: UIViewRepresentable {
 
         @objc private func keyboardDidHide() {
             isKeyboardVisible.wrappedValue = false
-        }
-
-        func freezeScroll() {
-            terminalView?.freezeLayout()
-        }
-
-        func unfreezeScroll() {
-            terminalView?.unfreezeLayout()
         }
 
         func send(source: TerminalView, data: ArraySlice<UInt8>) {
