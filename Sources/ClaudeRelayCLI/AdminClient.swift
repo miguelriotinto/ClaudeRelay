@@ -49,6 +49,16 @@ public final class AdminClient {
         return try await perform(request)
     }
 
+    /// PATCH request with body, returns decoded JSON.
+    public func patch<T: Decodable>(_ path: String, body: any Encodable) async throws -> T {
+        let url = buildURL(path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.httpBody = try JSONEncoder().encode(AnyEncodable(body))
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        return try await perform(request)
+    }
+
     /// DELETE request.
     public func delete(_ path: String) async throws {
         let url = buildURL(path)
