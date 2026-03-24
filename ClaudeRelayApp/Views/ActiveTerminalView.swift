@@ -9,6 +9,9 @@ struct ActiveTerminalView: View {
     var onDisconnect: () -> Void
     @State private var showKeyBar = false
     @State private var isKeyboardVisible = false
+    @StateObject private var speechRecognizer = SpeechRecognizer()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var pulseAnimation = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -34,26 +37,50 @@ struct ActiveTerminalView: View {
                 }
             }
 
-            // Floating keyboard toggle button
-            Button {
-                if isKeyboardVisible {
-                    NotificationCenter.default.post(
-                        name: .terminalResignFocus, object: nil
-                    )
-                } else {
-                    NotificationCenter.default.post(
-                        name: .terminalRequestFocus, object: nil
-                    )
+            // Floating buttons: mic + keyboard toggle
+            HStack(spacing: 10) {
+                // Mic button
+                Button {
+                    toggleDictation()
+                } label: {
+                    Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(speechRecognizer.isRecording
+                                    ? Color.red.opacity(0.8)
+                                    : Color.gray.opacity(0.5))
+                        .clipShape(Circle())
+                        .scaleEffect(pulseAnimation && speechRecognizer.isRecording ? 1.15 : 1.0)
+                        .animation(
+                            speechRecognizer.isRecording
+                                ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                                : .default,
+                            value: pulseAnimation
+                        )
                 }
-            } label: {
-                Image(systemName: isKeyboardVisible
-                      ? "keyboard.chevron.compact.down"
-                      : "keyboard")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.gray.opacity(0.5))
-                    .clipShape(Circle())
+
+                // Keyboard toggle button (unchanged)
+                Button {
+                    if isKeyboardVisible {
+                        NotificationCenter.default.post(
+                            name: .terminalResignFocus, object: nil
+                        )
+                    } else {
+                        NotificationCenter.default.post(
+                            name: .terminalRequestFocus, object: nil
+                        )
+                    }
+                } label: {
+                    Image(systemName: isKeyboardVisible
+                          ? "keyboard.chevron.compact.down"
+                          : "keyboard")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(Color.gray.opacity(0.5))
+                        .clipShape(Circle())
+                }
             }
             .padding(.trailing, 16)
             .padding(.bottom, 12)
@@ -111,6 +138,44 @@ struct ActiveTerminalView: View {
         }
         .ignoresSafeArea(.container, edges: .horizontal)
         .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: coordinator.activeSessionId) { _, _ in
+            speechRecognizer.stopRecording()
+            pulseAnimation = false
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase != .active {
+                speechRecognizer.stopRecording()
+                pulseAnimation = false
+            }
+        }
+        .alert(
+            permissionAlertTitle,
+            isPresented: Binding(
+                get: { speechRecognizer.permissionError != nil },
+                set: { if !$0 { speechRecognizer.permissionError = nil } }
+            ),
+            presenting: speechRecognizer.permissionError,
+            actions: { error in
+                if error != .unavailable {
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            },
+            message: { error in
+                switch error {
+                case .microphoneDenied:
+                    Text("Voice input needs microphone access. Enable it in Settings.")
+                case .speechDenied:
+                    Text("Voice input needs speech recognition access. Enable it in Settings.")
+                case .unavailable:
+                    Text("Speech recognition is not available on this device or for your language.")
+                }
+            }
+        )
     }
 
     private func statusColor(_ state: RelayConnection.ConnectionState) -> SwiftUI.Color {
@@ -118,6 +183,29 @@ struct ActiveTerminalView: View {
         case .connected: return .green
         case .connecting, .reconnecting: return .yellow
         case .disconnected: return .red
+        }
+    }
+
+    private func toggleDictation() {
+        if speechRecognizer.isRecording {
+            speechRecognizer.stopRecording()
+            pulseAnimation = false
+        } else {
+            speechRecognizer.startRecording { [coordinator] data in
+                guard let id = coordinator.activeSessionId,
+                      let vm = coordinator.viewModel(for: id) else { return }
+                vm.sendInput(data)
+            }
+            pulseAnimation = true
+        }
+    }
+
+    private var permissionAlertTitle: String {
+        switch speechRecognizer.permissionError {
+        case .microphoneDenied: return "Microphone Access Required"
+        case .speechDenied: return "Speech Recognition Required"
+        case .unavailable: return "Speech Recognition Unavailable"
+        case nil: return ""
         }
     }
 }
