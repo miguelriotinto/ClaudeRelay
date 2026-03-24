@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
+		1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
 		5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA02853D523E6DAF7B5CD68D /* Assets.xcassets */; };
 		6F22772DC964FDAFED10E09C /* ConnectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74261F702CDAF22F4B3FE7F1 /* ConnectionViewModel.swift */; };
@@ -37,6 +38,7 @@
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CDE7061F16DD811CA184B2B /* ClaudeRelay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClaudeRelay; path = .; sourceTree = SOURCE_ROOT; };
+		8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
@@ -64,6 +66,7 @@
 				74261F702CDAF22F4B3FE7F1 /* ConnectionViewModel.swift */,
 				5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */,
 				AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */,
+				8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */,
 				700712F6C8FC16A5214C345A /* TerminalViewModel.swift */,
 			);
 			path = ViewModels;
@@ -218,6 +221,7 @@
 				B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */,
 				9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */,
 				0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */,
+				1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */,
 				B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */,
 				F6F78FBAA4638832F683A18C /* StatusIndicator.swift in Sources */,
 				840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */,
@@ -356,6 +360,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -383,6 +389,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
