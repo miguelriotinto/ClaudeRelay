@@ -78,9 +78,7 @@ struct ActiveTerminalView: View {
 
                     Button {
                         NotificationCenter.default.post(name: .terminalFreezeScroll, object: nil)
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            showKeyBar.toggle()
-                        }
+                        showKeyBar.toggle()
                     } label: {
                         Image(systemName: showKeyBar ? "keyboard.fill" : "keyboard")
                             .font(.system(size: 16))
