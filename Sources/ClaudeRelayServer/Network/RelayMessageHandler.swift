@@ -252,14 +252,16 @@ final class RelayMessageHandler: ChannelInboundHandler {
                 RelayLogger.log(category: "session", "Session resumed: \(sessionId)")
                 // Read scrollback history to send to client
                 let buffered = await pty.readBuffer()
+                // Filter out stale escape sequence responses that may have accumulated
+                let filtered = Self.filterEscapeResponses(buffered)
                 context.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
                     self.attachedPTY = pty
                     self.sendServerMessage(.sessionResumed(sessionId: sessionId), context: context)
                     // Send buffered data as binary
-                    if !buffered.isEmpty {
-                        self.sendBinaryData(buffered, context: context)
+                    if !filtered.isEmpty {
+                        self.sendBinaryData(filtered, context: context)
                     }
                     self.wirePTYOutput(pty: pty, context: context)
                 }
@@ -423,5 +425,53 @@ final class RelayMessageHandler: ChannelInboundHandler {
             print("[RelayMessageHandler] Binary write failed (\(data.count) bytes): \(error)")
         }
         context.writeAndFlush(wrapOutboundOut(frame), promise: promise)
+    }
+
+    // MARK: - Escape Sequence Filtering
+
+    /// Filters out stale escape sequence responses (DA, DSR, etc.) that may have accumulated
+    /// in the scrollback buffer while the session was detached. These responses would otherwise
+    /// appear as garbage characters when the terminal reattaches.
+    private static func filterEscapeResponses(_ data: Data) -> Data {
+        guard !data.isEmpty else { return data }
+
+        let bytes = [UInt8](data)
+        var filtered = [UInt8]()
+        filtered.reserveCapacity(bytes.count)
+
+        var i = 0
+        while i < bytes.count {
+            // Look for CSI (ESC [ or 0x9B)
+            if i < bytes.count - 1 && bytes[i] == 0x1B && bytes[i + 1] == 0x5B {
+                // ESC [ sequence
+                var j = i + 2
+                // Scan parameter bytes (0x30-0x3F) and intermediate bytes (0x20-0x2F)
+                while j < bytes.count && (
+                    (bytes[j] >= 0x30 && bytes[j] <= 0x3F) ||
+                    (bytes[j] >= 0x20 && bytes[j] <= 0x2F)
+                ) {
+                    j += 1
+                }
+                // Final byte is 0x40-0x7E
+                if j < bytes.count && bytes[j] >= 0x40 && bytes[j] <= 0x7E {
+                    let finalByte = bytes[j]
+                    // Filter out common response sequences:
+                    // - 'c' = DA (Device Attributes)
+                    // - 'R' = CPR (Cursor Position Report)
+                    // - 'n' = DSR (Device Status Report)
+                    // - 'y' = DECREQTPARM response
+                    if finalByte == 0x63 || finalByte == 0x52 || finalByte == 0x6E || finalByte == 0x79 {
+                        // Skip this entire sequence
+                        i = j + 1
+                        continue
+                    }
+                }
+            }
+            // Not a filtered sequence, keep the byte
+            filtered.append(bytes[i])
+            i += 1
+        }
+
+        return Data(filtered)
     }
 }
