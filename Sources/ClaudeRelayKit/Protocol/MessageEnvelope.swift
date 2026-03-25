@@ -15,6 +15,18 @@ extension MessageEnvelope: Codable {
         case type, payload
     }
 
+    private enum MessageOrigin {
+        case client, server
+    }
+
+    /// Single lookup table for all type strings — avoids two Set lookups per decode.
+    private static let typeOrigin: [String: MessageOrigin] = {
+        var map = [String: MessageOrigin]()
+        for ts in ClientMessage.allTypeStrings { map[ts] = .client }
+        for ts in ServerMessage.allTypeStrings { map[ts] = .server }
+        return map
+    }()
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
@@ -32,15 +44,16 @@ extension MessageEnvelope: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let typeString = try container.decode(String.self, forKey: .type)
 
-        if ClientMessage.allTypeStrings.contains(typeString) {
+        switch Self.typeOrigin[typeString] {
+        case .client:
             let payloadDecoder = try container.superDecoder(forKey: .payload)
             let message = try ClientMessage.decode(typeString: typeString, from: payloadDecoder)
             self = .client(message)
-        } else if ServerMessage.allTypeStrings.contains(typeString) {
+        case .server:
             let payloadDecoder = try container.superDecoder(forKey: .payload)
             let message = try ServerMessage.decode(typeString: typeString, from: payloadDecoder)
             self = .server(message)
-        } else {
+        case nil:
             throw DecodingError.dataCorruptedError(
                 forKey: .type,
                 in: container,

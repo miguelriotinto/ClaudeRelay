@@ -4,6 +4,7 @@ import Foundation
 /// Uses NSLock for synchronous access from NIO event loops without requiring `await`.
 public final class LogStore: @unchecked Sendable {
     private var entries: [String] = []
+    private var dropCount = 0
     private let maxEntries: Int
     private let lock = NSLock()
 
@@ -24,7 +25,12 @@ public final class LogStore: @unchecked Sendable {
         lock.lock()
         entries.append(entry)
         if entries.count > maxEntries {
-            entries.removeFirst()
+            dropCount += 1
+            // Compact periodically to reclaim memory (every 1000 dropped entries)
+            if dropCount >= 1000 {
+                entries.removeFirst(dropCount)
+                dropCount = 0
+            }
         }
         lock.unlock()
     }
@@ -33,6 +39,7 @@ public final class LogStore: @unchecked Sendable {
     public func recent(count: Int) -> [String] {
         lock.lock()
         defer { lock.unlock() }
-        return Array(entries.suffix(count))
+        let live = entries.dropFirst(dropCount)
+        return Array(live.suffix(count))
     }
 }

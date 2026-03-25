@@ -45,7 +45,10 @@ public actor RateLimiter {
     private func cleanup(ip: String) {
         guard var timestamps = attempts[ip] else { return }
         let cutoff = Date().addingTimeInterval(-windowSeconds)
-        timestamps.removeAll { $0 < cutoff }
+        // Timestamps are appended chronologically, so drop from the front.
+        while let first = timestamps.first, first < cutoff {
+            timestamps.removeFirst()
+        }
         if timestamps.isEmpty {
             attempts.removeValue(forKey: ip)
         } else {
