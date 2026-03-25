@@ -91,8 +91,9 @@ struct ActiveTerminalView: View {
                     Button {
                         showKeyBar.toggle()
                     } label: {
-                        Image(systemName: showKeyBar ? "keyboard.fill" : "keyboard")
+                        Image(systemName: showKeyBar ? "fn" : "fn")
                             .font(.system(size: 16))
+                            .fontWeight(showKeyBar ? .bold : .regular)
                     }
                 }
 
