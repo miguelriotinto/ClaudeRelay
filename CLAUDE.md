@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 swift build                        # Build all SPM targets
-swift test                         # Run all tests (~106 tests)
+swift test                         # Run all tests (110 tests)
 swift test --filter ClaudeRelayKitTests        # Run a single test suite
 swift test --filter testTokenGeneration        # Run a single test by name
 ```
@@ -57,6 +57,7 @@ The WebSocket server uses default `JSONEncoder` (Double timestamps). The Admin H
 - **WorkspaceView** — NavigationSplitView: sidebar (sessions) + detail (terminal)
 - **SessionCoordinator** — Manages auth, session lifecycle, caches TerminalViewModels, routes I/O
 - **Foreground recovery** — On `scenePhase` `.active`: pings WebSocket, reconnects if dead, re-authenticates, resumes session
+- **SpeechRecognizer** — Live speech-to-text using SFSpeechRecognizer, streams diff-based text to terminal
 
 ### Key Pattern: sendAndWaitForResponse
 

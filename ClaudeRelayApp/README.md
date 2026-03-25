@@ -57,12 +57,16 @@ ClaudeRelayApp/
     SavedConnection.swift        -- Persisted server bookmarks
   ViewModels/
     ConnectionViewModel.swift    -- Login / connection logic
-    SessionListViewModel.swift   -- Session enumeration
+    SessionCoordinator.swift     -- Auth, session lifecycle, I/O routing
     TerminalViewModel.swift      -- Terminal I/O bridge
+    ServerStatusChecker.swift    -- Periodic server health polling
+    SpeechRecognizer.swift       -- Live speech-to-text via SFSpeechRecognizer
   Views/
     ConnectionView.swift         -- Server address entry
-    SessionListView.swift        -- Session picker
-    TerminalContainerView.swift  -- Full-screen terminal (SwiftTerm)
+    SplashScreenView.swift       -- App launch splash
+    WorkspaceView.swift          -- NavigationSplitView: sidebar + terminal
+    SessionSidebarView.swift     -- Session list sidebar
+    ActiveTerminalView.swift     -- Terminal with keyboard accessory + mic
     Components/
       StatusIndicator.swift      -- Connection-state badge
       KeyboardAccessory.swift    -- Extra key row above keyboard
