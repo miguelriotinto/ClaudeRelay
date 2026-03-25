@@ -23,7 +23,6 @@
 		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
 		EE2BA421982FC7392097CDEC /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C29187431B96BC5B17B216E /* ConnectionView.swift */; };
 		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
-		F6F78FBAA4638832F683A18C /* StatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD7489DFB9D14A5CE866690 /* StatusIndicator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,7 +43,6 @@
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		BA02853D523E6DAF7B5CD68D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		DAD7489DFB9D14A5CE866690 /* StatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,7 +120,6 @@
 			isa = PBXGroup;
 			children = (
 				03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */,
-				DAD7489DFB9D14A5CE866690 /* StatusIndicator.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -223,7 +220,6 @@
 				0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */,
 				1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */,
 				B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */,
-				F6F78FBAA4638832F683A18C /* StatusIndicator.swift in Sources */,
 				840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */,
 				7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */,
 			);

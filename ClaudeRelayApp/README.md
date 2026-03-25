@@ -68,6 +68,5 @@ ClaudeRelayApp/
     SessionSidebarView.swift     -- Session list sidebar
     ActiveTerminalView.swift     -- Terminal with keyboard accessory + mic
     Components/
-      StatusIndicator.swift      -- Connection-state badge
       KeyboardAccessory.swift    -- Extra key row above keyboard
 ```

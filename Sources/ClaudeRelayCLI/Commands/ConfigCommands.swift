@@ -173,11 +173,7 @@ enum ConfigValue: Codable, CustomStringConvertible {
     }
 }
 
-struct ConfigSetResponse: Codable {
-    let ok: Bool?
-    let key: String?
-    let value: String?
-}
+struct ConfigSetResponse: Codable {}
 
 struct ValidationResult: Codable {
     let valid: Bool

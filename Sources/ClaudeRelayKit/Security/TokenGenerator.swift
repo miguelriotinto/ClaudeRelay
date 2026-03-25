@@ -31,10 +31,6 @@ public enum TokenGenerator {
 
     /// Generates a new random token and its associated `TokenInfo`.
     ///
-    /// - Parameter label: Optional human-readable label for the token.
-    /// - Returns: A tuple of the plaintext token (43 chars, base64URL) and its `TokenInfo`.
-    /// Generates a new random token and its associated `TokenInfo`.
-    ///
     /// - Parameters:
     ///   - label: Optional human-readable label for the token.
     ///   - expiryDays: Number of days until the token expires. `nil` means never expires.

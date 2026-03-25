@@ -41,7 +41,6 @@ public final class WebSocketServer {
             .serverChannelOption(ChannelOptions.backlog, value: 256)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { channel in
-                let httpHandler = HTTPByteBufferResponsePartHandler()
                 let config: NIOHTTPServerUpgradeConfiguration = (
                     upgraders: [upgrader],
                     completionHandler: { _ in
@@ -63,15 +62,5 @@ public final class WebSocketServer {
 
     public func stop() async throws {
         try await channel?.close()
-    }
-}
-
-/// Minimal handler to absorb HTTP bytes before WebSocket upgrade completes.
-private final class HTTPByteBufferResponsePartHandler: ChannelOutboundHandler {
-    typealias OutboundIn = HTTPServerResponsePart
-    typealias OutboundOut = HTTPServerResponsePart
-
-    func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
-        context.write(data, promise: promise)
     }
 }
