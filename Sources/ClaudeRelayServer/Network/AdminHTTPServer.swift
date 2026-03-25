@@ -75,7 +75,8 @@ final class AdminHTTPHandler: ChannelInboundHandler {
         switch part {
         case .head(let head):
             self.requestHead = head
-            self.requestBody = context.channel.allocator.buffer(capacity: 0)
+            let contentLength = head.headers.first(name: "content-length").flatMap(Int.init) ?? 256
+            self.requestBody = context.channel.allocator.buffer(capacity: contentLength)
         case .body(var body):
             self.requestBody?.writeBuffer(&body)
         case .end:

@@ -128,8 +128,9 @@ enum AdminRoutes {
     private static func createToken(body: ByteBuffer?, tokenStore: TokenStore) async -> AdminResponse {
         var label: String?
         var expiryDays: Int?
-        if let body = body, let bytes = body.getBytes(at: body.readerIndex, length: body.readableBytes) {
-            if let parsed = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any] {
+        if let body = body {
+            let bodyData = body.withUnsafeReadableBytes { Data($0) }
+            if let parsed = try? JSONSerialization.jsonObject(with: bodyData) as? [String: Any] {
                 label = parsed["label"] as? String
                 expiryDays = parsed["expiryDays"] as? Int
             }
@@ -203,8 +204,7 @@ enum AdminRoutes {
     ) async -> AdminResponse {
         guard components.count == 2 else { return .error("Not found", status: 404) }
         guard let body = body,
-              let bytes = body.getBytes(at: body.readerIndex, length: body.readableBytes),
-              let parsed = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+              let parsed = try? JSONSerialization.jsonObject(with: body.withUnsafeReadableBytes { Data($0) }) as? [String: Any],
               let label = parsed["label"] as? String else {
             return .error("Missing label in body", status: 400)
         }
@@ -232,8 +232,7 @@ enum AdminRoutes {
         guard components.count == 2 else { return .error("Not found", status: 404) }
         let key = components[1]
         guard let body = body,
-              let bytes = body.getBytes(at: body.readerIndex, length: body.readableBytes),
-              let parsed = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+              let parsed = try? JSONSerialization.jsonObject(with: body.withUnsafeReadableBytes { Data($0) }) as? [String: Any],
               let value = parsed["value"] else {
             return .error("Missing value in body", status: 400)
         }

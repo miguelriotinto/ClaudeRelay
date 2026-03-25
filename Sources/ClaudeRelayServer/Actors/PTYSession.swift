@@ -98,13 +98,18 @@ public actor PTYSession: PTYSessionProtocol {
     private static func makeReadSource(fd: Int32, session: PTYSession) -> DispatchSourceRead {
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .global())
 
+        // Persistent read buffer — reused across callbacks to avoid per-read allocation.
+        var readBuffer = [UInt8](repeating: 0, count: 8192)
+
         source.setEventHandler { [weak source, session] in
-            let bufferSize = 8192
-            var buffer = [UInt8](repeating: 0, count: bufferSize)
-            let bytesRead = read(fd, &buffer, bufferSize)
+            let estimated = max(Int(source?.data ?? 0), 256)
+            if estimated > readBuffer.count {
+                readBuffer = [UInt8](repeating: 0, count: min(estimated, 65536))
+            }
+            let bytesRead = read(fd, &readBuffer, readBuffer.count)
 
             if bytesRead > 0 {
-                let data = Data(buffer[0..<bytesRead])
+                let data = Data(readBuffer[0..<bytesRead])
                 Task {
                     await session.handleOutput(data)
                 }
