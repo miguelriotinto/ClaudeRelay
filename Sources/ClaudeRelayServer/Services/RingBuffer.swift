@@ -25,24 +25,23 @@ public struct RingBuffer: Sendable {
     /// Appends data to the buffer. If the total exceeds capacity,
     /// the oldest bytes are silently dropped.
     public mutating func write(_ data: Data) {
-        let bytes = [UInt8](data)
-
-        if bytes.count >= capacity {
+        if data.count >= capacity {
             // Only the last `capacity` bytes matter
-            let start = bytes.count - capacity
-            storage = Array(bytes[start...])
+            let start = data.count - capacity
+            storage = Array(data[data.startIndex.advanced(by: start)...])
             head = 0
             filled = capacity
             return
         }
 
-        let count = bytes.count
+        let count = data.count
         let spaceToEnd = capacity - head
         if count <= spaceToEnd {
-            storage.replaceSubrange(head..<head + count, with: bytes)
+            storage.replaceSubrange(head..<head + count, with: data)
         } else {
-            storage.replaceSubrange(head..<capacity, with: bytes[0..<spaceToEnd])
-            storage.replaceSubrange(0..<count - spaceToEnd, with: bytes[spaceToEnd...])
+            let splitIndex = data.startIndex.advanced(by: spaceToEnd)
+            storage.replaceSubrange(head..<capacity, with: data[data.startIndex..<splitIndex])
+            storage.replaceSubrange(0..<count - spaceToEnd, with: data[splitIndex...])
         }
         head = (head + count) % capacity
         filled = min(filled + count, capacity)

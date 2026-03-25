@@ -150,8 +150,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
             sendServerMessage(.error(code: 413, message: "Binary frame too large"), context: context)
             return
         }
-        guard let bytes = data.readBytes(length: data.readableBytes) else { return }
-        let inputData = Data(bytes)
+        let inputData = data.withUnsafeReadableBytes { Data($0) }
         Task {
             await pty.write(inputData)
         }

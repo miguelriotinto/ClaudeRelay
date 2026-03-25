@@ -86,6 +86,7 @@ final class ConnectionViewModel: ObservableObject {
 
             activeConnection = connection
             activeToken = token
+            statusChecker.stopPolling()
             isNavigatingToSessions = true
         } catch {
             presentError(error.localizedDescription)

@@ -27,6 +27,7 @@ struct SessionSidebarView: View {
                         SessionRow(
                             session: session,
                             name: coordinator.name(for: session.id),
+                            shortId: String(session.id.uuidString.prefix(8)),
                             isActive: session.id == coordinator.activeSessionId,
                             onRename: { newName in
                                 coordinator.setName(newName, for: session.id)
@@ -64,6 +65,7 @@ struct SessionSidebarView: View {
 private struct SessionRow: View {
     let session: SessionInfo
     let name: String
+    let shortId: String
     let isActive: Bool
     let onRename: (String) -> Void
 
@@ -93,7 +95,7 @@ private struct SessionRow: View {
                         .truncationMode(.tail)
                 }
 
-                Text(session.id.uuidString.prefix(8))
+                Text(shortId)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.tertiary)
             }
