@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftTerm
 import ClaudeRelayClient
+import GameController
 
 /// Detail pane: thin toolbar + terminal + optional key bar.
 struct ActiveTerminalView: View {
@@ -9,6 +10,7 @@ struct ActiveTerminalView: View {
     var onDisconnect: () -> Void
     @State private var showKeyBar = false
     @State private var isKeyboardVisible = false
+    @State private var hasHardwareKeyboard = GCKeyboard.coalesced != nil
     @StateObject private var speechRecognizer = SpeechRecognizer()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -61,6 +63,8 @@ struct ActiveTerminalView: View {
                             .background(Color.gray.opacity(0.5))
                             .clipShape(Circle())
                     }
+                    .disabled(hasHardwareKeyboard)
+                    .opacity(hasHardwareKeyboard ? 0.35 : 1.0)
                 }
                 .padding(.trailing, 16)
                 .padding(.bottom, 12)
@@ -123,6 +127,12 @@ struct ActiveTerminalView: View {
             if newPhase != .active {
                 speechRecognizer.stopRecording()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .GCKeyboardDidConnect)) { _ in
+            hasHardwareKeyboard = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .GCKeyboardDidDisconnect)) { _ in
+            hasHardwareKeyboard = GCKeyboard.coalesced != nil
         }
         .alert(
             permissionAlertTitle,
