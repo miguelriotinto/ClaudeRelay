@@ -94,19 +94,19 @@ struct LoadCommand: AsyncParsableCommand {
     }
 
     private func findServerBinary() -> String {
+        // Check same directory as CLI binary first (covers Homebrew and local builds)
+        let cliPath = CommandLine.arguments[0]
+        let cliDir = URL(fileURLWithPath: cliPath).deletingLastPathComponent().path
+        let siblingCandidate = cliDir + "/claude-relay-server"
+        if FileManager.default.isExecutableFile(atPath: siblingCandidate) {
+            return siblingCandidate
+        }
+
         let candidates = [
+            "/opt/homebrew/bin/claude-relay-server",
             "/usr/local/bin/claude-relay-server",
             FileManager.default.homeDirectoryForCurrentUser.path + "/.claude-relay/bin/claude-relay-server"
         ]
-
-        // Check build directory relative to CLI binary
-        let cliPath = CommandLine.arguments[0]
-        if let cliURL = URL(string: "file://" + cliPath) {
-            let buildCandidate = cliURL.deletingLastPathComponent().path + "/claude-relay-server"
-            if FileManager.default.isExecutableFile(atPath: buildCandidate) {
-                return buildCandidate
-            }
-        }
 
         for path in candidates {
             if FileManager.default.isExecutableFile(atPath: path) {
