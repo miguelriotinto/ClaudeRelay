@@ -101,6 +101,9 @@ struct ActiveTerminalView: View {
 
                 HStack(spacing: 8) {
                     if let id = coordinator.activeSessionId {
+                        Text("[\(coordinator.activeSessions.count)]")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.secondary)
                         if let createdAt = coordinator.createdAt(for: id) {
                             SessionUptimeView(since: createdAt)
                         }
