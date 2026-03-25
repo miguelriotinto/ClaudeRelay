@@ -101,6 +101,9 @@ struct ActiveTerminalView: View {
 
                 HStack(spacing: 8) {
                     if let id = coordinator.activeSessionId {
+                        if let createdAt = coordinator.createdAt(for: id) {
+                            SessionUptimeView(since: createdAt)
+                        }
                         Text(coordinator.name(for: id))
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(.primary)
@@ -359,5 +362,31 @@ struct SwiftTermView: UIViewRepresentable {
         func clipboardCopy(source: TerminalView, content: Data) {}
         func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
         func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
+    }
+}
+
+// MARK: - Session Uptime
+
+private struct SessionUptimeView: View {
+    let since: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            Text(formatUptime(from: since, to: context.date))
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func formatUptime(from start: Date, to now: Date) -> String {
+        let total = max(0, Int(now.timeIntervalSince(start)))
+        let days = total / 86400
+        let hours = (total % 86400) / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        if days > 0 {
+            return String(format: "%dd %02d:%02d:%02d", days, hours, minutes, seconds)
+        }
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }

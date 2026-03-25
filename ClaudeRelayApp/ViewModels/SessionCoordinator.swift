@@ -203,6 +203,10 @@ final class SessionCoordinator: ObservableObject {
         terminalViewModels[sessionId]
     }
 
+    func createdAt(for sessionId: UUID) -> Date? {
+        sessions.first { $0.id == sessionId }?.createdAt
+    }
+
     // MARK: - Connection Recovery
 
     /// Called when the app returns to the foreground. Checks if the WebSocket
