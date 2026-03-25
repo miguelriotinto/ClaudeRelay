@@ -15,7 +15,7 @@ jobs:
         include:
           - os: macos-14
             arch: arm64
-          - os: macos-13
+          - os: macos-15
             arch: x86_64
     runs-on: ${{ matrix.os }}
 
@@ -23,7 +23,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build release binaries
-        run: swift build -c release --disable-sandbox -Xswiftc -cross-module-optimization
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          if [ "$ARCH" = "x86_64" ]; then
+            swift build -c release --disable-sandbox -Xswiftc -cross-module-optimization --triple x86_64-apple-macosx
+          else
+            swift build -c release --disable-sandbox -Xswiftc -cross-module-optimization
+          fi
 
       - name: Package binaries
         env:
@@ -31,8 +38,13 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           mkdir -p dist
-          cp .build/release/claude-relay dist/
-          cp .build/release/claude-relay-server dist/
+          if [ "$ARCH" = "x86_64" ]; then
+            cp .build/x86_64-apple-macosx/release/claude-relay dist/
+            cp .build/x86_64-apple-macosx/release/claude-relay-server dist/
+          else
+            cp .build/release/claude-relay dist/
+            cp .build/release/claude-relay-server dist/
+          fi
           cd dist
           tar czf "claude-relay-${TAG_NAME}-macos-${ARCH}.tar.gz" claude-relay claude-relay-server
 
