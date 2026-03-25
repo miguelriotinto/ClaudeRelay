@@ -154,11 +154,15 @@ struct AdminResponse {
         return AdminResponse(statusCode: status, body: data)
     }
 
-    static func encodable<T: Encodable>(_ value: T, status: Int = 200) -> AdminResponse {
+    private static let sharedEncoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        let data = (try? encoder.encode(value)) ?? Data()
+        return encoder
+    }()
+
+    static func encodable<T: Encodable>(_ value: T, status: Int = 200) -> AdminResponse {
+        let data = (try? sharedEncoder.encode(value)) ?? Data()
         return AdminResponse(statusCode: status, body: data)
     }
 

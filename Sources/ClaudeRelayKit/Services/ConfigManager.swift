@@ -3,6 +3,13 @@ import Foundation
 /// Manages loading and saving of RelayConfig from disk.
 public final class ConfigManager: Sendable {
 
+    private static let sharedDecoder = JSONDecoder()
+    private static let sharedEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }()
+
     /// Load config from ~/.claude-relay/config.json, or return defaults if not found.
     public static func load() throws -> RelayConfig {
         let configFile = RelayConfig.configFile
@@ -13,16 +20,13 @@ public final class ConfigManager: Sendable {
         }
 
         let data = try Data(contentsOf: configFile)
-        let decoder = JSONDecoder()
-        return try decoder.decode(RelayConfig.self, from: data)
+        return try sharedDecoder.decode(RelayConfig.self, from: data)
     }
 
     /// Save config to ~/.claude-relay/config.json.
     public static func save(_ config: RelayConfig) throws {
         try ensureDirectory()
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(config)
+        let data = try sharedEncoder.encode(config)
         try data.write(to: RelayConfig.configFile, options: .atomic)
     }
 

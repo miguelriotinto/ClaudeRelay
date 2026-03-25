@@ -11,7 +11,6 @@ struct ActiveTerminalView: View {
     @State private var isKeyboardVisible = false
     @StateObject private var speechRecognizer = SpeechRecognizer()
     @Environment(\.scenePhase) private var scenePhase
-    @State private var pulseAnimation = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -40,28 +39,8 @@ struct ActiveTerminalView: View {
             // Floating buttons: mic + keyboard toggle (only when a terminal session is active)
             if coordinator.activeSessionId != nil {
                 HStack(spacing: 10) {
-                    // Mic button
-                    Button {
-                        toggleDictation()
-                    } label: {
-                        Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(speechRecognizer.isRecording
-                                        ? Color.red.opacity(0.8)
-                                        : Color.gray.opacity(0.5))
-                            .clipShape(Circle())
-                            .scaleEffect(pulseAnimation && speechRecognizer.isRecording ? 1.15 : 1.0)
-                            .animation(
-                                speechRecognizer.isRecording
-                                    ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
-                                    : .default,
-                                value: pulseAnimation
-                            )
-                    }
+                    MicButton(speechRecognizer: speechRecognizer, coordinator: coordinator)
 
-                    // Keyboard toggle button (unchanged)
                     Button {
                         if isKeyboardVisible {
                             NotificationCenter.default.post(
@@ -139,12 +118,10 @@ struct ActiveTerminalView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: coordinator.activeSessionId) { _, _ in
             speechRecognizer.stopRecording()
-            pulseAnimation = false
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase != .active {
                 speechRecognizer.stopRecording()
-                pulseAnimation = false
             }
         }
         .alert(
@@ -185,26 +162,57 @@ struct ActiveTerminalView: View {
         }
     }
 
-    private func toggleDictation() {
-        if speechRecognizer.isRecording {
-            speechRecognizer.stopRecording()
-            pulseAnimation = false
-        } else {
-            speechRecognizer.startRecording { [coordinator] data in
-                guard let id = coordinator.activeSessionId,
-                      let vm = coordinator.viewModel(for: id) else { return }
-                vm.sendInput(data)
-            }
-            pulseAnimation = true
-        }
-    }
-
     private var permissionAlertTitle: String {
         switch speechRecognizer.permissionError {
         case .microphoneDenied: return "Microphone Access Required"
         case .speechDenied: return "Speech Recognition Required"
         case .unavailable: return "Speech Recognition Unavailable"
         case nil: return ""
+        }
+    }
+}
+
+// MARK: - Mic Button (isolated to prevent pulse animation from redrawing parent)
+
+private struct MicButton: View {
+    @ObservedObject var speechRecognizer: SpeechRecognizer
+    let coordinator: SessionCoordinator
+    @State private var pulseAnimation = false
+
+    var body: some View {
+        Button {
+            toggleDictation()
+        } label: {
+            Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
+                .font(.system(size: 16))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(speechRecognizer.isRecording
+                            ? Color.red.opacity(0.8)
+                            : Color.gray.opacity(0.5))
+                .clipShape(Circle())
+                .scaleEffect(pulseAnimation && speechRecognizer.isRecording ? 1.15 : 1.0)
+                .animation(
+                    speechRecognizer.isRecording
+                        ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                        : .default,
+                    value: pulseAnimation
+                )
+        }
+        .onChange(of: speechRecognizer.isRecording) { _, isRecording in
+            pulseAnimation = isRecording
+        }
+    }
+
+    private func toggleDictation() {
+        if speechRecognizer.isRecording {
+            speechRecognizer.stopRecording()
+        } else {
+            speechRecognizer.startRecording { data in
+                guard let id = coordinator.activeSessionId,
+                      let vm = coordinator.viewModel(for: id) else { return }
+                vm.sendInput(data)
+            }
         }
     }
 }

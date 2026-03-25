@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftUI
 import ClaudeRelayClient
 
@@ -31,6 +32,8 @@ final class TerminalViewModel: ObservableObject {
         self.connection = connection
 
         connection.$state
+            .removeDuplicates()
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
             .assign(to: &$connectionState)
     }
 

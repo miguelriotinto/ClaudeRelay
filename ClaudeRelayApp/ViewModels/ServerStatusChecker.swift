@@ -102,6 +102,8 @@ final class ServerStatusChecker: ObservableObject {
             return first
         }
 
+        // Ensure connection is cleaned up even if timeout won the race
+        connection.disconnect()
         return result
     }
 }

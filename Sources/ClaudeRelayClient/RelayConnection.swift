@@ -1,5 +1,8 @@
 import Foundation
+import os.log
 import ClaudeRelayKit
+
+private let logger = Logger(subsystem: "com.claude.relay.client", category: "RelayConnection")
 
 /// Manages a WebSocket connection to a ClaudeRelay server.
 ///
@@ -212,7 +215,7 @@ public final class RelayConnection: ObservableObject {
                     onServerMessage?(serverMessage)
                 }
             } catch {
-                print("[RelayConnection] Failed to decode: \(error)")
+                logger.warning("Failed to decode: \(error.localizedDescription, privacy: .public)")
             }
 
         case .data(let data):
@@ -243,7 +246,8 @@ public final class RelayConnection: ObservableObject {
 
         // Exponential backoff with jitter: base delay 1s, 2s, 4s, 8s, ...
         // capped at maxReconnectDelay, plus ±25% random jitter.
-        let baseDelay = min(pow(2.0, Double(reconnectAttempt - 1)), maxReconnectDelay)
+        let exponent = min(reconnectAttempt - 1, 30)
+        let baseDelay = min(Double(1 << exponent), maxReconnectDelay)
         let jitter = baseDelay * Double.random(in: -0.25...0.25)
         let delay = max(0.5, baseDelay + jitter)
 
