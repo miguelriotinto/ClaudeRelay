@@ -58,7 +58,9 @@ final class SessionCoordinator: ObservableObject {
     }
 
     private func assignDefaultName(for id: UUID) {
-        let name = Self.gotNames.randomElement() ?? "Unnamed"
+        let usedNames = Set(sessionNames.values)
+        let available = Self.gotNames.filter { !usedNames.contains($0) }
+        let name = available.randomElement() ?? "Session \(sessionNames.count + 1)"
         sessionNames[id] = name
         Self.saveNames(sessionNames)
     }
