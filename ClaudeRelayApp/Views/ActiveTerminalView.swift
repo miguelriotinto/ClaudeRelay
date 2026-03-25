@@ -37,53 +37,55 @@ struct ActiveTerminalView: View {
                 }
             }
 
-            // Floating buttons: mic + keyboard toggle
-            HStack(spacing: 10) {
-                // Mic button
-                Button {
-                    toggleDictation()
-                } label: {
-                    Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(speechRecognizer.isRecording
-                                    ? Color.red.opacity(0.8)
-                                    : Color.gray.opacity(0.5))
-                        .clipShape(Circle())
-                        .scaleEffect(pulseAnimation && speechRecognizer.isRecording ? 1.15 : 1.0)
-                        .animation(
-                            speechRecognizer.isRecording
-                                ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
-                                : .default,
-                            value: pulseAnimation
-                        )
-                }
-
-                // Keyboard toggle button (unchanged)
-                Button {
-                    if isKeyboardVisible {
-                        NotificationCenter.default.post(
-                            name: .terminalResignFocus, object: nil
-                        )
-                    } else {
-                        NotificationCenter.default.post(
-                            name: .terminalRequestFocus, object: nil
-                        )
+            // Floating buttons: mic + keyboard toggle (only when a terminal session is active)
+            if coordinator.activeSessionId != nil {
+                HStack(spacing: 10) {
+                    // Mic button
+                    Button {
+                        toggleDictation()
+                    } label: {
+                        Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(speechRecognizer.isRecording
+                                        ? Color.red.opacity(0.8)
+                                        : Color.gray.opacity(0.5))
+                            .clipShape(Circle())
+                            .scaleEffect(pulseAnimation && speechRecognizer.isRecording ? 1.15 : 1.0)
+                            .animation(
+                                speechRecognizer.isRecording
+                                    ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                                    : .default,
+                                value: pulseAnimation
+                            )
                     }
-                } label: {
-                    Image(systemName: isKeyboardVisible
-                          ? "keyboard.chevron.compact.down"
-                          : "keyboard")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(Color.gray.opacity(0.5))
-                        .clipShape(Circle())
+
+                    // Keyboard toggle button (unchanged)
+                    Button {
+                        if isKeyboardVisible {
+                            NotificationCenter.default.post(
+                                name: .terminalResignFocus, object: nil
+                            )
+                        } else {
+                            NotificationCenter.default.post(
+                                name: .terminalRequestFocus, object: nil
+                            )
+                        }
+                    } label: {
+                        Image(systemName: isKeyboardVisible
+                              ? "keyboard.chevron.compact.down"
+                              : "keyboard")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.gray.opacity(0.5))
+                            .clipShape(Circle())
+                    }
                 }
+                .padding(.trailing, 16)
+                .padding(.bottom, 12)
             }
-            .padding(.trailing, 16)
-            .padding(.bottom, 12)
         }
         .safeAreaInset(edge: .top) {
             // Thin custom toolbar — sits below the status bar automatically
@@ -121,13 +123,11 @@ struct ActiveTerminalView: View {
                         Text(id.uuidString.prefix(8))
                             .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(.tertiary)
-                    }
-
-                    if let id = coordinator.activeSessionId,
-                       let vm = coordinator.viewModel(for: id) {
-                        Circle()
-                            .fill(statusColor(vm.connectionState))
-                            .frame(width: 8, height: 8)
+                        if let vm = coordinator.viewModel(for: id) {
+                            Circle()
+                                .fill(statusColor(vm.connectionState))
+                                .frame(width: 8, height: 8)
+                        }
                     }
                 }
             }
