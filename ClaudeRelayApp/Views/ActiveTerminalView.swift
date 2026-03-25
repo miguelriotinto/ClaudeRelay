@@ -239,7 +239,23 @@ struct SwiftTermView: UIViewRepresentable {
         viewModel.onTerminalOutput = { data in
             let bytes = ArraySlice([UInt8](data))
             terminal.feed(byteArray: bytes)
-            terminal.setNeedsDisplay()
+
+            // Sync UIScrollView after buffer changes that bypass the scrolled delegate.
+            // \033[3J (clear scrollback) trims lines and adjusts yDisp without notifying
+            // the view, leaving contentOffset/contentSize stale. The draw method uses
+            // contentOffset to pick which rows to render, so a stale offset shows blank.
+            let term = terminal.getTerminal()
+            let rows = term.rows
+            if rows > 0 {
+                let cellHeight = terminal.bounds.height / CGFloat(rows)
+                let yDisp = CGFloat(term.buffer.yDisp)
+                let expectedOffsetY = yDisp * cellHeight
+                if terminal.contentOffset.y - expectedOffsetY > cellHeight * 2 {
+                    terminal.contentSize.height = max(terminal.bounds.height,
+                                                      (yDisp + CGFloat(rows)) * cellHeight)
+                    terminal.contentOffset.y = expectedOffsetY
+                }
+            }
         }
 
         // Hide SwiftTerm's built-in inputAccessoryView — we use a floating button instead.
