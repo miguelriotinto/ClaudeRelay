@@ -219,6 +219,27 @@ All WebSocket messages use `MessageEnvelope` with JSON encoding:
 - Session isolation prevents cross-session access
 - Configure firewall rules if exposing ports externally
 
+### Folder Permissions
+
+The service runs as a LaunchAgent in your user context with full access to your home directory and user folders. The launchd plist includes:
+
+- **Working Directory**: Set to your home directory
+- **Environment Variables**: HOME, USER, and PATH properly configured
+- **User Context**: Runs under your user account with standard permissions
+
+**For access to protected folders (Documents, Desktop, Downloads, etc.):**
+
+If you need the service to access macOS protected folders, grant Full Disk Access:
+
+1. Open **System Settings** → **Privacy & Security** → **Full Disk Access**
+2. Click the **+** button
+3. Navigate to the server binary location:
+   - Homebrew: `/opt/homebrew/bin/claude-relay-server` (Apple Silicon) or `/usr/local/bin/claude-relay-server` (Intel)
+   - From source: `.build/release/claude-relay-server`
+4. Add the binary and toggle it on
+
+Note: This is only required if the terminal sessions need to access protected system folders.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

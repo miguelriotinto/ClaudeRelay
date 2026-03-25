@@ -1,9 +1,9 @@
-class ClaudeRelay < Formula
+class Clauderelay < Formula
   desc "Remote terminal relay server and CLI over WebSocket"
   homepage "https://github.com/miguelriotinto/ClaudeRelay"
   url "https://github.com/miguelriotinto/ClaudeRelay/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "e23cf895994f83b2addff3c3272b1da78a0437100ea15bc434c87cd009cf30db"
-  # license "MIT"  # Uncomment after adding a LICENSE file
+  license "MIT"
   head "https://github.com/miguelriotinto/ClaudeRelay.git", branch: "main"
 
   depends_on xcode: ["15.0", :build]
@@ -23,7 +23,8 @@ class ClaudeRelay < Formula
     keep_alive true
     log_path var/"log/claude-relay/stdout.log"
     error_log_path var/"log/claude-relay/stderr.log"
-    working_dir var/"claude-relay"
+    working_dir Dir.home
+    environment_variables HOME: Dir.home, USER: ENV.fetch("USER", nil), PATH: std_service_path_env
   end
 
   def post_install
@@ -34,7 +35,7 @@ class ClaudeRelay < Formula
   def caveats
     <<~EOS
       To start the relay server as a background service:
-        brew services start claude-relay
+        brew services start clauderelay
 
       Create an auth token:
         claude-relay token create --label "my-device"
@@ -44,6 +45,13 @@ class ClaudeRelay < Formula
         Admin API: 9100
 
       Config stored at: ~/.claude-relay/config.json
+
+      Folder Permissions:
+        The service runs in your user context with access to your home directory.
+        For access to protected folders (Documents, Desktop, Downloads):
+          1. Open System Settings → Privacy & Security → Full Disk Access
+          2. Add: #{opt_bin}/claude-relay-server
+          3. Toggle it on
     EOS
   end
 

@@ -31,6 +31,10 @@ struct LoadCommand: AsyncParsableCommand {
         try fm.createDirectory(atPath: relayDir, withIntermediateDirectories: true)
         try fm.createDirectory(atPath: launchAgentsDir, withIntermediateDirectories: true)
 
+        // Get current user environment
+        let userName = ProcessInfo.processInfo.environment["USER"] ?? NSUserName()
+        let pathEnv = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
         // Generate plist
         let plist = """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -43,6 +47,17 @@ struct LoadCommand: AsyncParsableCommand {
             <array>
                 <string>\(serverBinary)</string>
             </array>
+            <key>WorkingDirectory</key>
+            <string>\(homeDir)</string>
+            <key>EnvironmentVariables</key>
+            <dict>
+                <key>HOME</key>
+                <string>\(homeDir)</string>
+                <key>USER</key>
+                <string>\(userName)</string>
+                <key>PATH</key>
+                <string>\(pathEnv)</string>
+            </dict>
             <key>KeepAlive</key>
             <true/>
             <key>RunAtLoad</key>
