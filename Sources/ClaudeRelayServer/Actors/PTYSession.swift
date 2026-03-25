@@ -72,9 +72,21 @@ public actor PTYSession: PTYSessionProtocol {
             if let homeDir = homeDir {
                 chdir(homeDir)
             }
-            let argv0 = strdup("-zsh")
-            let cArgs: [UnsafeMutablePointer<CChar>?] = [argv0, nil]
+
+            // Use login -f to spawn shell with proper user context and permissions
+            let username = getenv("USER") ?? getpwuid(getuid()).pointee.pw_name
+            let usernameStr = strdup(username)
+            let argv0 = strdup("login")
+            let argv1 = strdup("-fp")
+            let cArgs: [UnsafeMutablePointer<CChar>?] = [argv0, argv1, usernameStr, nil]
             _ = cArgs.withUnsafeBufferPointer { buf in
+                execv("/usr/bin/login", buf.baseAddress)
+            }
+
+            // Fallback to direct zsh if login fails
+            let fallbackArgv0 = strdup("-zsh")
+            let fallbackArgs: [UnsafeMutablePointer<CChar>?] = [fallbackArgv0, nil]
+            _ = fallbackArgs.withUnsafeBufferPointer { buf in
                 execv("/bin/zsh", buf.baseAddress)
             }
             _exit(1)
