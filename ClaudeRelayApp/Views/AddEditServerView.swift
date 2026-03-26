@@ -8,10 +8,16 @@ struct AddEditServerView: View {
     @Environment(\.dismiss) private var dismiss
 
     let onSave: ((ConnectionConfig) -> Void)?
+    let onDelete: (() -> Void)?
 
-    init(mode: AddEditServerViewModel.Mode, onSave: ((ConnectionConfig) -> Void)? = nil) {
+    init(
+        mode: AddEditServerViewModel.Mode,
+        onSave: ((ConnectionConfig) -> Void)? = nil,
+        onDelete: (() -> Void)? = nil
+    ) {
         _viewModel = StateObject(wrappedValue: AddEditServerViewModel(mode: mode))
         self.onSave = onSave
+        self.onDelete = onDelete
     }
 
     var body: some View {
@@ -45,7 +51,7 @@ struct AddEditServerView: View {
                     } label: {
                         HStack {
                             Spacer()
-                            Text(viewModel.saveButtonTitle)
+                            Text("Save")
                                 .fontWeight(.semibold)
                             Spacer()
                         }
@@ -55,6 +61,20 @@ struct AddEditServerView: View {
                     .foregroundStyle(viewModel.isValid ? .white : .black)
                     .disabled(!viewModel.isValid)
                 }
+
+                if viewModel.isEditing {
+                    Section {
+                        Button(role: .destructive) {
+                            viewModel.showDeleteConfirmation = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Delete Server")
+                                Spacer()
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -62,6 +82,15 @@ struct AddEditServerView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+            }
+            .alert("Delete Server", isPresented: $viewModel.showDeleteConfirmation) {
+                Button("Delete", role: .destructive) {
+                    onDelete?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete \"\(viewModel.serverName)\"? This cannot be undone.")
             }
         }
     }

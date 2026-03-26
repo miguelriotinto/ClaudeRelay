@@ -12,17 +12,13 @@
 		1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
 		382DD387109329B4EC0DB56B /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B2AF59490A10B933D223D7 /* AddEditServerView.swift */; };
-		43E05E0FC2274DBDD0D2481A /* QuickConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCEE3716D46D7E756114A80C /* QuickConnectView.swift */; };
 		5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA02853D523E6DAF7B5CD68D /* Assets.xcassets */; };
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
-		71061976B2ABBA788E0DE2F9 /* ServerDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 816D26A6BF8B346BD5CDAAF5 /* ServerDetailViewModel.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
 		840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700712F6C8FC16A5214C345A /* TerminalViewModel.swift */; };
-		95EF5345782A71D0E4C720EA /* ServerDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11BB360175D664E1E43AB7BE /* ServerDetailView.swift */; };
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
 		A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E5892147C00AFFADE02948 /* SavedConnection.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
-		A5F8777CBB4CD5B02D14E242 /* QuickConnectViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D275F9CBFA5C58FD167B178 /* QuickConnectViewModel.swift */; };
 		B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */; };
 		B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */; };
 		B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */; };
@@ -34,8 +30,6 @@
 /* Begin PBXFileReference section */
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
-		11BB360175D664E1E43AB7BE /* ServerDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerDetailView.swift; sourceTree = "<group>"; };
-		1D275F9CBFA5C58FD167B178 /* QuickConnectViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickConnectViewModel.swift; sourceTree = "<group>"; };
 		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
 		2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
 		338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
@@ -45,15 +39,13 @@
 		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
-		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CDE7061F16DD811CA184B2B /* ClaudeRelay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClaudeRelay; path = .; sourceTree = SOURCE_ROOT; };
-		816D26A6BF8B346BD5CDAAF5 /* ServerDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerDetailViewModel.swift; sourceTree = "<group>"; };
 		8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		BA02853D523E6DAF7B5CD68D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		BCEE3716D46D7E756114A80C /* QuickConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickConnectView.swift; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -74,8 +66,6 @@
 			isa = PBXGroup;
 			children = (
 				338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */,
-				1D275F9CBFA5C58FD167B178 /* QuickConnectViewModel.swift */,
-				816D26A6BF8B346BD5CDAAF5 /* ServerDetailViewModel.swift */,
 				2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */,
 				5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */,
 				AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */,
@@ -106,8 +96,6 @@
 			children = (
 				0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */,
 				55B2AF59490A10B933D223D7 /* AddEditServerView.swift */,
-				BCEE3716D46D7E756114A80C /* QuickConnectView.swift */,
-				11BB360175D664E1E43AB7BE /* ServerDetailView.swift */,
 				36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */,
 				8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */,
 				79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */,
@@ -187,6 +175,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					53D3A67986EB0528C6161974 = {
+						DevelopmentTeam = QHT2YY3LU6;
+					};
+				};
 			};
 			buildConfigurationList = 51F903A9054604952CC1FF0D /* Build configuration list for PBXProject "ClaudeRelay" */;
 			developmentRegion = en;
@@ -232,11 +225,7 @@
 				6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */,
 				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
-				43E05E0FC2274DBDD0D2481A /* QuickConnectView.swift in Sources */,
-				A5F8777CBB4CD5B02D14E242 /* QuickConnectViewModel.swift in Sources */,
 				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
-				95EF5345782A71D0E4C720EA /* ServerDetailView.swift in Sources */,
-				71061976B2ABBA788E0DE2F9 /* ServerDetailViewModel.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
 				BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */,
 				B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */,
@@ -376,12 +365,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = T9WF95GC9T;
+				DEVELOPMENT_TEAM = QHT2YY3LU6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -393,12 +380,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -409,12 +394,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = T9WF95GC9T;
+				DEVELOPMENT_TEAM = QHT2YY3LU6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -426,12 +409,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

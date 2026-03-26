@@ -18,22 +18,21 @@ final class AddEditServerViewModel: ObservableObject {
     @Published var port: String = "9200"
     @Published var token: String = ""
     @Published var useTLS: Bool = false
+    @Published var showDeleteConfirmation: Bool = false
 
     let mode: Mode
 
     var isValid: Bool { !host.isEmpty }
 
+    var isEditing: Bool {
+        if case .edit = mode { return true }
+        return false
+    }
+
     var navigationTitle: String {
         switch mode {
         case .add: return "Add Server"
         case .edit: return "Edit Server"
-        }
-    }
-
-    var saveButtonTitle: String {
-        switch mode {
-        case .add: return "Save Server"
-        case .edit: return "Save Changes"
         }
     }
 
@@ -79,5 +78,10 @@ final class AddEditServerViewModel: ObservableObject {
         }
 
         return config
+    }
+
+    var serverName: String {
+        if case .edit(let config) = mode { return config.name }
+        return ""
     }
 }
