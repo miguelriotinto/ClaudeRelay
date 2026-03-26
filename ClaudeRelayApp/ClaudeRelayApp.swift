@@ -7,7 +7,7 @@ struct ClaudeRelayApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                ConnectionView()
+                ServerListView()
 
                 if showSplash {
                     SplashScreenView {
