@@ -54,7 +54,9 @@ The WebSocket server uses default `JSONEncoder` (Double timestamps). The Admin H
 
 ### iOS App Architecture
 
-- **WorkspaceView** — NavigationSplitView: sidebar (sessions) + detail (terminal)
+- **ServerListView** — Primary screen: tap server to connect directly, swipe for edit/delete
+- **AddEditServerView** — Modal sheet for server configuration (add/edit modes, with delete)
+- **WorkspaceView** — NavigationSplitView: sidebar (sessions) + detail (terminal), presented as fullScreenCover
 - **SessionCoordinator** — Manages auth, session lifecycle, caches TerminalViewModels, routes I/O
 - **Foreground recovery** — On `scenePhase` `.active`: pings WebSocket, reconnects if dead, re-authenticates, resumes session
 - **SpeechRecognizer** — Live speech-to-text using SFSpeechRecognizer, streams diff-based text to terminal
