@@ -5,7 +5,6 @@ import ClaudeRelayClient
 struct ServerListView: View {
     @StateObject private var viewModel = ServerListViewModel()
     @State private var showAddSheet = false
-    @State private var showQuickConnect = false
 
     var body: some View {
         NavigationStack {
@@ -14,7 +13,7 @@ struct ServerListView: View {
                     ContentUnavailableView {
                         Label("No Servers", systemImage: "server.rack")
                     } description: {
-                        Text("Add a server to get started, or use Quick Connect for a temporary connection.")
+                        Text("Add a server to get started.")
                     } actions: {
                         Button("Add Server") {
                             showAddSheet = true
@@ -50,21 +49,9 @@ struct ServerListView: View {
                         Image(systemName: "plus")
                     }
                 }
-                ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        showQuickConnect = true
-                    } label: {
-                        Label("Quick Connect", systemImage: "bolt.horizontal")
-                    }
-                }
             }
             .sheet(isPresented: $showAddSheet) {
                 AddEditServerView(mode: .add) { _ in
-                    viewModel.refreshServers()
-                }
-            }
-            .sheet(isPresented: $showQuickConnect) {
-                QuickConnectView {
                     viewModel.refreshServers()
                 }
             }
