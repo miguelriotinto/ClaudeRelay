@@ -64,7 +64,7 @@ final class ServerStatusChecker: ObservableObject {
 
     /// Opens a short-lived WebSocket, authenticates, queries session list, then disconnects.
     @MainActor
-    private static func probe(config: ConnectionConfig) async -> ServerStatus {
+    static func probe(config: ConnectionConfig) async -> ServerStatus {
         // Load token from Keychain — without it we can't authenticate.
         guard let token = try? AuthManager.shared.loadToken(for: config.id),
               !token.isEmpty else {
