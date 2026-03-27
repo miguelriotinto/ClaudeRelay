@@ -93,6 +93,7 @@ struct WorkspaceView: View {
         }
         .onChange(of: coordinator.connectionTimedOut) { _, timedOut in
             if timedOut {
+                coordinator.connectionTimedOut = false
                 showTimeoutAlert = true
                 dismiss()
             }

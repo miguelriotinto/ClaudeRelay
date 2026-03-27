@@ -117,7 +117,8 @@ final class SessionCoordinator: ObservableObject {
             let controller = try await ensureAuthenticated()
             sessions = try await controller.listSessions()
         } catch {
-            presentError(error.localizedDescription)
+            // Session list refresh is non-critical — log but don't alert the user.
+            print("[SessionCoordinator] fetchSessions failed: \(error.localizedDescription)")
         }
     }
 
