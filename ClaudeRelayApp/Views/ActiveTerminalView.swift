@@ -243,12 +243,35 @@ extension Notification.Name {
     static let terminalResignFocus = Notification.Name("terminalResignFocus")
 }
 
+// MARK: - TerminalView subclass for hardware keyboard commands
+
+/// Adds explicit UIKeyCommand entries for Cmd+C / Cmd+V / Cmd+X so that
+/// copy-paste works reliably when a hardware keyboard is connected.
+/// SwiftTerm implements the `copy(_:)` / `paste(_:)` methods but does not
+/// register key commands, so the system never dispatches them on iOS.
+private class RelayTerminalView: TerminalView {
+    override var keyCommands: [UIKeyCommand]? {
+        var commands = super.keyCommands ?? []
+        commands.append(contentsOf: [
+            UIKeyCommand(input: "c", modifierFlags: .command, action: #selector(copy(_:))),
+            UIKeyCommand(input: "v", modifierFlags: .command, action: #selector(paste(_:))),
+            UIKeyCommand(input: "x", modifierFlags: .command, action: #selector(handleCut(_:))),
+        ])
+        return commands
+    }
+
+    @objc private func handleCut(_ sender: Any?) {
+        // Terminal output isn't editable — cut behaves like copy.
+        copy(sender)
+    }
+}
+
 struct SwiftTermView: UIViewRepresentable {
     let viewModel: TerminalViewModel
     @Binding var isKeyboardVisible: Bool
 
     func makeUIView(context: Context) -> TerminalView {
-        let terminal = TerminalView(frame: .zero)
+        let terminal = RelayTerminalView(frame: .zero)
         terminal.terminalDelegate = context.coordinator
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
