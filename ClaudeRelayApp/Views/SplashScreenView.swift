@@ -27,6 +27,11 @@ struct SplashScreenView: View {
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
                     .opacity(textOpacity)
+
+                Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .opacity(textOpacity)
             }
         }
         .opacity(finished ? 0 : 1)
