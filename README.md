@@ -15,7 +15,7 @@ A remote terminal relay server and CLI over WebSocket, enabling secure terminal 
 
 ## Architecture
 
-ClaudeRelay consists of four main components:
+ClaudeRelay consists of five main components:
 
 - **ClaudeRelayServer** - WebSocket server (port 9200) and Admin HTTP API (port 9100)
 - **ClaudeRelayCLI** - Command-line interface for managing tokens, sessions, and service
@@ -172,8 +172,8 @@ ClaudeRelay/
 │   ├── ClaudeRelayServer/      # WebSocket + HTTP server (NIO-based)
 │   ├── ClaudeRelayCLI/         # Command-line interface (ArgumentParser)
 │   ├── ClaudeRelayClient/      # Swift client library
-│   ├── CPTYShim/               # C shim for PTY operations
-│   └── ClaudeRelayApp/         # iOS application (SwiftUI)
+│   └── CPTYShim/               # C shim for PTY operations
+├── ClaudeRelayApp/             # iOS application (SwiftUI, XcodeGen-managed)
 ├── Tests/
 │   ├── ClaudeRelayKitTests/
 │   ├── ClaudeRelayServerTests/
