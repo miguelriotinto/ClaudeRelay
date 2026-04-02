@@ -4,7 +4,8 @@ import NIOWebSocket
 import Foundation
 import ClaudeRelayKit
 
-final class RelayMessageHandler: ChannelInboundHandler {
+// swiftlint:disable:next type_body_length
+final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = WebSocketFrame
     typealias OutboundOut = WebSocketFrame
 
@@ -61,7 +62,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
             cleanupSession()
             context.close(promise: nil)
         case .ping:
-            var frameData = frame.data
+            let frameData = frame.data
             let pong = WebSocketFrame(fin: true, opcode: .pong, data: frameData)
             context.writeAndFlush(wrapOutboundOut(pong), promise: nil)
         default:
@@ -77,7 +78,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
     // MARK: - Text Frame Handling
 
     private func handleTextFrame(_ frame: WebSocketFrame, context: ChannelHandlerContext) {
-        var data = frame.unmaskedData
+        let data = frame.unmaskedData
         let readable = data.readableBytes
         guard readable > 0 else { return }
         if readable > Self.maxTextFrameSize {
@@ -145,7 +146,7 @@ final class RelayMessageHandler: ChannelInboundHandler {
 
     private func handleBinaryFrame(_ frame: WebSocketFrame, context: ChannelHandlerContext) {
         guard isAuthenticated, let pty = attachedPTY else { return }
-        var data = frame.unmaskedData
+        let data = frame.unmaskedData
         if data.readableBytes > Self.maxBinaryFrameSize {
             sendServerMessage(.error(code: 413, message: "Binary frame too large"), context: context)
             return
@@ -160,9 +161,10 @@ final class RelayMessageHandler: ChannelInboundHandler {
 
     private func handleAuth(token: String, context: ChannelHandlerContext) {
         let tokenStore = self.tokenStore
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             let tokenInfo = await tokenStore.validate(token: token)
-            context.eventLoop.execute {
+            ctx.value.eventLoop.execute {
                 guard let self = self else { return }
                 if let info = tokenInfo {
                     self.isAuthenticated = true
@@ -170,15 +172,15 @@ final class RelayMessageHandler: ChannelInboundHandler {
                     self.authTimeout?.cancel()
                     self.authTimeout = nil
                     RelayLogger.log(category: "auth", "Auth success for token \(info.id)")
-                    self.sendServerMessage(.authSuccess, context: context)
+                    self.sendServerMessage(.authSuccess, context: ctx.value)
                 } else {
                     self.authAttempts += 1
-                    let remote = context.remoteAddress?.description ?? "unknown"
+                    let remote = ctx.value.remoteAddress?.description ?? "unknown"
                     RelayLogger.log(.error, category: "auth", "Auth failed — invalid token (attempt \(self.authAttempts)/\(Self.maxAuthAttempts)) from \(remote)")
-                    self.sendServerMessage(.authFailure(reason: "Invalid token"), context: context)
+                    self.sendServerMessage(.authFailure(reason: "Invalid token"), context: ctx.value)
                     if self.authAttempts >= Self.maxAuthAttempts {
                         RelayLogger.log(.error, category: "auth", "Max auth attempts reached, closing connection from \(remote)")
-                        context.close(promise: nil)
+                        ctx.value.close(promise: nil)
                     }
                 }
             }
@@ -190,25 +192,26 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private func handleSessionCreate(context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
                 await self?.autoDetachIfNeeded()
                 let info = try await sessionManager.createSession(tokenId: tokenId)
                 let sessionId = info.id
                 // Attach immediately
-                let (attachedInfo, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
+                let (_, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session created: \(sessionId)")
-                context.eventLoop.execute {
+                ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
                     self.attachedPTY = pty
-                    self.sendServerMessage(.sessionCreated(sessionId: sessionId, cols: info.cols, rows: info.rows), context: context)
-                    self.wirePTYOutput(pty: pty, context: context)
+                    self.sendServerMessage(.sessionCreated(sessionId: sessionId, cols: info.cols, rows: info.rows), context: ctx.value)
+                    self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
             } catch {
                 RelayLogger.log(.error, category: "session", "Session create failed: \(error)")
-                context.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 500, message: "Failed to create session: \(error)"), context: context)
+                ctx.value.eventLoop.execute {
+                    self?.sendServerMessage(.error(code: 500, message: "Failed to create session: \(error)"), context: ctx.value)
                 }
             }
         }
@@ -219,22 +222,23 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private func handleSessionAttach(sessionId: UUID, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
                 await self?.autoDetachIfNeeded()
                 let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session attached: \(sessionId)")
-                context.eventLoop.execute {
+                ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
                     self.attachedPTY = pty
-                    self.sendServerMessage(.sessionAttached(sessionId: sessionId, state: info.state.rawValue), context: context)
-                    self.wirePTYOutput(pty: pty, context: context)
+                    self.sendServerMessage(.sessionAttached(sessionId: sessionId, state: info.state.rawValue), context: ctx.value)
+                    self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
             } catch {
                 RelayLogger.log(.error, category: "session", "Attach failed for \(sessionId): \(error)")
-                context.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 404, message: "Attach failed: \(error)"), context: context)
+                ctx.value.eventLoop.execute {
+                    self?.sendServerMessage(.error(code: 404, message: "Attach failed: \(error)"), context: ctx.value)
                 }
             }
         }
@@ -245,29 +249,30 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private func handleSessionResume(sessionId: UUID, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
                 await self?.autoDetachIfNeeded()
-                let (info, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
+                let (_, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session resumed: \(sessionId)")
                 // Read scrollback history to send to client
                 let buffered = await pty.readBuffer()
                 // Filter out stale escape sequence responses that may have accumulated
                 let filtered = Self.filterEscapeResponses(buffered)
-                context.eventLoop.execute {
+                ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
                     self.attachedPTY = pty
-                    self.sendServerMessage(.sessionResumed(sessionId: sessionId), context: context)
+                    self.sendServerMessage(.sessionResumed(sessionId: sessionId), context: ctx.value)
                     // Send buffered data as binary
                     if !filtered.isEmpty {
-                        self.sendBinaryData(filtered, context: context)
+                        self.sendBinaryData(filtered, context: ctx.value)
                     }
-                    self.wirePTYOutput(pty: pty, context: context)
+                    self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
             } catch {
-                context.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 404, message: "Resume failed: \(error)"), context: context)
+                ctx.value.eventLoop.execute {
+                    self?.sendServerMessage(.error(code: 404, message: "Resume failed: \(error)"), context: ctx.value)
                 }
             }
         }
@@ -281,19 +286,20 @@ final class RelayMessageHandler: ChannelInboundHandler {
             return
         }
         let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
                 try await sessionManager.detachSession(id: sessionId)
                 RelayLogger.log(category: "session", "Session detached: \(sessionId)")
-                context.eventLoop.execute {
+                ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = nil
                     self.attachedPTY = nil
-                    self.sendServerMessage(.sessionDetached, context: context)
+                    self.sendServerMessage(.sessionDetached, context: ctx.value)
                 }
             } catch {
-                context.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 500, message: "Detach failed: \(error)"), context: context)
+                ctx.value.eventLoop.execute {
+                    self?.sendServerMessage(.error(code: 500, message: "Detach failed: \(error)"), context: ctx.value)
                 }
             }
         }
@@ -304,21 +310,21 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private func handleSessionTerminate(sessionId: UUID, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
                 try await sessionManager.terminateSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session terminated: \(sessionId)")
-                context.eventLoop.execute {
-                    self?.sendServerMessage(.sessionTerminated(sessionId: sessionId, reason: "client_request"), context: context)
-                    // If we were attached to this session, clear local state.
+                ctx.value.eventLoop.execute {
+                    self?.sendServerMessage(.sessionTerminated(sessionId: sessionId, reason: "client_request"), context: ctx.value)
                     if self?.attachedSessionId == sessionId {
                         self?.attachedSessionId = nil
                         self?.attachedPTY = nil
                     }
                 }
             } catch {
-                context.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 404, message: "Terminate failed: \(error)"), context: context)
+                ctx.value.eventLoop.execute {
+                    self?.sendServerMessage(.error(code: 404, message: "Terminate failed: \(error)"), context: ctx.value)
                 }
             }
         }
@@ -329,10 +335,11 @@ final class RelayMessageHandler: ChannelInboundHandler {
     private func handleSessionList(context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             let sessions = await sessionManager.listSessionsForToken(tokenId: tokenId)
-            context.eventLoop.execute {
-                self?.sendServerMessage(.sessionList(sessions: sessions), context: context)
+            ctx.value.eventLoop.execute {
+                self?.sendServerMessage(.sessionList(sessions: sessions), context: ctx.value)
             }
         }
     }
@@ -344,10 +351,11 @@ final class RelayMessageHandler: ChannelInboundHandler {
             sendServerMessage(.error(code: 400, message: "No session attached"), context: context)
             return
         }
+        let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             await pty.resize(cols: cols, rows: rows)
-            context.eventLoop.execute {
-                self?.sendServerMessage(.resizeAck(cols: cols, rows: rows), context: context)
+            ctx.value.eventLoop.execute {
+                self?.sendServerMessage(.resizeAck(cols: cols, rows: rows), context: ctx.value)
             }
         }
     }
@@ -370,10 +378,11 @@ final class RelayMessageHandler: ChannelInboundHandler {
     // MARK: - PTY Output Wiring
 
     private func wirePTYOutput(pty: any PTYSessionProtocol, context: ChannelHandlerContext) {
-        Task {
+        let ctx = UnsafeTransfer(context)
+        Task { [weak self] in
             await pty.setOutputHandler { [weak self] data in
-                context.eventLoop.execute {
-                    self?.sendBinaryData(data, context: context)
+                ctx.value.eventLoop.execute {
+                    self?.sendBinaryData(data, context: ctx.value)
                 }
             }
         }

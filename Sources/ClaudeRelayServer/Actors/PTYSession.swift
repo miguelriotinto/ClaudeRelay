@@ -5,6 +5,7 @@ import CPTYShim
 
 public protocol PTYSessionProtocol: Actor {
     var sessionId: UUID { get }
+    func startReading()
     func setOutputHandler(_ handler: @escaping @Sendable (Data) -> Void)
     func setExitHandler(_ handler: @escaping @Sendable () -> Void)
     func clearOutputHandler()
@@ -97,9 +98,13 @@ public actor PTYSession: PTYSessionProtocol {
         // Parent process
         self.masterFD = fd
         self.childPID = pid
+    }
 
-        // Start reading from the PTY in a nonisolated helper.
-        let readSrc = Self.makeReadSource(fd: fd, session: self)
+    /// Activate the dispatch source that reads PTY output.
+    /// Must be called after init to avoid actor-initializer isolation warning (Swift 6).
+    public func startReading() {
+        guard readSource == nil else { return }
+        let readSrc = Self.makeReadSource(fd: masterFD, session: self)
         self.readSource = readSrc
     }
 

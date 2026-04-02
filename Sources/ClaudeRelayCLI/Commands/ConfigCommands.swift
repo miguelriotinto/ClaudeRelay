@@ -65,7 +65,8 @@ struct ConfigSetCommand: AsyncParsableCommand {
         let client = AdminClient(port: globals.port)
 
         do {
-            let body = ["value": value]
+            let typedValue = ConfigValue.infer(from: value)
+            let body = ["value": typedValue]
             let _: ConfigSetResponse = try await client.put("/config/\(key)", body: body)
             if !globals.quiet {
                 print("Set \(key) = \(value)")
@@ -143,6 +144,14 @@ enum ConfigValue: Codable, CustomStringConvertible {
     case string(String)
     case int(Int)
     case bool(Bool)
+
+    /// Parse a CLI string argument into the most specific JSON type.
+    static func infer(from string: String) -> ConfigValue {
+        if let intVal = Int(string) { return .int(intVal) }
+        if string == "true" { return .bool(true) }
+        if string == "false" { return .bool(false) }
+        return .string(string)
+    }
 
     var description: String {
         switch self {

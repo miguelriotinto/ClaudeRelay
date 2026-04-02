@@ -9,9 +9,11 @@ A remote terminal relay server and CLI over WebSocket, enabling secure terminal 
 - **Token-based authentication** - Secure access control with configurable tokens
 - **PTY sessions** - Interactive shell sessions with full terminal emulation
 - **Session persistence** - Detach and reattach to running sessions
+- **TLS encryption** - Optional NIO-SSL support for secure WebSocket connections
 - **Service management** - Run as a background service with launchd/brew services
 - **iOS client** - Native iOS app with terminal emulation and speech recognition
-- **Admin API** - HTTP API for service management and monitoring
+- **Admin API** - Localhost-only HTTP API for service management and monitoring
+- **Config validation** - Server-side validation of all configuration parameters
 
 ## Architecture
 
@@ -118,8 +120,8 @@ claude-relay logs clear                              # Clear logs
 ### Configuration
 ```bash
 claude-relay config show                             # Show current config
-claude-relay config set ws-port 9200                 # Set WebSocket port
-claude-relay config set admin-port 9100              # Set admin API port
+claude-relay config set wsPort 9200                  # Set WebSocket port
+claude-relay config set adminPort 9100               # Set admin API port
 ```
 
 ## Configuration
@@ -128,18 +130,55 @@ Configuration is stored at `~/.claude-relay/config.json`:
 
 ```json
 {
-  "ws_port": 9200,
-  "admin_port": 9100,
-  "bind_address": "127.0.0.1",
-  "detach_timeout": 0
+  "wsPort": 9200,
+  "adminPort": 9100,
+  "detachTimeout": 0,
+  "scrollbackSize": 65536,
+  "tlsCert": "~/.claude-relay/certs/cert.pem",
+  "tlsKey": "~/.claude-relay/certs/key.pem",
+  "logLevel": "info"
 }
 ```
 
 **Configuration Options:**
-- `ws_port` - WebSocket server port (default: 9200)
-- `admin_port` - Admin HTTP API port (default: 9100)
-- `bind_address` - IP address to bind to (default: 127.0.0.1)
-- `detach_timeout` - Session timeout in seconds, 0 = never expire (default: 0)
+- `wsPort` - WebSocket server port (default: 9200)
+- `adminPort` - Admin HTTP API port (default: 9100)
+- `detachTimeout` - Session timeout in seconds, 0 = never expire (default: 0)
+- `scrollbackSize` - Maximum scrollback buffer size in bytes (default: 65536)
+- `tlsCert` - Path to TLS certificate file for WebSocket server (optional)
+- `tlsKey` - Path to TLS private key file for WebSocket server (optional)
+- `logLevel` - Logging verbosity: "trace", "debug", "info", "warning", "error" (default: "info")
+
+### TLS Configuration
+
+To enable TLS encryption for the WebSocket server (recommended for network access):
+
+1. **Generate a self-signed certificate** (for development/testing):
+   ```bash
+   mkdir -p ~/.claude-relay/certs
+   openssl req -x509 -newkey rsa:4096 \
+     -keyout ~/.claude-relay/certs/key.pem \
+     -out ~/.claude-relay/certs/cert.pem \
+     -days 365 -nodes -subj "/CN=localhost"
+   ```
+
+2. **Update config to enable TLS**:
+   ```bash
+   claude-relay config set tlsCert "~/.claude-relay/certs/cert.pem"
+   claude-relay config set tlsKey "~/.claude-relay/certs/key.pem"
+   ```
+
+3. **Restart the server**:
+   ```bash
+   claude-relay restart
+   ```
+
+4. **iOS App**: Enable "Use TLS" toggle in the server configuration and use `wss://` URL scheme.
+
+**Production TLS:**
+For production deployments, use a valid certificate from a trusted CA (Let's Encrypt, etc.) instead of a self-signed certificate. The iOS app will require proper certificate trust for `wss://` connections.
+
+**Note:** TLS is only applied to the WebSocket server (port 9200). The Admin API (port 9100) remains localhost-only without TLS.
 
 ## Development
 
@@ -152,7 +191,7 @@ swift build
 ### Run Tests
 
 ```bash
-swift test                                    # All tests
+swift test                                    # All tests (123 tests)
 swift test --filter ClaudeRelayKitTests      # Specific suite
 swift test --filter testTokenGeneration       # Specific test
 ```
@@ -214,9 +253,12 @@ All WebSocket messages use `MessageEnvelope` with JSON encoding:
 ## Security
 
 - All WebSocket connections require token-based authentication
-- Tokens are stored securely with SHA-256 hashing
-- Admin API binds to localhost by default
+- Tokens are stored securely with SHA-256 hashing (never plaintext)
+- Optional TLS encryption for WebSocket connections (NIO-SSL)
+- Admin API binds to localhost only (`127.0.0.1`)
 - Session isolation prevents cross-session access
+- IP-based rate limiting on failed authentication attempts
+- Server-side config validation prevents invalid/dangerous values
 - Configure firewall rules if exposing ports externally
 
 ### Folder Permissions

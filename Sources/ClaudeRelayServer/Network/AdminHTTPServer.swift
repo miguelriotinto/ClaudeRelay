@@ -52,7 +52,7 @@ public final class AdminHTTPServer {
 
 // MARK: - AdminHTTPHandler
 
-final class AdminHTTPHandler: ChannelInboundHandler {
+final class AdminHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
 
@@ -88,13 +88,14 @@ final class AdminHTTPHandler: ChannelInboundHandler {
 
             // Extract client IP for rate limiting
             let remoteIP = context.remoteAddress?.description ?? "unknown"
+            let ctx = UnsafeTransfer(context)
 
-            Task {
+            Task { [weak self] in
                 // Check rate limit before processing
                 if await rateLimiter.isBlocked(ip: remoteIP) {
                     let response = AdminResponse.error("Too many requests", status: 429)
-                    context.eventLoop.execute {
-                        self.writeResponse(response, context: context)
+                    ctx.value.eventLoop.execute {
+                        self?.writeResponse(response, context: ctx.value)
                     }
                     return
                 }
@@ -113,8 +114,8 @@ final class AdminHTTPHandler: ChannelInboundHandler {
                     await rateLimiter.recordFailure(ip: remoteIP)
                 }
 
-                context.eventLoop.execute {
-                    self.writeResponse(response, context: context)
+                ctx.value.eventLoop.execute {
+                    self?.writeResponse(response, context: ctx.value)
                 }
             }
 

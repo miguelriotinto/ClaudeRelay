@@ -3,6 +3,11 @@ import NIOCore
 import NIOHTTP1
 import ClaudeRelayKit
 
+/// Routes for the admin HTTP API.
+///
+/// **Security model:** The admin server binds to `127.0.0.1` only (see `AdminHTTPServer`),
+/// so access is restricted to processes running on the same machine. This localhost-only
+/// binding is the intentional security boundary — no additional authentication is applied.
 enum AdminRoutes {
     private static let startTime = Date()
 
@@ -248,22 +253,27 @@ enum AdminRoutes {
         }
     }
 
-    private static func applyConfigValue(_ value: Any, forKey key: String, to config: inout RelayConfig) throws {
+    static func applyConfigValue(_ value: Any, forKey key: String, to config: inout RelayConfig) throws {
         switch key {
         case "wsPort":
             guard let val = value as? Int else { throw ConfigError(message: "wsPort must be an integer") }
+            try validatePort(val, name: "wsPort")
             config.wsPort = UInt16(val)
         case "adminPort":
             guard let val = value as? Int else { throw ConfigError(message: "adminPort must be an integer") }
+            try validatePort(val, name: "adminPort")
             config.adminPort = UInt16(val)
         case "detachTimeout":
             guard let val = value as? Int else { throw ConfigError(message: "detachTimeout must be an integer") }
+            try validateDetachTimeout(val)
             config.detachTimeout = val
         case "scrollbackSize":
             guard let val = value as? Int else { throw ConfigError(message: "scrollbackSize must be an integer") }
+            try validateScrollbackSize(val)
             config.scrollbackSize = val
         case "logLevel":
             guard let val = value as? String else { throw ConfigError(message: "logLevel must be a string") }
+            try validateLogLevel(val)
             config.logLevel = val
         case "tlsCert":
             config.tlsCert = value as? String
@@ -271,6 +281,33 @@ enum AdminRoutes {
             config.tlsKey = value as? String
         default:
             throw ConfigError(message: "Unknown config key: \(key)")
+        }
+    }
+
+    // MARK: - Config Validation
+
+    private static func validatePort(_ port: Int, name: String) throws {
+        guard port >= 1024 && port <= 65535 else {
+            throw ConfigError(message: "\(name) must be in range 1024-65535, got \(port)")
+        }
+    }
+
+    private static func validateDetachTimeout(_ timeout: Int) throws {
+        guard timeout >= 0 else {
+            throw ConfigError(message: "detachTimeout must be >= 0, got \(timeout)")
+        }
+    }
+
+    private static func validateScrollbackSize(_ size: Int) throws {
+        guard size >= 1024 else {
+            throw ConfigError(message: "scrollbackSize must be >= 1024 bytes, got \(size)")
+        }
+    }
+
+    private static func validateLogLevel(_ level: String) throws {
+        let validLevels = ["trace", "debug", "info", "warning", "error"]
+        guard validLevels.contains(level) else {
+            throw ConfigError(message: "logLevel must be one of: \(validLevels.joined(separator: ", ")), got \"\(level)\"")
         }
     }
 

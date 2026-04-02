@@ -255,7 +255,7 @@ private class RelayTerminalView: TerminalView {
         commands.append(contentsOf: [
             UIKeyCommand(input: "c", modifierFlags: .command, action: #selector(copy(_:))),
             UIKeyCommand(input: "v", modifierFlags: .command, action: #selector(paste(_:))),
-            UIKeyCommand(input: "x", modifierFlags: .command, action: #selector(handleCut(_:))),
+            UIKeyCommand(input: "x", modifierFlags: .command, action: #selector(handleCut(_:)))
         ])
         return commands
     }

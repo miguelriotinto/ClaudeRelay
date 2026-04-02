@@ -16,7 +16,7 @@ let tokenStore = TokenStore(directory: RelayConfig.configDirectory)
 let sessionManager = SessionManager(config: config, tokenStore: tokenStore)
 
 let wsServer = WebSocketServer(
-    group: group, port: config.wsPort,
+    group: group, config: config,
     sessionManager: sessionManager, tokenStore: tokenStore
 )
 let adminServer = AdminHTTPServer(

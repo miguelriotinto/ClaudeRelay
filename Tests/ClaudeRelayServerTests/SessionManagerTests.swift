@@ -15,6 +15,7 @@ actor MockPTYSession: PTYSessionProtocol {
         self.sessionId = sessionId
     }
 
+    func startReading() {}
     func setOutputHandler(_ handler: @escaping @Sendable (Data) -> Void) { outputHandler = handler }
     func setExitHandler(_ handler: @escaping @Sendable () -> Void) { exitHandler = handler }
     func clearOutputHandler() { outputHandler = nil }

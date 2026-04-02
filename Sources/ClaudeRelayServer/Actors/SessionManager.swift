@@ -58,8 +58,9 @@ public actor SessionManager {
             rows: rows
         )
 
-        // Create PTY session
+        // Create PTY session and activate its read source
         let pty = try ptyFactory(id, cols, rows, config.scrollbackSize)
+        await pty.startReading()
 
         // Transition starting -> activeAttached
         let activeInfo = SessionInfo(
