@@ -92,13 +92,15 @@ final class OnDeviceSpeechEngine: ObservableObject {
         state = .recording
     }
 
-    func stopAndProcess(promptImprovement: Bool = false) async -> String? {
+    func stopAndProcess(smartCleanup: Bool = true, promptEnhancement: Bool = false) async -> String? {
         guard state == .recording else { return nil }
 
         guard let audioBuffer = capture.stop() else {
             state = .idle
             return nil
         }
+
+        let needsLLM = smartCleanup || promptEnhancement
 
         let task = Task<Result<String, Error>, Never> { [transcriber, cleaner] in
             // Phase 1: Transcribe
@@ -111,9 +113,10 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
             guard !Task.isCancelled else { return .failure(CancellationError()) }
 
-            // Phase 2: Clean (best-effort -- return raw text if cleaning fails)
+            // Phase 2: Clean/enhance (best-effort -- return raw text if LLM fails)
+            guard needsLLM else { return .success(rawText) }
             do {
-                return .success(try await cleaner.clean(rawText, promptImprovement: promptImprovement))
+                return .success(try await cleaner.clean(rawText, smartCleanup: smartCleanup, promptEnhancement: promptEnhancement))
             } catch {
                 return .success(rawText)
             }

@@ -3,10 +3,10 @@ import LLM
 
 /// Protocol for text cleanup — enables mock injection in tests.
 protocol TextCleaning: Sendable {
-    func clean(_ text: String, promptImprovement: Bool) async throws -> String
+    func clean(_ text: String, smartCleanup: Bool, promptEnhancement: Bool) async throws -> String
 }
 
-/// Runs a local Qwen 3.5 0.8B GGUF model via llama.cpp (Metal GPU) to clean transcriptions.
+/// Runs a local Gemma 2 2B IT GGUF model via llama.cpp (Metal GPU) to clean transcriptions.
 final class TextCleaner: TextCleaning, @unchecked Sendable {
 
     private var llm: LLM?
@@ -19,18 +19,20 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
     /// Path to the GGUF model file. Set by OnDeviceSpeechEngine after download.
     var modelPath: URL?
 
+    /// Minimum word count worth sending through the LLM.
+    /// Shorter inputs are returned as-is to avoid hallucination.
+    static let minimumWordCount = 3
+
     /// Load a GGUF model from disk.
     func loadModel(from path: URL) throws {
         guard FileManager.default.fileExists(atPath: path.path) else {
             throw CleanerError.modelFileNotFound
         }
 
-        // LLM.init?(from: URL, ...) is failable and synchronous
         guard let model = LLM(from: path, maxTokenCount: 2048) else {
             throw CleanerError.modelNotLoaded
         }
 
-        // Use Qwen template for proper chat formatting with thinking support
         model.useResolvedTemplate(
             systemPrompt: Self.fillerCleanupSystemPrompt
         )
@@ -39,12 +41,24 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         self.isLoaded = true
     }
 
-    /// Clean transcribed text using the on-device LLM.
-    /// When `promptImprovement` is true, rewrites as a clear Claude Code prompt.
-    /// When false, removes filler words and fixes punctuation.
-    /// Auto-loads the model on first call if a modelPath was set.
-    func clean(_ text: String, promptImprovement: Bool = false) async throws -> String {
-        // Auto-load on first use (on-demand loading per spec)
+    /// Process transcribed text based on the user's settings.
+    /// - `smartCleanup` ON: remove filler words and fix punctuation via LLM.
+    /// - `promptEnhancement` ON: rewrite as a clear Claude Code prompt via LLM (overrides cleanup).
+    /// - Both OFF: return raw text untouched.
+    func clean(_ text: String, smartCleanup: Bool = true, promptEnhancement: Bool = false) async throws -> String {
+        // Neither feature enabled — pass through raw text
+        guard smartCleanup || promptEnhancement else {
+            return text
+        }
+
+        let wordCount = text.split(separator: " ").count
+
+        // Short inputs don't benefit from LLM processing — return as-is
+        if wordCount < Self.minimumWordCount {
+            return text
+        }
+
+        // Auto-load on first use
         if llm == nil, let path = modelPath {
             try loadModel(from: path)
         }
@@ -53,18 +67,21 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
             throw CleanerError.modelNotLoaded
         }
 
-        // Switch system prompt based on mode
-        let systemPrompt = promptImprovement ? Self.promptImprovementSystemPrompt : Self.fillerCleanupSystemPrompt
+        // Prompt enhancement takes priority over cleanup
+        let systemPrompt = promptEnhancement ? Self.promptEnhancementSystemPrompt : Self.fillerCleanupSystemPrompt
         llm.useResolvedTemplate(systemPrompt: systemPrompt)
 
         resetIdleTimer()
 
-        let prompt = Self.buildCleanupPrompt(for: text, promptImprovement: promptImprovement)
-
-        // getCompletion returns the full generated text as a String
+        let prompt = Self.buildCleanupPrompt(for: text, promptEnhancement: promptEnhancement)
         let response = await llm.getCompletion(from: prompt)
-
         let cleaned = Self.sanitizeResponse(response)
+
+        // Hallucination guard: if the output is wildly different, return raw text
+        if Self.looksHallucinated(input: text, output: cleaned) {
+            return text
+        }
+
         return cleaned.isEmpty ? text : cleaned
     }
 
@@ -88,7 +105,7 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         }
     }
 
-    /// System prompt for filler cleanup mode (default).
+    /// System prompt for filler cleanup mode.
     static let fillerCleanupSystemPrompt = """
         You are a transcription cleanup engine. You are NOT a chatbot. You are NOT an assistant. \
         Your ONLY job is to clean up speech-to-text output.
@@ -103,8 +120,8 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         - Output ONLY the cleaned text, nothing else
         """
 
-    /// System prompt for prompt improvement mode.
-    static let promptImprovementSystemPrompt = """
+    /// System prompt for prompt enhancement mode.
+    static let promptEnhancementSystemPrompt = """
         You are a prompt optimization engine. Your ONLY job is to rewrite speech-to-text \
         input into a clear, effective instruction for Claude Code (an AI coding assistant).
 
@@ -120,8 +137,8 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         """
 
     /// Build the user prompt based on mode.
-    static func buildCleanupPrompt(for text: String, promptImprovement: Bool = false) -> String {
-        if promptImprovement {
+    static func buildCleanupPrompt(for text: String, promptEnhancement: Bool = false) -> String {
+        if promptEnhancement {
             return "Rewrite this as a clear Claude Code prompt:\n\(text)"
         }
         return "Clean this transcription:\n\(text)"
@@ -131,13 +148,34 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
     static func sanitizeResponse(_ response: String) -> String {
         var result = response
 
-        // Strip <think>...</think> blocks (Qwen 3.5 thinking mode)
+        // Strip <think>...</think> blocks (thinking mode models)
         while let thinkStart = result.range(of: "<think>"),
               let thinkEnd = result.range(of: "</think>") {
             result.removeSubrange(thinkStart.lowerBound..<thinkEnd.upperBound)
         }
 
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Detect likely hallucinated output from the LLM.
+    /// Returns true if the output is suspiciously different from the input.
+    static func looksHallucinated(input: String, output: String) -> Bool {
+        // Output vastly longer than input — model is fabricating
+        if output.count > input.count * 3, output.count > 100 {
+            return true
+        }
+
+        // Contains code fences — model generated code instead of cleaning text
+        if output.contains("```") {
+            return true
+        }
+
+        // Contains HTML tags — model generated markup
+        if output.contains("<div") || output.contains("<script") || output.contains("<html") {
+            return true
+        }
+
+        return false
     }
 }
 

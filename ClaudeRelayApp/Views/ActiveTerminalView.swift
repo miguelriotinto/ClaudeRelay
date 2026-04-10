@@ -223,7 +223,7 @@ private struct MicButton: View {
 
         case .recording:
             Task {
-                if let text = await engine.stopAndProcess(promptImprovement: settings.promptImprovementEnabled) {
+                if let text = await engine.stopAndProcess(smartCleanup: settings.smartCleanupEnabled, promptEnhancement: settings.promptEnhancementEnabled) {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     guard let id = coordinator.activeSessionId,
                           let vm = coordinator.viewModel(for: id) else { return }

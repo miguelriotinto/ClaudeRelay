@@ -8,11 +8,12 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Prompt Improvement", isOn: $settings.promptImprovementEnabled)
+                    Toggle("Smart Cleanup", isOn: $settings.smartCleanupEnabled)
+                    Toggle("Prompt Enhancement", isOn: $settings.promptEnhancementEnabled)
                 } header: {
                     Text("Speech to Text")
                 } footer: {
-                    Text("When enabled, transcribed speech is rewritten as a clear, effective Claude Code prompt. When disabled, filler words are removed and punctuation is fixed.")
+                    Text(footerText)
                 }
 
                 Section("About") {
@@ -27,6 +28,16 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+    }
+
+    private var footerText: String {
+        if settings.promptEnhancementEnabled {
+            return "Transcribed speech is rewritten as a clear, optimized prompt for Claude Code using the on-device LLM."
+        } else if settings.smartCleanupEnabled {
+            return "Filler words are removed and punctuation is fixed before pasting into the terminal."
+        } else {
+            return "Raw transcription is pasted directly into the terminal with no processing."
         }
     }
 

@@ -9,16 +9,34 @@ final class TextCleanerStaticTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Clean this transcription"))
     }
 
-    func testBuildCleanupPromptWithPromptImprovement() {
-        let prompt = TextCleaner.buildCleanupPrompt(for: "hello world", promptImprovement: true)
+    func testBuildCleanupPromptWithPromptEnhancement() {
+        let prompt = TextCleaner.buildCleanupPrompt(for: "hello world", promptEnhancement: true)
         XCTAssertTrue(prompt.contains("hello world"))
         XCTAssertTrue(prompt.contains("Claude Code prompt"))
     }
 
     func testBuildCleanupPromptDefaultIsFalse() {
         let defaultPrompt = TextCleaner.buildCleanupPrompt(for: "test")
-        let explicitFalse = TextCleaner.buildCleanupPrompt(for: "test", promptImprovement: false)
+        let explicitFalse = TextCleaner.buildCleanupPrompt(for: "test", promptEnhancement: false)
         XCTAssertEqual(defaultPrompt, explicitFalse)
+    }
+
+    func testLooksHallucinatedDetectsCodeFences() {
+        XCTAssertTrue(TextCleaner.looksHallucinated(input: "hello", output: "```swift\nprint(\"hi\")\n```"))
+    }
+
+    func testLooksHallucinatedDetectsHTML() {
+        XCTAssertTrue(TextCleaner.looksHallucinated(input: "hello", output: "<div class=\"container\">stuff</div>"))
+    }
+
+    func testLooksHallucinatedAllowsNormalOutput() {
+        XCTAssertFalse(TextCleaner.looksHallucinated(input: "fix the login bug", output: "Fix the login bug."))
+    }
+
+    func testLooksHallucinatedDetectsExpansion() {
+        let short = "hello"
+        let long = String(repeating: "generated content ", count: 20)
+        XCTAssertTrue(TextCleaner.looksHallucinated(input: short, output: long))
     }
 
     func testSanitizeResponseStripsThinkBlocks() {
