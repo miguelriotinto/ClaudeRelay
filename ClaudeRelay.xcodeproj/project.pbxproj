@@ -12,6 +12,7 @@
 		1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
+		31E3C54B6BC227D5C5A03BD9 /* SpeechEngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */; };
 		3806EBB40B1AC2B979D2E6AB /* LLM in Frameworks */ = {isa = PBXBuildFile; productRef = 51931B74F9245F0A1F0344F4 /* LLM */; };
 		382DD387109329B4EC0DB56B /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B2AF59490A10B933D223D7 /* AddEditServerView.swift */; };
 		5F5CF1FE1D420934C11556C7 /* WhisperTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */; };
@@ -22,6 +23,7 @@
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
 		A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E5892147C00AFFADE02948 /* SavedConnection.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
+		B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */; };
 		B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */; };
 		B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */; };
 		B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */; };
@@ -51,11 +53,13 @@
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
+		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCaptureSession.swift; sourceTree = "<group>"; };
 		BA02853D523E6DAF7B5CD68D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngine.swift; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -138,6 +142,8 @@
 			isa = PBXGroup;
 			children = (
 				B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */,
+				BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */,
+				911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */,
 				6E190520294712DF54746164 /* SpeechModelStore.swift */,
 				A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */,
 				7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */,
@@ -254,12 +260,14 @@
 				ECB70A1E160B86A34825974D /* AudioCaptureSession.swift in Sources */,
 				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
+				B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */,
 				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
 				BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */,
 				B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */,
 				9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */,
 				0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */,
+				31E3C54B6BC227D5C5A03BD9 /* SpeechEngineState.swift in Sources */,
 				BD146EC8C1D5AC64E63E39DD /* SpeechModelStore.swift in Sources */,
 				1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */,
 				B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */,
