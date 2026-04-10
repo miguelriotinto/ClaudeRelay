@@ -83,17 +83,27 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
     // MARK: - Recording
 
-    func startRecording() async throws {
+    func startRecording() async {
         guard state == .idle else { return }
 
-        // Load models into memory if cached but not yet loaded (e.g. after app relaunch)
-        if modelsReady && whisperTranscriber?.isLoaded != true {
-            try await whisperTranscriber?.loadModel()
-            textCleaner?.modelPath = modelStore.llmModelPath
-        }
+        do {
+            // Load models into memory if cached but not yet loaded (e.g. after app relaunch)
+            if modelsReady && whisperTranscriber?.isLoaded != true {
+                state = .transcribing  // Show loading indicator while model loads
+                try await whisperTranscriber?.loadModel()
+                textCleaner?.modelPath = modelStore.llmModelPath
+                state = .idle
+            }
 
-        try capture.start()
-        state = .recording
+            try capture.start()
+            state = .recording
+        } catch {
+            state = .error(error.localizedDescription)
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                if case .error = self.state { self.state = .idle }
+            }
+        }
     }
 
     /// Stop recording and process the audio.
