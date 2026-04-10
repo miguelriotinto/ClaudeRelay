@@ -154,6 +154,11 @@ struct ActiveTerminalView: View {
                 Text(msg)
             }
         }
+        .overlay {
+            if let progress = speechEngine.modelLoadProgress {
+                ModelLoadingOverlay(progress: progress)
+            }
+        }
     }
 
     private func statusColor(_ state: RelayConnection.ConnectionState) -> SwiftUI.Color {
@@ -164,6 +169,46 @@ struct ActiveTerminalView: View {
         }
     }
 
+}
+
+// MARK: - Model Loading Overlay
+
+private struct ModelLoadingOverlay: View {
+    let progress: Double
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                Image(systemName: "brain")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.secondary)
+
+                Text("Loading Speech Models")
+                    .font(.headline)
+
+                ProgressView(value: progress, total: 1.0)
+                    .progressViewStyle(.linear)
+                    .animation(.easeInOut(duration: 0.3), value: progress)
+
+                Text("\(Int(progress * 100))%")
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.2), value: Int(progress * 100))
+
+                Text(progress < 0.8 ? "Loading Whisper…" : "Loading cleanup model…")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(24)
+            .frame(width: 260)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .transition(.opacity)
+    }
 }
 
 // MARK: - Mic Button (on-device speech engine)
@@ -257,8 +302,7 @@ private struct MicButton: View {
 
     private var buttonIcon: String {
         switch engine.state {
-        case .idle: return "mic"
-        case .loadingModel: return "hourglass"
+        case .idle, .loadingModel: return "mic"
         case .recording: return "mic.fill"
         case .transcribing: return "waveform"
         case .cleaning: return "sparkles"
@@ -268,8 +312,7 @@ private struct MicButton: View {
 
     private var buttonColor: SwiftUI.Color {
         switch engine.state {
-        case .idle: return Color.gray.opacity(0.5)
-        case .loadingModel: return Color.orange.opacity(0.8)
+        case .idle, .loadingModel: return Color.gray.opacity(0.5)
         case .recording: return Color.red.opacity(0.8)
         case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
         case .error: return Color.red.opacity(0.8)

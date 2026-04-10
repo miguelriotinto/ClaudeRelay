@@ -17,12 +17,32 @@ final class WhisperTranscriber: SpeechTranscribing {
 
     /// Download and load the Whisper small.en model.
     /// WhisperKit manages its own model storage under Application Support.
-    func loadModel() async throws {
+    /// - Parameter progressCallback: Reports 0.0–1.0 as WhisperKit transitions
+    ///   through loading → loaded → prewarming → prewarmed.
+    func loadModel(progressCallback: (@Sendable (Double) -> Void)? = nil) async throws {
+        // Init without loading so we can attach the state callback first.
         let kit = try await WhisperKit(
             model: "openai_whisper-small.en",
             verbose: false,
-            prewarm: true
+            prewarm: false,
+            load: false
         )
+
+        if let progressCallback {
+            kit.modelStateCallback = { _, newState in
+                switch newState {
+                case .loading:     progressCallback(0.1)
+                case .loaded:      progressCallback(0.5)
+                case .prewarming:  progressCallback(0.7)
+                case .prewarmed:   progressCallback(1.0)
+                default: break
+                }
+            }
+        }
+
+        try await kit.loadModels()
+        try await kit.prewarmModels()
+
         self.whisperKit = kit
         self.isLoaded = true
     }

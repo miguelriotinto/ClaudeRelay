@@ -8,6 +8,8 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
     @Published private(set) var state: SpeechEngineState = .idle
     @Published private(set) var modelsReady: Bool = false
+    /// 0.0–1.0 progress while loading models into memory. `nil` when not loading.
+    @Published private(set) var modelLoadProgress: Double?
 
     let modelStore: SpeechModelStore
 
@@ -90,13 +92,27 @@ final class OnDeviceSpeechEngine: ObservableObject {
             // Load models into memory if cached but not yet loaded (e.g. after app relaunch)
             if modelsReady && whisperTranscriber?.isLoaded != true {
                 state = .loadingModel
-                try await whisperTranscriber?.loadModel()
+                modelLoadProgress = 0.0
+
+                try await whisperTranscriber?.loadModel { [weak self] progress in
+                    Task { @MainActor in self?.modelLoadProgress = progress * 0.8 }
+                }
+                modelLoadProgress = 0.8
+
+                // Phase 2: LLM cleanup model (~20% of total)
                 textCleaner?.modelPath = modelStore.llmModelPath
+                try? textCleaner?.loadModel(from: modelStore.llmModelPath)
+                modelLoadProgress = 1.0
+
+                // Brief pause so the user sees 100% before the modal dismisses
+                try? await Task.sleep(for: .milliseconds(400))
+                modelLoadProgress = nil
             }
 
             try capture.start()
             state = .recording
         } catch {
+            modelLoadProgress = nil
             state = .error(error.localizedDescription)
             Task {
                 try? await Task.sleep(for: .seconds(3))
