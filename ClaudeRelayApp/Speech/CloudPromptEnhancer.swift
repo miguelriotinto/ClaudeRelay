@@ -4,8 +4,9 @@ import Foundation
 /// a clear, actionable prompt. Requires a bearer token for authentication.
 final class CloudPromptEnhancer: Sendable {
 
-    /// Bedrock model ID for Claude Haiku.
-    private static let modelId = "anthropic.claude-haiku-4-5-20251001-v1:0"
+    /// Bedrock cross-region inference profile for Claude Haiku.
+    /// On-demand throughput requires an inference profile ID, not the raw model ID.
+    private static let modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
     /// System prompt that guides Haiku to enhance while staying faithful to intent.
     static let systemPrompt = """

@@ -200,7 +200,7 @@ private struct MicButton: View {
             .background(buttonColor)
             .clipShape(Circle())
         }
-        .disabled(engine.modelStore.downloadProgress != nil)
+        .disabled(isButtonDisabled)
         .alert("Download Speech Models?", isPresented: $showDownloadAlert) {
             Button("Download") {
                 Task { await engine.prepareModels() }
@@ -238,15 +238,27 @@ private struct MicButton: View {
                 }
             }
 
-        default:
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        case .error:
             engine.cancel()
+
+        default:
+            break // Button is disabled in other states
+        }
+    }
+
+    private var isButtonDisabled: Bool {
+        switch engine.state {
+        case .loadingModel, .transcribing, .cleaning:
+            return true
+        default:
+            return engine.modelStore.downloadProgress != nil
         }
     }
 
     private var buttonIcon: String {
         switch engine.state {
         case .idle: return "mic"
+        case .loadingModel: return "hourglass"
         case .recording: return "mic.fill"
         case .transcribing: return "waveform"
         case .cleaning: return "sparkles"
@@ -257,6 +269,7 @@ private struct MicButton: View {
     private var buttonColor: SwiftUI.Color {
         switch engine.state {
         case .idle: return Color.gray.opacity(0.5)
+        case .loadingModel: return Color.orange.opacity(0.8)
         case .recording: return Color.red.opacity(0.8)
         case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
         case .error: return Color.red.opacity(0.8)
@@ -280,6 +293,36 @@ extension Notification.Name {
 /// SwiftTerm implements the `copy(_:)` / `paste(_:)` methods but does not
 /// register key commands, so the system never dispatches them on iOS.
 private class RelayTerminalView: TerminalView {
+    // SwiftTerm declares `hasText` as `public` (not `open`), so Swift prevents a
+    // direct override. We use the Objective-C runtime to add our own implementation
+    // to this subclass, making `hasText` always return true. Without this, the
+    // software keyboard stops calling `deleteBackward()` on long-press once
+    // SwiftTerm's internal text buffer is empty — but in a terminal, backspace
+    // should always repeat since it sends escape codes to the remote shell.
+    //
+    // IMPORTANT: This must be triggered from didMoveToWindow(), not keyCommands.
+    // keyCommands is only queried when a hardware keyboard is present — on a
+    // software-only keyboard the override would never be installed.
+    private static var hasTextOverrideInstalled = false
+    private static func installRuntimeOverrides() {
+        guard !hasTextOverrideInstalled else { return }
+        hasTextOverrideInstalled = true
+
+        let sel = sel_registerName("hasText")
+        let imp = imp_implementationWithBlock({ (_: AnyObject) -> Bool in
+            true
+        } as @convention(block) (AnyObject) -> Bool)
+        // "B16@0:8" = returns Bool, total frame 16, self at 0, _cmd at 8
+        class_replaceMethod(RelayTerminalView.self, sel, imp, "B16@0:8")
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil {
+            Self.installRuntimeOverrides()
+        }
+    }
+
     override var keyCommands: [UIKeyCommand]? {
         var commands = super.keyCommands ?? []
         commands.append(contentsOf: [

@@ -16,8 +16,7 @@ packages:
     url: https://github.com/argmaxinc/WhisperKit.git
     minorVersion: 0.18.0
   LLMSwift:
-    url: https://github.com/obra/LLM.swift.git
-    branch: main
+    path: ../LLM.swift
 
 targets:
   ClaudeRelayApp:
@@ -51,7 +50,7 @@ targets:
         SUPPORTED_PLATFORMS: "iphonesimulator iphoneos"
         SUPPORTS_MACCATALYST: NO
         MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: "19"
+        CURRENT_PROJECT_VERSION: "24"
         GENERATE_INFOPLIST_FILE: YES
   ClaudeRelayAppTests:
     type: bundle.unit-test
