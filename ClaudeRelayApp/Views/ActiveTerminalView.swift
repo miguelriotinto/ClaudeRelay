@@ -11,7 +11,7 @@ struct ActiveTerminalView: View {
     @State private var showKeyBar = false
     @State private var isKeyboardVisible = false
     @State private var hasHardwareKeyboard = GCKeyboard.coalesced != nil
-    @StateObject private var speechRecognizer = SpeechRecognizer()
+    @StateObject private var speechRecognizer = LegacySpeechRecognizer()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -192,7 +192,7 @@ struct ActiveTerminalView: View {
 // MARK: - Mic Button (isolated to prevent pulse animation from redrawing parent)
 
 private struct MicButton: View {
-    @ObservedObject var speechRecognizer: SpeechRecognizer
+    @ObservedObject var speechRecognizer: LegacySpeechRecognizer
     let coordinator: SessionCoordinator
     @State private var pulseAnimation = false
 
