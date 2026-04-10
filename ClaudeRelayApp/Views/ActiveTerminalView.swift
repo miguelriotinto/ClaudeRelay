@@ -11,7 +11,7 @@ struct ActiveTerminalView: View {
     @State private var showKeyBar = false
     @State private var isKeyboardVisible = false
     @State private var hasHardwareKeyboard = GCKeyboard.coalesced != nil
-    @StateObject private var speechRecognizer = SpeechRecognizer()
+    @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -41,7 +41,7 @@ struct ActiveTerminalView: View {
             // Floating buttons: mic + keyboard toggle (only when a terminal session is active)
             if coordinator.activeSessionId != nil {
                 HStack(spacing: 10) {
-                    MicButton(speechRecognizer: speechRecognizer, coordinator: coordinator)
+                    MicButton(engine: speechEngine, coordinator: coordinator)
 
                     Button {
                         if isKeyboardVisible {
@@ -128,11 +128,11 @@ struct ActiveTerminalView: View {
         .ignoresSafeArea(.container, edges: .horizontal)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: coordinator.activeSessionId) { _, _ in
-            speechRecognizer.stopRecording()
+            speechEngine.cancel()
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase != .active {
-                speechRecognizer.stopRecording()
+                speechEngine.cancel()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .GCKeyboardDidConnect)) { _ in
@@ -142,33 +142,18 @@ struct ActiveTerminalView: View {
             hasHardwareKeyboard = GCKeyboard.coalesced != nil
         }
         .alert(
-            permissionAlertTitle,
+            "Speech Error",
             isPresented: Binding(
-                get: { speechRecognizer.permissionError != nil },
-                set: { if !$0 { speechRecognizer.permissionError = nil } }
-            ),
-            presenting: speechRecognizer.permissionError,
-            actions: { error in
-                if error != .unavailable {
-                    Button("Open Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            },
-            message: { error in
-                switch error {
-                case .microphoneDenied:
-                    Text("Voice input needs microphone access. Enable it in Settings.")
-                case .speechDenied:
-                    Text("Voice input needs speech recognition access. Enable it in Settings.")
-                case .unavailable:
-                    Text("Speech recognition is not available on this device or for your language.")
-                }
+                get: { if case .error = speechEngine.state { return true } else { return false } },
+                set: { _ in }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if case .error(let msg) = speechEngine.state {
+                Text(msg)
             }
-        )
+        }
     }
 
     private func statusColor(_ state: RelayConnection.ConnectionState) -> SwiftUI.Color {
@@ -179,57 +164,94 @@ struct ActiveTerminalView: View {
         }
     }
 
-    private var permissionAlertTitle: String {
-        switch speechRecognizer.permissionError {
-        case .microphoneDenied: return "Microphone Access Required"
-        case .speechDenied: return "Speech Recognition Required"
-        case .unavailable: return "Speech Recognition Unavailable"
-        case nil: return ""
-        }
-    }
 }
 
-// MARK: - Mic Button (isolated to prevent pulse animation from redrawing parent)
+// MARK: - Mic Button (on-device speech engine)
 
 private struct MicButton: View {
-    @ObservedObject var speechRecognizer: SpeechRecognizer
+    @ObservedObject var engine: OnDeviceSpeechEngine
     let coordinator: SessionCoordinator
-    @State private var pulseAnimation = false
+    @State private var showDownloadAlert = false
 
     var body: some View {
         Button {
-            toggleDictation()
+            handleTap()
         } label: {
-            Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
-                .font(.system(size: 16))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(speechRecognizer.isRecording
-                            ? Color.red.opacity(0.8)
-                            : Color.gray.opacity(0.5))
-                .clipShape(Circle())
-                .scaleEffect(pulseAnimation && speechRecognizer.isRecording ? 1.15 : 1.0)
-                .animation(
-                    speechRecognizer.isRecording
-                        ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
-                        : .default,
-                    value: pulseAnimation
-                )
+            Group {
+                if let progress = engine.modelStore.downloadProgress {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 3)
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                    }
+                    .frame(width: 24, height: 24)
+                } else {
+                    Image(systemName: buttonIcon)
+                        .font(.system(size: 16))
+                        .foregroundStyle(.white)
+                }
+            }
+            .frame(width: 44, height: 44)
+            .background(buttonColor)
+            .clipShape(Circle())
         }
-        .onChange(of: speechRecognizer.isRecording) { _, isRecording in
-            pulseAnimation = isRecording
+        .alert("Download Speech Models?", isPresented: $showDownloadAlert) {
+            Button("Download") {
+                Task { await engine.prepareModels() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("On-device voice recognition requires a one-time download (~1 GB). This enables offline, private speech-to-text.")
         }
     }
 
-    private func toggleDictation() {
-        if speechRecognizer.isRecording {
-            speechRecognizer.stopRecording()
-        } else {
-            speechRecognizer.startRecording { data in
-                guard let id = coordinator.activeSessionId,
-                      let vm = coordinator.viewModel(for: id) else { return }
-                vm.sendInput(data)
+    private func handleTap() {
+        let haptics = UIImpactFeedbackGenerator(style: .medium)
+
+        switch engine.state {
+        case .idle:
+            guard engine.modelsReady else {
+                showDownloadAlert = true
+                return
             }
+            haptics.impactOccurred()
+            try? engine.startRecording()
+
+        case .recording:
+            Task {
+                if let text = await engine.stopAndProcess() {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    guard let id = coordinator.activeSessionId,
+                          let vm = coordinator.viewModel(for: id) else { return }
+                    vm.sendInput(text)
+                }
+            }
+
+        default:
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            engine.cancel()
+        }
+    }
+
+    private var buttonIcon: String {
+        switch engine.state {
+        case .idle: return "mic"
+        case .recording: return "mic.fill"
+        case .transcribing: return "waveform"
+        case .cleaning: return "sparkles"
+        case .error: return "mic"
+        }
+    }
+
+    private var buttonColor: SwiftUI.Color {
+        switch engine.state {
+        case .idle: return Color.gray.opacity(0.5)
+        case .recording: return Color.red.opacity(0.8)
+        case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
+        case .error: return Color.red.opacity(0.8)
         }
     }
 }

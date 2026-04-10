@@ -3,7 +3,7 @@ import Speech
 import AVFoundation
 
 @MainActor
-final class SpeechRecognizer: ObservableObject {
+final class LegacySpeechRecognizer: ObservableObject {
 
     // MARK: - Published State
 
