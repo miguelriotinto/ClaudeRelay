@@ -153,9 +153,10 @@ final class OnDeviceSpeechEngine: ObservableObject {
             guard !Task.isCancelled else { return .failure(CancellationError()) }
 
             // Whisper often hallucinates short phrases ("you", "Thank you.") from silence.
-            // Treat transcripts with fewer than 2 words as no speech detected.
+            // Treat transcripts with fewer than 2 words, or known hallucination
+            // phrases, as no speech detected.
             let wordCount = rawText.split(whereSeparator: { $0.isWhitespace }).count
-            if wordCount < 2 {
+            if wordCount < 2 || TranscriberError.isSilenceHallucination(rawText) {
                 return .failure(TranscriberError.emptyTranscription)
             }
 

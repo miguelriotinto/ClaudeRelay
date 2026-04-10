@@ -86,4 +86,37 @@ enum TranscriberError: Error, LocalizedError {
         case .emptyTranscription: return "No speech detected"
         }
     }
+
+    /// Phrases Whisper commonly hallucinates from silence or background noise.
+    /// Compared case-insensitively after stripping punctuation.
+    static let silenceHallucinations: Set<String> = [
+        "thank you",
+        "thanks",
+        "thanks for watching",
+        "thank you for watching",
+        "bye",
+        "goodbye",
+        "subscribe",
+        "like and subscribe",
+        "see you next time",
+        "see you",
+        "you",
+        "the end",
+        "so",
+        "okay",
+        "hmm",
+        "oh",
+        "ah",
+    ]
+
+    /// Returns true if the text is a known Whisper silence hallucination.
+    static func isSilenceHallucination(_ text: String) -> Bool {
+        let normalized = text
+            .lowercased()
+            .components(separatedBy: CharacterSet.letters.inverted)
+            .joined(separator: " ")
+            .split(separator: " ")
+            .joined(separator: " ")
+        return silenceHallucinations.contains(normalized)
+    }
 }
