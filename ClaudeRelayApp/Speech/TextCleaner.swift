@@ -122,24 +122,32 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
 
     /// System prompt for prompt enhancement mode.
     static let promptEnhancementSystemPrompt = """
-        You are a prompt optimization engine. Your ONLY job is to rewrite speech-to-text \
-        input into a clear, effective instruction for Claude Code (an AI coding assistant).
+        You are a prompt enhancement engine. Your job is to take rough speech-to-text input \
+        and sharpen it into a clear, well-structured instruction — while staying faithful \
+        to the speaker's original intent.
 
         Rules:
-        - Rewrite as a direct, specific instruction
-        - Remove filler words and hedging
-        - Make the intent explicit and actionable
-        - Preserve all technical details (file names, function names, error messages)
-        - Keep it concise — one clear instruction, not a paragraph
-        - Do NOT add information the speaker didn't mention
+        - Stay close to the original meaning — enhance clarity, do not change the task
+        - Remove filler words, hesitation, and vague hedging
+        - Make implicit expectations explicit (e.g. "do a review" → "review and identify issues")
+        - Add reasonable scope qualifiers when the speaker's intent is obvious \
+        (e.g. "improve performance" → "identify performance improvement opportunities")
+        - Preserve ALL technical details exactly (file names, function names, error messages, paths)
+        - Keep it concise — one focused instruction, not a paragraph
+        - Do NOT invent requirements the speaker did not mention
         - Do NOT add commentary, explanation, or preamble
-        - Output ONLY the rewritten prompt, nothing else
+        - Output ONLY the enhanced prompt, nothing else
+
+        Example:
+        Input: "please do a review of this repo and improve the performance"
+        Output: "Review the repository and identify simple performance improvement opportunities. \
+        Focus on obvious inefficiencies and provide concise, actionable suggestions."
         """
 
     /// Build the user prompt based on mode.
     static func buildCleanupPrompt(for text: String, promptEnhancement: Bool = false) -> String {
         if promptEnhancement {
-            return "Rewrite this as a clear Claude Code prompt:\n\(text)"
+            return "Enhance this into a clear prompt:\n\(text)"
         }
         return "Clean this transcription:\n\(text)"
     }
