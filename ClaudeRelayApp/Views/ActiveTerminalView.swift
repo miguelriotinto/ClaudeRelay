@@ -187,6 +187,7 @@ private struct MicButton: View {
                             .trim(from: 0, to: progress)
                             .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                             .rotationEffect(.degrees(-90))
+                            .animation(.linear(duration: 0.3), value: progress)
                     }
                     .frame(width: 24, height: 24)
                 } else {
@@ -199,6 +200,7 @@ private struct MicButton: View {
             .background(buttonColor)
             .clipShape(Circle())
         }
+        .disabled(engine.modelStore.downloadProgress != nil)
         .alert("Download Speech Models?", isPresented: $showDownloadAlert) {
             Button("Download") {
                 Task { await engine.prepareModels() }
@@ -223,7 +225,12 @@ private struct MicButton: View {
 
         case .recording:
             Task {
-                if let text = await engine.stopAndProcess(smartCleanup: settings.smartCleanupEnabled, promptEnhancement: settings.promptEnhancementEnabled) {
+                if let text = await engine.stopAndProcess(
+                    smartCleanup: settings.smartCleanupEnabled,
+                    promptEnhancement: settings.promptEnhancementEnabled,
+                    bearerToken: settings.bedrockBearerToken,
+                    region: settings.bedrockRegion
+                ) {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     guard let id = coordinator.activeSessionId,
                           let vm = coordinator.viewModel(for: id) else { return }

@@ -47,11 +47,11 @@ targets:
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Claude Relay needs microphone access for voice-to-text input."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Claude Relay uses speech recognition to convert voice input to terminal commands."
         SWIFT_VERSION: "5.9"
-        DEVELOPMENT_TEAM: QHT2YY3LU6
+        DEVELOPMENT_TEAM: T9WF95GC9T
         SUPPORTED_PLATFORMS: "iphonesimulator iphoneos"
         SUPPORTS_MACCATALYST: NO
         MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: "13"
+        CURRENT_PROJECT_VERSION: "18"
         GENERATE_INFOPLIST_FILE: YES
   ClaudeRelayAppTests:
     type: bundle.unit-test

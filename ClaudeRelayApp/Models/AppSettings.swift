@@ -6,4 +6,6 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("smartCleanupEnabled") var smartCleanupEnabled = true
     @AppStorage("promptEnhancementEnabled") var promptEnhancementEnabled = false
+    @AppStorage("bedrockBearerToken") var bedrockBearerToken = ""
+    @AppStorage("bedrockRegion") var bedrockRegion = "us-east-1"
 }

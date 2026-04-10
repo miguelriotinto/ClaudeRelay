@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
+    @State private var showTokenRequired = false
 
     var body: some View {
         NavigationStack {
@@ -13,7 +14,23 @@ struct SettingsView: View {
                 } header: {
                     Text("Speech to Text")
                 } footer: {
-                    Text(footerText)
+                    Text(speechFooterText)
+                }
+
+                if settings.promptEnhancementEnabled {
+                    Section {
+                        SecureField("Bearer Token", text: $settings.bedrockBearerToken)
+                            .textContentType(.password)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                        TextField("Region", text: $settings.bedrockRegion)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                    } header: {
+                        Text("AWS Bedrock")
+                    } footer: {
+                        Text("Prompt Enhancement uses Claude Haiku on AWS Bedrock. Paste your bearer token to enable cloud-based prompt rewriting.")
+                    }
                 }
 
                 Section("About") {
@@ -25,17 +42,30 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") { handleDone() }
                 }
+            }
+            .alert("Bearer Key is Required", isPresented: $showTokenRequired) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Prompt Enhancement requires an AWS Bedrock bearer token. Please paste your token or disable Prompt Enhancement.")
             }
         }
     }
 
-    private var footerText: String {
+    private func handleDone() {
+        if settings.promptEnhancementEnabled && settings.bedrockBearerToken.trimmingCharacters(in: .whitespaces).isEmpty {
+            showTokenRequired = true
+        } else {
+            dismiss()
+        }
+    }
+
+    private var speechFooterText: String {
         if settings.promptEnhancementEnabled {
-            return "Transcribed speech is rewritten as a clear, optimized prompt for Claude Code using the on-device LLM."
+            return "Transcribed speech is sent to Claude Haiku on AWS Bedrock and rewritten as an optimized prompt."
         } else if settings.smartCleanupEnabled {
-            return "Filler words are removed and punctuation is fixed before pasting into the terminal."
+            return "Filler words are removed and punctuation is fixed locally on-device before pasting into the terminal."
         } else {
             return "Raw transcription is pasted directly into the terminal with no processing."
         }

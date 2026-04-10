@@ -31,6 +31,7 @@
 		B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */; };
 		BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */; };
 		BD146EC8C1D5AC64E63E39DD /* SpeechModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E190520294712DF54746164 /* SpeechModelStore.swift */; };
+		C859391329AB328F111CDC24 /* CloudPromptEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */; };
 		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
 		D5D85EABC55C071F8597AA44 /* MockSpeechComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */; };
 		E773E7EDA1271778ADC748E0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */; };
@@ -66,12 +67,13 @@
 		701F488E2C9A0623C9156CE2 /* LegacySpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacySpeechRecognizer.swift; sourceTree = "<group>"; };
 		7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
-		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CDE7061F16DD811CA184B2B /* ClaudeRelay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClaudeRelay; path = .; sourceTree = SOURCE_ROOT; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeRelayAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudPromptEnhancer.swift; sourceTree = "<group>"; };
 		A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
@@ -167,6 +169,7 @@
 			isa = PBXGroup;
 			children = (
 				B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */,
+				A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */,
 				BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */,
 				911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */,
 				6E190520294712DF54746164 /* SpeechModelStore.swift */,
@@ -260,6 +263,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					53D3A67986EB0528C6161974 = {
+						DevelopmentTeam = T9WF95GC9T;
+					};
+				};
 			};
 			buildConfigurationList = 51F903A9054604952CC1FF0D /* Build configuration list for PBXProject "ClaudeRelay" */;
 			developmentRegion = en;
@@ -319,6 +327,7 @@
 				E773E7EDA1271778ADC748E0 /* AppSettings.swift in Sources */,
 				ECB70A1E160B86A34825974D /* AudioCaptureSession.swift in Sources */,
 				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
+				C859391329AB328F111CDC24 /* CloudPromptEnhancer.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
 				F754EDE50C49ECF641F6E810 /* LegacySpeechRecognizer.swift in Sources */,
 				B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */,
@@ -490,7 +499,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
@@ -521,7 +530,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;

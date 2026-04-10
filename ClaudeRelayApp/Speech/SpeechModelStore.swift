@@ -13,12 +13,12 @@ final class SpeechModelStore: ObservableObject {
 
     private static let whisperReadyKey = "speechModelStore.whisperDownloaded"
 
-    /// HuggingFace URL for the Gemma 2 2B IT Q4_K_M GGUF model.
+    /// HuggingFace URL for the Qwen 3.5 0.8B Q4_K_M GGUF model.
     private static let llmModelURL = URL(
-        string: "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
+        string: "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf"
     )!
 
-    private static let llmFileName = "gemma-2-2b-it-q4km.gguf"
+    private static let llmFileName = "qwen35-0.8b-q4km.gguf"
 
     var modelsReady: Bool { whisperReady && llmDownloaded }
 

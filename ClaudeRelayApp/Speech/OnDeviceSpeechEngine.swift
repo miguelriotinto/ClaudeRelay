@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-/// Orchestrates the on-device speech pipeline: record -> transcribe -> clean -> output.
+/// Orchestrates the speech pipeline: record -> transcribe -> (local cleanup | cloud enhance) -> output.
 /// This is the only class the UI talks to.
 @MainActor
 final class OnDeviceSpeechEngine: ObservableObject {
@@ -13,6 +13,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
     private let transcriber: any SpeechTranscribing
     private let cleaner: any TextCleaning
+    private let cloudEnhancer: CloudPromptEnhancer
     private let capture: AudioCaptureSession
 
     // Hold typed references for load/unload (protocols don't expose these)
@@ -32,6 +33,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
         self.init(
             transcriber: transcriber,
             cleaner: cleaner,
+            cloudEnhancer: CloudPromptEnhancer(),
             capture: AudioCaptureSession(),
             modelStore: store,
             whisperTranscriber: transcriber,
@@ -43,6 +45,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
     init(
         transcriber: any SpeechTranscribing,
         cleaner: any TextCleaning,
+        cloudEnhancer: CloudPromptEnhancer = CloudPromptEnhancer(),
         capture: AudioCaptureSession,
         modelStore: SpeechModelStore,
         whisperTranscriber: WhisperTranscriber? = nil,
@@ -50,6 +53,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
     ) {
         self.transcriber = transcriber
         self.cleaner = cleaner
+        self.cloudEnhancer = cloudEnhancer
         self.capture = capture
         self.modelStore = modelStore
         self.whisperTranscriber = whisperTranscriber
@@ -92,7 +96,16 @@ final class OnDeviceSpeechEngine: ObservableObject {
         state = .recording
     }
 
-    func stopAndProcess(smartCleanup: Bool = true, promptEnhancement: Bool = false) async -> String? {
+    /// Stop recording and process the audio.
+    /// - `smartCleanup`: use local LLM for filler removal
+    /// - `promptEnhancement`: use cloud Haiku for prompt rewriting (overrides cleanup)
+    /// - `bearerToken` / `region`: required when promptEnhancement is true
+    func stopAndProcess(
+        smartCleanup: Bool = true,
+        promptEnhancement: Bool = false,
+        bearerToken: String = "",
+        region: String = "us-east-1"
+    ) async -> String? {
         guard state == .recording else { return nil }
 
         guard let audioBuffer = capture.stop() else {
@@ -100,10 +113,9 @@ final class OnDeviceSpeechEngine: ObservableObject {
             return nil
         }
 
-        let needsLLM = smartCleanup || promptEnhancement
-
+        let enhancer = cloudEnhancer
         let task = Task<Result<String, Error>, Never> { [transcriber, cleaner] in
-            // Phase 1: Transcribe
+            // Phase 1: Transcribe (always local via Whisper)
             let rawText: String
             do {
                 rawText = try await transcriber.transcribe(audioBuffer)
@@ -113,11 +125,23 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
             guard !Task.isCancelled else { return .failure(CancellationError()) }
 
-            // Phase 2: Clean/enhance (best-effort -- return raw text if LLM fails)
-            guard needsLLM else { return .success(rawText) }
-            do {
-                return .success(try await cleaner.clean(rawText, smartCleanup: smartCleanup, promptEnhancement: promptEnhancement))
-            } catch {
+            // Phase 2: Process based on settings
+            if promptEnhancement {
+                // Cloud path: send raw transcript to Bedrock Haiku
+                do {
+                    return .success(try await enhancer.enhance(rawText, bearerToken: bearerToken, region: region))
+                } catch {
+                    return .failure(error)
+                }
+            } else if smartCleanup {
+                // Local path: clean filler words with on-device LLM (best-effort)
+                do {
+                    return .success(try await cleaner.clean(rawText))
+                } catch {
+                    return .success(rawText)
+                }
+            } else {
+                // Raw passthrough
                 return .success(rawText)
             }
         }
