@@ -85,7 +85,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
         state = .recording
     }
 
-    func stopAndProcess() async -> String? {
+    func stopAndProcess(promptImprovement: Bool = false) async -> String? {
         guard state == .recording else { return nil }
 
         guard let audioBuffer = capture.stop() else {
@@ -106,7 +106,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
             // Phase 2: Clean (best-effort -- return raw text if cleaning fails)
             do {
-                return try await cleaner.clean(rawText)
+                return try await cleaner.clean(rawText, promptImprovement: promptImprovement)
             } catch {
                 return rawText
             }

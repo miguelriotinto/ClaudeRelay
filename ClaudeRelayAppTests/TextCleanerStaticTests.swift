@@ -6,6 +6,19 @@ final class TextCleanerStaticTests: XCTestCase {
     func testBuildCleanupPromptContainsInput() {
         let prompt = TextCleaner.buildCleanupPrompt(for: "hello world")
         XCTAssertTrue(prompt.contains("hello world"))
+        XCTAssertTrue(prompt.contains("Clean this transcription"))
+    }
+
+    func testBuildCleanupPromptWithPromptImprovement() {
+        let prompt = TextCleaner.buildCleanupPrompt(for: "hello world", promptImprovement: true)
+        XCTAssertTrue(prompt.contains("hello world"))
+        XCTAssertTrue(prompt.contains("Claude Code prompt"))
+    }
+
+    func testBuildCleanupPromptDefaultIsFalse() {
+        let defaultPrompt = TextCleaner.buildCleanupPrompt(for: "test")
+        let explicitFalse = TextCleaner.buildCleanupPrompt(for: "test", promptImprovement: false)
+        XCTAssertEqual(defaultPrompt, explicitFalse)
     }
 
     func testSanitizeResponseStripsThinkBlocks() {

@@ -5,6 +5,7 @@ import ClaudeRelayClient
 struct ServerListView: View {
     @StateObject private var viewModel = ServerListViewModel()
     @State private var showAddSheet = false
+    @State private var showSettings = false
     @State private var serverToEdit: ConnectionConfig?
     @State private var showTimeoutAlert = false
 
@@ -57,6 +58,13 @@ struct ServerListView: View {
             }
             .navigationTitle("Servers")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showAddSheet = true
@@ -64,6 +72,9 @@ struct ServerListView: View {
                         Image(systemName: "plus")
                     }
                 }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView(settings: AppSettings.shared)
             }
             .sheet(isPresented: $showAddSheet) {
                 AddEditServerView(mode: .add) { _ in

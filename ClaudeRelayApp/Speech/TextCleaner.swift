@@ -3,7 +3,7 @@ import LLM
 
 /// Protocol for text cleanup — enables mock injection in tests.
 protocol TextCleaning: Sendable {
-    func clean(_ text: String) async throws -> String
+    func clean(_ text: String, promptImprovement: Bool) async throws -> String
 }
 
 /// Runs a local Qwen 3.5 0.8B GGUF model via llama.cpp (Metal GPU) to clean transcriptions.
@@ -32,16 +32,18 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
 
         // Use Qwen template for proper chat formatting with thinking support
         model.useResolvedTemplate(
-            systemPrompt: Self.systemPrompt
+            systemPrompt: Self.fillerCleanupSystemPrompt
         )
 
         self.llm = model
         self.isLoaded = true
     }
 
-    /// Clean transcribed text: remove filler words, fix punctuation, correct errors.
+    /// Clean transcribed text using the on-device LLM.
+    /// When `promptImprovement` is true, rewrites as a clear Claude Code prompt.
+    /// When false, removes filler words and fixes punctuation.
     /// Auto-loads the model on first call if a modelPath was set.
-    func clean(_ text: String) async throws -> String {
+    func clean(_ text: String, promptImprovement: Bool = false) async throws -> String {
         // Auto-load on first use (on-demand loading per spec)
         if llm == nil, let path = modelPath {
             try loadModel(from: path)
@@ -51,9 +53,13 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
             throw CleanerError.modelNotLoaded
         }
 
+        // Switch system prompt based on mode
+        let systemPrompt = promptImprovement ? Self.promptImprovementSystemPrompt : Self.fillerCleanupSystemPrompt
+        llm.useResolvedTemplate(systemPrompt: systemPrompt)
+
         resetIdleTimer()
 
-        let prompt = Self.buildCleanupPrompt(for: text)
+        let prompt = Self.buildCleanupPrompt(for: text, promptImprovement: promptImprovement)
 
         // getCompletion returns the full generated text as a String
         let response = await llm.getCompletion(from: prompt)
@@ -82,8 +88,8 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         }
     }
 
-    /// System prompt set via the template so the model knows its role.
-    static let systemPrompt = """
+    /// System prompt for filler cleanup mode (default).
+    static let fillerCleanupSystemPrompt = """
         You are a transcription cleanup engine. You are NOT a chatbot. You are NOT an assistant. \
         Your ONLY job is to clean up speech-to-text output.
 
@@ -97,10 +103,28 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         - Output ONLY the cleaned text, nothing else
         """
 
-    /// Build the cleanup prompt. The system instructions are in the template;
-    /// this just wraps the raw transcription text as user input.
-    static func buildCleanupPrompt(for text: String) -> String {
-        "Clean this transcription:\n\(text)"
+    /// System prompt for prompt improvement mode.
+    static let promptImprovementSystemPrompt = """
+        You are a prompt optimization engine. Your ONLY job is to rewrite speech-to-text \
+        input into a clear, effective instruction for Claude Code (an AI coding assistant).
+
+        Rules:
+        - Rewrite as a direct, specific instruction
+        - Remove filler words and hedging
+        - Make the intent explicit and actionable
+        - Preserve all technical details (file names, function names, error messages)
+        - Keep it concise — one clear instruction, not a paragraph
+        - Do NOT add information the speaker didn't mention
+        - Do NOT add commentary, explanation, or preamble
+        - Output ONLY the rewritten prompt, nothing else
+        """
+
+    /// Build the user prompt based on mode.
+    static func buildCleanupPrompt(for text: String, promptImprovement: Bool = false) -> String {
+        if promptImprovement {
+            return "Rewrite this as a clear Claude Code prompt:\n\(text)"
+        }
+        return "Clean this transcription:\n\(text)"
     }
 
     /// Strip any <think> reasoning blocks or markdown artifacts from LLM output.

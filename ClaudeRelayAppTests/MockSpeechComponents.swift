@@ -18,7 +18,7 @@ final class MockCleaner: TextCleaning {
     var shouldThrow = false
     var cleanCallCount = 0
 
-    func clean(_ text: String) async throws -> String {
+    func clean(_ text: String, promptImprovement: Bool = false) async throws -> String {
         cleanCallCount += 1
         if shouldThrow { throw CleanerError.modelNotLoaded }
         return resultToReturn ?? text

@@ -41,7 +41,7 @@ struct ActiveTerminalView: View {
             // Floating buttons: mic + keyboard toggle (only when a terminal session is active)
             if coordinator.activeSessionId != nil {
                 HStack(spacing: 10) {
-                    MicButton(engine: speechEngine, coordinator: coordinator)
+                    MicButton(engine: speechEngine, settings: AppSettings.shared, coordinator: coordinator)
 
                     Button {
                         if isKeyboardVisible {
@@ -170,6 +170,7 @@ struct ActiveTerminalView: View {
 
 private struct MicButton: View {
     @ObservedObject var engine: OnDeviceSpeechEngine
+    @ObservedObject var settings: AppSettings
     let coordinator: SessionCoordinator
     @State private var showDownloadAlert = false
 
@@ -222,7 +223,7 @@ private struct MicButton: View {
 
         case .recording:
             Task {
-                if let text = await engine.stopAndProcess() {
+                if let text = await engine.stopAndProcess(promptImprovement: settings.promptImprovementEnabled) {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     guard let id = coordinator.activeSessionId,
                           let vm = coordinator.viewModel(for: id) else { return }

@@ -50,6 +50,8 @@ targets:
         DEVELOPMENT_TEAM: QHT2YY3LU6
         SUPPORTED_PLATFORMS: "iphonesimulator iphoneos"
         SUPPORTS_MACCATALYST: NO
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: "13"
         GENERATE_INFOPLIST_FILE: YES
   ClaudeRelayAppTests:
     type: bundle.unit-test
