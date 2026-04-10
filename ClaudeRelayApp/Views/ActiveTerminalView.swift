@@ -219,7 +219,7 @@ private struct MicButton: View {
                 return
             }
             haptics.impactOccurred()
-            try? engine.startRecording()
+            Task { try? await engine.startRecording() }
 
         case .recording:
             Task {

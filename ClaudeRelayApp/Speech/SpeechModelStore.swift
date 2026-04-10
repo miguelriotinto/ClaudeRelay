@@ -11,6 +11,8 @@ final class SpeechModelStore: ObservableObject {
     @Published private(set) var llmDownloaded = false
     @Published private(set) var downloadProgress: Double?
 
+    private static let whisperReadyKey = "speechModelStore.whisperDownloaded"
+
     /// HuggingFace URL for the Qwen 3.5 0.8B Q4_K_M GGUF model.
     private static let llmModelURL = URL(
         string: "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf"
@@ -37,6 +39,7 @@ final class SpeechModelStore: ObservableObject {
 
     private init() {
         llmDownloaded = FileManager.default.fileExists(atPath: llmModelPath.path)
+        whisperReady = UserDefaults.standard.bool(forKey: Self.whisperReadyKey)
     }
 
     // MARK: - Download
@@ -53,6 +56,7 @@ final class SpeechModelStore: ObservableObject {
             prewarm: true
         )
         whisperReady = true
+        UserDefaults.standard.set(true, forKey: Self.whisperReadyKey)
         downloadProgress = 0.5
 
         // Phase 2: LLM GGUF download (if not already on disk)
@@ -97,6 +101,7 @@ final class SpeechModelStore: ObservableObject {
         try? FileManager.default.removeItem(at: modelsDirectory)
         whisperReady = false
         llmDownloaded = false
+        UserDefaults.standard.removeObject(forKey: Self.whisperReadyKey)
     }
 
     /// Total bytes used by models on disk.

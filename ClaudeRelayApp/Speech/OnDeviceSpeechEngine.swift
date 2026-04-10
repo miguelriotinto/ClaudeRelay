@@ -19,7 +19,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
     private let whisperTranscriber: WhisperTranscriber?
     private let textCleaner: TextCleaner?
 
-    private var processingTask: Task<String?, Never>?
+    private var processingTask: Task<Result<String, Error>, Never>?
     private var memoryWarningObserver: NSObjectProtocol?
 
     // MARK: - Init
@@ -79,8 +79,15 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
     // MARK: - Recording
 
-    func startRecording() throws {
+    func startRecording() async throws {
         guard state == .idle else { return }
+
+        // Load models into memory if cached but not yet loaded (e.g. after app relaunch)
+        if modelsReady && whisperTranscriber?.isLoaded != true {
+            try await whisperTranscriber?.loadModel()
+            textCleaner?.modelPath = modelStore.llmModelPath
+        }
+
         try capture.start()
         state = .recording
     }
@@ -93,22 +100,22 @@ final class OnDeviceSpeechEngine: ObservableObject {
             return nil
         }
 
-        let task = Task<String?, Never> { [transcriber, cleaner] in
+        let task = Task<Result<String, Error>, Never> { [transcriber, cleaner] in
             // Phase 1: Transcribe
             let rawText: String
             do {
                 rawText = try await transcriber.transcribe(audioBuffer)
             } catch {
-                return nil
+                return .failure(error)
             }
 
-            guard !Task.isCancelled else { return nil }
+            guard !Task.isCancelled else { return .failure(CancellationError()) }
 
             // Phase 2: Clean (best-effort -- return raw text if cleaning fails)
             do {
-                return try await cleaner.clean(rawText, promptImprovement: promptImprovement)
+                return .success(try await cleaner.clean(rawText, promptImprovement: promptImprovement))
             } catch {
-                return rawText
+                return .success(rawText)
             }
         }
 
@@ -124,17 +131,20 @@ final class OnDeviceSpeechEngine: ObservableObject {
         let result = await task.value
         processingTask = nil
 
-        if result != nil {
+        switch result {
+        case .success(let text):
             state = .idle
-        } else if state != .idle {
-            state = .error("Transcription failed")
-            Task {
-                try? await Task.sleep(for: .seconds(1))
-                if case .error = state { state = .idle }
+            return text
+        case .failure(let error):
+            if state != .idle {
+                state = .error(error.localizedDescription)
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    if case .error = state { state = .idle }
+                }
             }
+            return nil
         }
-
-        return result
     }
 
     func cancel() {
