@@ -45,15 +45,25 @@ final class SpeechModelStore: ObservableObject {
     // MARK: - Download
 
     /// Download both models. Updates `downloadProgress` during the process.
+    /// Progress range: Whisper 0.0–0.5, LLM 0.5–1.0.
     func downloadAllModels() async throws {
         downloadProgress = 0.0
 
-        // Phase 1: Whisper model (WhisperKit handles its own download + CoreML compilation)
-        downloadProgress = 0.1
+        // Phase 1: Whisper model — download with progress, then load
+        let whisperFolder = try await WhisperKit.download(
+            variant: "openai_whisper-small.en",
+            progressCallback: { [weak self] progress in
+                Task { @MainActor in
+                    self?.downloadProgress = progress.fractionCompleted * 0.5
+                }
+            }
+        )
+        // Load from the downloaded folder (skip re-download)
         _ = try await WhisperKit(
-            model: "openai_whisper-small.en",
+            modelFolder: whisperFolder.path,
             verbose: false,
-            prewarm: true
+            prewarm: true,
+            download: false
         )
         whisperReady = true
         UserDefaults.standard.set(true, forKey: Self.whisperReadyKey)
@@ -70,20 +80,23 @@ final class SpeechModelStore: ObservableObject {
         downloadProgress = nil
     }
 
-    /// Download the LLM GGUF file from HuggingFace using URLSession.
+    /// Download the LLM GGUF file from HuggingFace with progress reporting.
     private func downloadLLMModel() async throws {
         try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
 
-        // Use URLSession download task for large file
-        let (tempURL, response) = try await URLSession.shared.download(from: Self.llmModelURL)
+        let destination = llmModelPath
+        let (tempURL, response) = try await downloadWithProgress(
+            from: Self.llmModelURL,
+            progressHandler: { [weak self] fraction in
+                self?.downloadProgress = 0.5 + fraction * 0.5
+            }
+        )
 
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             throw ModelStoreError.downloadFailed
         }
 
-        // Move temp file to final location
-        let destination = llmModelPath
         if FileManager.default.fileExists(atPath: destination.path) {
             try FileManager.default.removeItem(at: destination)
         }
@@ -94,6 +107,25 @@ final class SpeechModelStore: ObservableObject {
         resourceValues.isExcludedFromBackup = true
         var mutableDest = destination
         try mutableDest.setResourceValues(resourceValues)
+    }
+
+    /// Download a file using a delegate-based URLSession to get progress updates.
+    private func downloadWithProgress(
+        from url: URL,
+        progressHandler: @MainActor @escaping (Double) -> Void
+    ) async throws -> (URL, URLResponse) {
+        let delegate = DownloadProgressDelegate(progressHandler: progressHandler)
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+
+        let (tempURL, response) = try await session.download(from: url)
+
+        // URLSession may delete the temp file after returning, so move to a safe location
+        let safeTempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.moveItem(at: tempURL, to: safeTempURL)
+
+        return (safeTempURL, response)
     }
 
     /// Delete all downloaded models to free disk space.
@@ -114,6 +146,37 @@ final class SpeechModelStore: ObservableObject {
             total += Int64(size)
         }
         return total
+    }
+}
+
+// MARK: - Download Progress Delegate
+
+private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, Sendable {
+    private let progressHandler: @MainActor (Double) -> Void
+
+    init(progressHandler: @MainActor @escaping (Double) -> Void) {
+        self.progressHandler = progressHandler
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        let fraction = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        let handler = progressHandler
+        Task { @MainActor in handler(fraction) }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        // Required by protocol; actual file handling is done in the async caller.
     }
 }
 
