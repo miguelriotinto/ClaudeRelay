@@ -9,10 +9,10 @@
 /* Begin PBXBuildFile section */
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
-		1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
 		31E3C54B6BC227D5C5A03BD9 /* SpeechEngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */; };
+		33CB2A7296D4D8959C1C8A3C /* TextCleanerStaticTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */; };
 		3806EBB40B1AC2B979D2E6AB /* LLM in Frameworks */ = {isa = PBXBuildFile; productRef = 51931B74F9245F0A1F0344F4 /* LLM */; };
 		382DD387109329B4EC0DB56B /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B2AF59490A10B933D223D7 /* AddEditServerView.swift */; };
 		5F5CF1FE1D420934C11556C7 /* WhisperTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */; };
@@ -20,6 +20,7 @@
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
 		840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700712F6C8FC16A5214C345A /* TerminalViewModel.swift */; };
+		938D018C46C19AA652D25CBC /* OnDeviceSpeechEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */; };
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
 		A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E5892147C00AFFADE02948 /* SavedConnection.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
@@ -30,10 +31,22 @@
 		BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */; };
 		BD146EC8C1D5AC64E63E39DD /* SpeechModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E190520294712DF54746164 /* SpeechModelStore.swift */; };
 		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
+		D5D85EABC55C071F8597AA44 /* MockSpeechComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */; };
 		E9FBE1A1DE907E4CF7E23433 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0CBB468C2C2BFB21A5A3C335 /* WhisperKit */; };
 		ECB70A1E160B86A34825974D /* AudioCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */; };
 		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
+		F754EDE50C49ECF641F6E810 /* LegacySpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701F488E2C9A0623C9156CE2 /* LegacySpeechRecognizer.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6B7C09059E2F7F6FFA79C7BE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B3F1AC50CD8DFE78AB64F3DE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 53D3A67986EB0528C6161974;
+			remoteInfo = ClaudeRelayApp;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
@@ -48,19 +61,23 @@
 		6E190520294712DF54746164 /* SpeechModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModelStore.swift; sourceTree = "<group>"; };
 		6E34807D8988FF2486DE42A6 /* feat+on-device-speech */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "feat+on-device-speech"; path = .; sourceTree = SOURCE_ROOT; };
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
+		701F488E2C9A0623C9156CE2 /* LegacySpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacySpeechRecognizer.swift; sourceTree = "<group>"; };
 		7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
+		91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeRelayAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCaptureSession.swift; sourceTree = "<group>"; };
 		BA02853D523E6DAF7B5CD68D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngine.swift; sourceTree = "<group>"; };
+		C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSpeechComponents.swift; sourceTree = "<group>"; };
+		C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleanerStaticTests.swift; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,10 +99,10 @@
 			isa = PBXGroup;
 			children = (
 				338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */,
+				701F488E2C9A0623C9156CE2 /* LegacySpeechRecognizer.swift */,
 				2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */,
 				5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */,
 				AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */,
-				8503E4B6D6A7CE4DD7B63F03 /* SpeechRecognizer.swift */,
 				700712F6C8FC16A5214C345A /* TerminalViewModel.swift */,
 			);
 			path = ViewModels;
@@ -95,6 +112,7 @@
 			isa = PBXGroup;
 			children = (
 				7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */,
+				91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -125,6 +143,7 @@
 			isa = PBXGroup;
 			children = (
 				FD9BDF9589CD5417F7C454F4 /* ClaudeRelayApp */,
+				FADB8ECCEC3717C13790030F /* ClaudeRelayAppTests */,
 				7D4E3B0EAF3D5DCAC3E10215 /* Packages */,
 				3AA098A37E7D398E1EC025E4 /* Products */,
 			);
@@ -157,6 +176,16 @@
 				03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		FADB8ECCEC3717C13790030F /* ClaudeRelayAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */,
+				D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */,
+				C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */,
+			);
+			path = ClaudeRelayAppTests;
 			sourceTree = "<group>";
 		};
 		FD9BDF9589CD5417F7C454F4 /* ClaudeRelayApp */ = {
@@ -199,6 +228,24 @@
 			productReference = 7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7CBFB18DE009C817F4052367 /* ClaudeRelayAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6628F7E25EF3411B87D96AFB /* Build configuration list for PBXNativeTarget "ClaudeRelayAppTests" */;
+			buildPhases = (
+				6E2F2AEBCCD638ED44CC7E11 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				95C96386379ED6BCFCC2CB70 /* PBXTargetDependency */,
+			);
+			name = ClaudeRelayAppTests;
+			packageProductDependencies = (
+			);
+			productName = ClaudeRelayAppTests;
+			productReference = 91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -234,6 +281,7 @@
 			projectRoot = "";
 			targets = (
 				53D3A67986EB0528C6161974 /* ClaudeRelayApp */,
+				7CBFB18DE009C817F4052367 /* ClaudeRelayAppTests */,
 			);
 		};
 /* End PBXProject section */
@@ -250,6 +298,16 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		6E2F2AEBCCD638ED44CC7E11 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D5D85EABC55C071F8597AA44 /* MockSpeechComponents.swift in Sources */,
+				938D018C46C19AA652D25CBC /* OnDeviceSpeechEngineTests.swift in Sources */,
+				33CB2A7296D4D8959C1C8A3C /* TextCleanerStaticTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EB1D278E6EF68776A629370C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -260,6 +318,7 @@
 				ECB70A1E160B86A34825974D /* AudioCaptureSession.swift in Sources */,
 				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
+				F754EDE50C49ECF641F6E810 /* LegacySpeechRecognizer.swift in Sources */,
 				B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */,
 				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
@@ -269,7 +328,6 @@
 				0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */,
 				31E3C54B6BC227D5C5A03BD9 /* SpeechEngineState.swift in Sources */,
 				BD146EC8C1D5AC64E63E39DD /* SpeechModelStore.swift in Sources */,
-				1166DECDF5E45D1D64786B19 /* SpeechRecognizer.swift in Sources */,
 				B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */,
 				840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */,
 				19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */,
@@ -279,6 +337,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		95C96386379ED6BCFCC2CB70 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 53D3A67986EB0528C6161974 /* ClaudeRelayApp */;
+			targetProxy = 6B7C09059E2F7F6FFA79C7BE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		381EE81FE04029B3C83AF93B /* Release */ = {
@@ -400,6 +466,22 @@
 			};
 			name = Debug;
 		};
+		9AE24920D2DF75D3EDC2B852 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.ClaudeRelayAppTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeRelayApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ClaudeRelayApp";
+			};
+			name = Debug;
+		};
 		9C9B26B58B343721F3B13019 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -458,6 +540,22 @@
 			};
 			name = Release;
 		};
+		DF5EE07761AEF15C5D07D61A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.ClaudeRelayAppTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeRelayApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ClaudeRelayApp";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -466,6 +564,15 @@
 			buildConfigurations = (
 				787A599A77B0E871EA767164 /* Debug */,
 				381EE81FE04029B3C83AF93B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6628F7E25EF3411B87D96AFB /* Build configuration list for PBXNativeTarget "ClaudeRelayAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9AE24920D2DF75D3EDC2B852 /* Debug */,
+				DF5EE07761AEF15C5D07D61A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -110,7 +110,7 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         // Strip <think>...</think> blocks (Qwen 3.5 thinking mode)
         while let thinkStart = result.range(of: "<think>"),
               let thinkEnd = result.range(of: "</think>") {
-            result.removeSubrange(thinkStart.lowerBound...thinkEnd.upperBound)
+            result.removeSubrange(thinkStart.lowerBound..<thinkEnd.upperBound)
         }
 
         return result.trimmingCharacters(in: .whitespacesAndNewlines)

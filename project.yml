@@ -51,3 +51,14 @@ targets:
         SUPPORTED_PLATFORMS: "iphonesimulator iphoneos"
         SUPPORTS_MACCATALYST: NO
         GENERATE_INFOPLIST_FILE: YES
+  ClaudeRelayAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ClaudeRelayAppTests
+    dependencies:
+      - target: ClaudeRelayApp
+    settings:
+      base:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ClaudeRelayApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ClaudeRelayApp"
+        BUNDLE_LOADER: "$(TEST_HOST)"
