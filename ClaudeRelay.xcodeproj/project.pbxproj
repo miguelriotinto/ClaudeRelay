@@ -54,6 +54,7 @@
 /* Begin PBXFileReference section */
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
+		19AE62421B4B1F4DB8E4E2FA /* LLM.swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LLM.swift; path = ../LLM.swift; sourceTree = SOURCE_ROOT; };
 		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
 		2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
@@ -161,6 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				7CDE7061F16DD811CA184B2B /* ClaudeRelay */,
+				19AE62421B4B1F4DB8E4E2FA /* LLM.swift */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -279,10 +281,10 @@
 			mainGroup = 738834D27068F0B0BB3D8599;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				42A0526798AEDC7D445A8B54 /* XCRemoteSwiftPackageReference "LLM.swift" */,
 				E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 				1D1FB04D702329ACA8C21C83 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 				F4988706144E6DE2A73185C6 /* XCLocalSwiftPackageReference "." */,
+				56F432A11391D64B0B0ED665 /* XCLocalSwiftPackageReference "../LLM.swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3AA098A37E7D398E1EC025E4 /* Products */;
@@ -499,7 +501,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 23;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
@@ -530,7 +532,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 23;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
@@ -605,6 +607,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		56F432A11391D64B0B0ED665 /* XCLocalSwiftPackageReference "../LLM.swift" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../LLM.swift;
+		};
 		F4988706144E6DE2A73185C6 /* XCLocalSwiftPackageReference "." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = .;
@@ -618,14 +624,6 @@
 			requirement = {
 				kind = upToNextMinorVersion;
 				minimumVersion = 0.18.0;
-			};
-		};
-		42A0526798AEDC7D445A8B54 /* XCRemoteSwiftPackageReference "LLM.swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/obra/LLM.swift.git";
-			requirement = {
-				branch = main;
-				kind = branch;
 			};
 		};
 		E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
@@ -646,7 +644,6 @@
 		};
 		51931B74F9245F0A1F0344F4 /* LLM */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 42A0526798AEDC7D445A8B54 /* XCRemoteSwiftPackageReference "LLM.swift" */;
 			productName = LLM;
 		};
 		79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */ = {

@@ -28,8 +28,8 @@ final class OnDeviceSpeechEngine: ObservableObject {
     /// Production initializer.
     convenience init(modelStore: SpeechModelStore? = nil) {
         let store = modelStore ?? .shared
-        let transcriber = WhisperTranscriber()
-        let cleaner = TextCleaner()
+        let transcriber = WhisperTranscriber.shared
+        let cleaner = TextCleaner.shared
         self.init(
             transcriber: transcriber,
             cleaner: cleaner,
@@ -89,10 +89,9 @@ final class OnDeviceSpeechEngine: ObservableObject {
         do {
             // Load models into memory if cached but not yet loaded (e.g. after app relaunch)
             if modelsReady && whisperTranscriber?.isLoaded != true {
-                state = .transcribing  // Show loading indicator while model loads
+                state = .loadingModel
                 try await whisperTranscriber?.loadModel()
                 textCleaner?.modelPath = modelStore.llmModelPath
-                state = .idle
             }
 
             try capture.start()
@@ -123,7 +122,9 @@ final class OnDeviceSpeechEngine: ObservableObject {
             return nil
         }
 
+        let willClean = promptEnhancement || smartCleanup
         let enhancer = cloudEnhancer
+        let engine = self
         let task = Task<Result<String, Error>, Never> { [transcriber, cleaner] in
             // Phase 1: Transcribe (always local via Whisper)
             let rawText: String
@@ -134,6 +135,18 @@ final class OnDeviceSpeechEngine: ObservableObject {
             }
 
             guard !Task.isCancelled else { return .failure(CancellationError()) }
+
+            // Whisper often hallucinates short phrases ("you", "Thank you.") from silence.
+            // Treat transcripts with fewer than 2 words as no speech detected.
+            let wordCount = rawText.split(whereSeparator: { $0.isWhitespace }).count
+            if wordCount < 2 {
+                return .failure(TranscriberError.emptyTranscription)
+            }
+
+            // Transition to .cleaning before phase 2 (only when cleanup/enhancement is active)
+            if willClean {
+                await MainActor.run { engine.state = .cleaning }
+            }
 
             // Phase 2: Process based on settings
             if promptEnhancement {
@@ -159,12 +172,6 @@ final class OnDeviceSpeechEngine: ObservableObject {
         processingTask = task
         state = .transcribing
 
-        // Approximate state transition to .cleaning
-        Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            if state == .transcribing { state = .cleaning }
-        }
-
         let result = await task.value
         processingTask = nil
 
@@ -173,6 +180,11 @@ final class OnDeviceSpeechEngine: ObservableObject {
             state = .idle
             return text
         case .failure(let error):
+            // Silence detected — just reset, no error shown.
+            if error is CancellationError || (error as? TranscriberError) == .emptyTranscription {
+                state = .idle
+                return nil
+            }
             if state != .idle {
                 state = .error(error.localizedDescription)
                 Task {

@@ -10,6 +10,8 @@ protocol TextCleaning: Sendable {
 /// Only handles filler word removal and punctuation fixes — prompt enhancement is cloud-based.
 final class TextCleaner: TextCleaning, @unchecked Sendable {
 
+    static let shared = TextCleaner()
+
     private var llm: LLM?
     private var unloadTimer: Task<Void, Never>?
     private(set) var isLoaded = false
@@ -29,7 +31,9 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
             throw CleanerError.modelFileNotFound
         }
 
-        guard let model = LLM(from: path, maxTokenCount: 2048) else {
+        // Context window: 512 tokens total (system prompt ~150 + user input ~100 + output ~200).
+        // Keeping this tight prevents the model from rambling in <think> blocks.
+        guard let model = LLM(from: path, maxTokenCount: 512) else {
             throw CleanerError.modelNotLoaded
         }
 
@@ -63,7 +67,25 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         resetIdleTimer()
 
         let prompt = "Clean this transcription:\n\(text)"
-        let response = await llm.getCompletion(from: prompt)
+
+        // Race the LLM against a timeout — if cleanup takes too long, return original text.
+        let model = llm
+        let response: String = await withTaskGroup(of: String?.self) { group in
+            group.addTask {
+                await model.getCompletion(from: prompt)
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(8))
+                model.stop()
+                return nil
+            }
+            // First non-nil result wins; cancel the other.
+            for await result in group {
+                if let result { group.cancelAll(); return result }
+            }
+            return text
+        }
+
         let cleaned = Self.sanitizeResponse(response)
 
         if Self.looksHallucinated(input: text, output: cleaned) {
@@ -93,17 +115,12 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
     }
 
     static let systemPrompt = """
-        You are a transcription cleanup engine. You are NOT a chatbot. You are NOT an assistant. \
-        Your ONLY job is to clean up speech-to-text output.
-
-        Rules:
-        - Remove filler words (um, uh, like, you know, so, basically, actually, literally)
-        - Fix punctuation and capitalization
-        - Correct obvious misheard words based on context
-        - Preserve the speaker's meaning and tone exactly
-        - Do NOT add, rephrase, or summarize content
-        - Do NOT add any commentary, explanation, or preamble
-        - Output ONLY the cleaned text, nothing else
+        You are a transcription cleanup engine. Output ONLY the cleaned text. \
+        Do NOT think, reason, or explain. Do NOT use <think> tags. \
+        Remove filler words (um, uh, like, you know, so, basically). \
+        Fix punctuation and capitalization. \
+        Preserve the speaker's meaning exactly. \
+        Do NOT add or rephrase content.
         """
 
     /// Strip any <think> reasoning blocks from LLM output.

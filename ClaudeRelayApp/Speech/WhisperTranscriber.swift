@@ -7,7 +7,10 @@ protocol SpeechTranscribing: Sendable {
 }
 
 /// Wraps WhisperKit to transcribe [Float] audio buffers into text.
+/// Shared singleton so the model stays loaded across session switches.
 final class WhisperTranscriber: SpeechTranscribing {
+
+    static let shared = WhisperTranscriber()
 
     private var whisperKit: WhisperKit?
     private(set) var isLoaded = false
