@@ -41,7 +41,12 @@ final class TerminalViewModel: ObservableObject {
 
     /// Patterns that indicate Claude Code is presenting numbered options.
     /// Matches lines like "  1. Yes" or "  2. No, and don't ask again".
-    private static let numberedOptionPattern = /\b[1-9]\.\s+\S/
+    private static let numberedOptionPattern = /(?:^|\s)[1-9]\.\s+\S/
+
+    /// Comprehensive ANSI/VT escape sequence stripper.
+    /// Covers: CSI (incl. ?/> private params), OSC (BEL and ST terminators),
+    /// character set selection, and two-byte sequences (keypad mode, etc.).
+    private static let ansiEscapePattern = /\x1B(?:\[[0-9;?]*[A-Za-z]|\][^\x07\x1B]*(?:\x07|\x1B\\)|\([A-B0-2]|[=>])/
 
     // MARK: - Init
 
@@ -134,12 +139,11 @@ final class TerminalViewModel: ObservableObject {
 
         // Strip ANSI escape sequences and append to rolling buffer.
         if let raw = String(data: data, encoding: .utf8) {
-            let clean = raw.replacing(/\x1B\[[0-9;]*[A-Za-z]/, with: "")
-                           .replacing(/\x1B\][^\x07]*\x07/, with: "")
+            let clean = raw.replacing(Self.ansiEscapePattern, with: "")
             recentOutput += clean
-            // Keep only the last 512 characters to bound memory.
-            if recentOutput.count > 512 {
-                recentOutput = String(recentOutput.suffix(512))
+            // Keep only the last 1024 characters to bound memory.
+            if recentOutput.count > 1024 {
+                recentOutput = String(recentOutput.suffix(1024))
             }
         }
 

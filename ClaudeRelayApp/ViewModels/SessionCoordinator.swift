@@ -14,6 +14,8 @@ final class SessionCoordinator: ObservableObject {
     @Published var sessionNames: [UUID: String] = [:]
     /// Last known terminal title per session (survives VM destruction on session switch).
     @Published var terminalTitles: [UUID: String] = [:]
+    /// Sessions where Claude Code has been detected (sticky with cooldown).
+    @Published var claudeSessions: Set<UUID> = []
     /// Sessions currently waiting for user input (e.g. Claude Code prompt).
     @Published var sessionsAwaitingInput: Set<UUID> = []
     @Published var isLoading = false
@@ -33,6 +35,8 @@ final class SessionCoordinator: ObservableObject {
     private let token: String
     private var sessionController: SessionController?
     private var terminalViewModels: [UUID: TerminalViewModel] = [:]
+    /// Cooldown timers for sticky Claude detection — keyed by session ID.
+    private var claudeCooldownTasks: [UUID: Task<Void, Never>] = [:]
     var recoveryTask: Task<Void, Never>?
     private var isTornDown = false
 
@@ -198,6 +202,9 @@ final class SessionCoordinator: ObservableObject {
             }
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
+            claudeSessions.remove(id)
+            claudeCooldownTasks[id]?.cancel()
+            claudeCooldownTasks.removeValue(forKey: id)
             sessionsAwaitingInput.remove(id)
             Self.saveNames(sessionNames)
             await fetchSessions()
@@ -216,15 +223,38 @@ final class SessionCoordinator: ObservableObject {
         sessions.first { $0.id == sessionId }?.createdAt
     }
 
-    /// Whether the session's terminal title suggests Claude Code is running.
+    /// Whether the session is considered to be running Claude Code.
+    /// Uses sticky detection: once Claude is detected, it stays flagged
+    /// through brief title changes (e.g. tool execution) via a cooldown.
     func isRunningClaude(sessionId: UUID) -> Bool {
-        guard let title = terminalTitles[sessionId], !title.isEmpty else { return false }
-        return title.localizedCaseInsensitiveContains("claude")
+        claudeSessions.contains(sessionId)
     }
 
     /// Called by the SwiftTerm delegate when the terminal title changes.
+    /// Manages sticky Claude detection with a 10-second cooldown.
     func updateTerminalTitle(_ title: String, for sessionId: UUID) {
         terminalTitles[sessionId] = title
+
+        let containsClaude = title.localizedCaseInsensitiveContains("claude")
+
+        if containsClaude {
+            // Cancel any pending cooldown — Claude is back.
+            claudeCooldownTasks[sessionId]?.cancel()
+            claudeCooldownTasks[sessionId] = nil
+            if !claudeSessions.contains(sessionId) {
+                claudeSessions.insert(sessionId)
+            }
+        } else if claudeSessions.contains(sessionId) {
+            // Title no longer says "claude" — start cooldown before removing.
+            if claudeCooldownTasks[sessionId] == nil {
+                claudeCooldownTasks[sessionId] = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(10))
+                    guard !Task.isCancelled else { return }
+                    self?.claudeSessions.remove(sessionId)
+                    self?.claudeCooldownTasks[sessionId] = nil
+                }
+            }
+        }
     }
 
     // MARK: - Connection Recovery
