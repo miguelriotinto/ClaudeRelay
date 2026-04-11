@@ -10,6 +10,7 @@ actor MockPTYSession: PTYSessionProtocol {
     private var outputHandler: (@Sendable (Data) -> Void)?
     private var exitHandler: (@Sendable () -> Void)?
     private var terminated = false
+    private var activityHandler: (@Sendable (ActivityState) -> Void)?
 
     init(sessionId: UUID, cols: UInt16, rows: UInt16, scrollbackSize: Int) {
         self.sessionId = sessionId
@@ -23,6 +24,11 @@ actor MockPTYSession: PTYSessionProtocol {
     func resize(cols: UInt16, rows: UInt16) {}
     func readBuffer() -> Data { Data() }
     func terminate() { terminated = true }
+    func getActivityState() -> ActivityState { .active }
+    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState) -> Void) {
+        activityHandler = handler
+    }
+    func recordInput() {}
 }
 
 // MARK: - SessionManagerTests

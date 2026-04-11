@@ -1,5 +1,6 @@
 import Foundation
 import CPTYShim
+import ClaudeRelayKit
 
 // MARK: - PTYSessionProtocol
 
@@ -13,12 +14,25 @@ public protocol PTYSessionProtocol: Actor {
     func resize(cols: UInt16, rows: UInt16)
     func readBuffer() -> Data
     func terminate()
+    func getActivityState() -> ActivityState
+    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState) -> Void)
+    func recordInput()
 }
 
 // MARK: - PTYError
 
 public enum PTYError: Error {
     case forkFailed(Int32)
+}
+
+// MARK: - ActivityCallbackBox
+
+/// Thread-safe box that holds an activity-change callback.
+/// Used to break the init-time `[weak self]` capture cycle: the monitor's
+/// `onChange` closure captures this box (which is created before `self` is
+/// fully initialized), and `PTYSession` writes the real handler into it later.
+private final class ActivityCallbackBox: @unchecked Sendable {
+    var handler: (@Sendable (ActivityState) -> Void)?
 }
 
 // MARK: - PTYSession Actor
@@ -32,6 +46,11 @@ public actor PTYSession: PTYSessionProtocol {
     private var readSource: DispatchSourceRead?
     private var outputHandler: (@Sendable (Data) -> Void)?
     private var exitHandler: (@Sendable () -> Void)?
+    private let activityMonitor: SessionActivityMonitor
+    /// Shared box to bridge the monitor's synchronous onChange callback into the actor.
+    /// The monitor captures this box (not `self`) so the closure doesn't require `self` to be fully initialized.
+    private let activityCallbackBox = ActivityCallbackBox()
+    private var activityHandler: (@Sendable (ActivityState) -> Void)?
     private var terminated: Bool = false
 
     // MARK: - Initialization
@@ -98,6 +117,14 @@ public actor PTYSession: PTYSessionProtocol {
         // Parent process
         self.masterFD = fd
         self.childPID = pid
+        let box = self.activityCallbackBox
+        self.activityMonitor = SessionActivityMonitor(
+            silenceThreshold: 1.0,
+            claudeSilenceThreshold: 2.0,
+            onChange: { newState in
+                box.handler?(newState)
+            }
+        )
     }
 
     /// Activate the dispatch source that reads PTY output.
@@ -154,12 +181,31 @@ public actor PTYSession: PTYSessionProtocol {
     /// additionally forwards to the live output handler if attached.
     private func handleOutput(_ data: Data) {
         ringBuffer.write(data)
+        activityMonitor.processOutput(data)
         outputHandler?(data)
     }
 
     /// Called from the read source on EOF (child exited).
     private func handleExit() {
         exitHandler?()
+    }
+
+    // MARK: - Activity Monitoring
+
+    /// Returns the current activity state of this session.
+    public func getActivityState() -> ActivityState {
+        activityMonitor.state
+    }
+
+    /// Set callback for activity state changes.
+    public func setActivityHandler(_ handler: @escaping @Sendable (ActivityState) -> Void) {
+        self.activityHandler = handler
+        self.activityCallbackBox.handler = handler
+    }
+
+    /// Record that input was sent to this session.
+    public func recordInput() {
+        activityMonitor.recordInput()
     }
 
     // MARK: - Public API
@@ -220,6 +266,7 @@ public actor PTYSession: PTYSessionProtocol {
     public func terminate() {
         guard !terminated else { return }
         terminated = true
+        activityMonitor.cancel()
 
         // Cancel the read source (this also closes the fd via the cancel handler)
         readSource?.cancel()
