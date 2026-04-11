@@ -14,6 +14,8 @@ final class SessionCoordinator: ObservableObject {
     @Published var sessionNames: [UUID: String] = [:]
     /// Last known terminal title per session (survives VM destruction on session switch).
     @Published var terminalTitles: [UUID: String] = [:]
+    /// Sessions currently waiting for user input (e.g. Claude Code prompt).
+    @Published var sessionsAwaitingInput: Set<UUID> = []
     @Published var isLoading = false
     @Published private(set) var isRecovering = false
     @Published var errorMessage: String?
@@ -196,6 +198,7 @@ final class SessionCoordinator: ObservableObject {
             }
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
+            sessionsAwaitingInput.remove(id)
             Self.saveNames(sessionNames)
             await fetchSessions()
         } catch {
@@ -320,6 +323,14 @@ final class SessionCoordinator: ObservableObject {
         // Persist terminal title changes so they survive VM destruction on session switch.
         terminalViewModels[sessionId]?.onTitleChanged = { [weak self] title in
             self?.updateTerminalTitle(title, for: sessionId)
+        }
+        // Track input-awaiting state for tab flashing.
+        terminalViewModels[sessionId]?.onAwaitingInputChanged = { [weak self] awaiting in
+            if awaiting {
+                self?.sessionsAwaitingInput.insert(sessionId)
+            } else {
+                self?.sessionsAwaitingInput.remove(sessionId)
+            }
         }
     }
 

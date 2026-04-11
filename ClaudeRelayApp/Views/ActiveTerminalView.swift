@@ -201,7 +201,7 @@ private struct SessionTabBar: View {
     @ObservedObject var coordinator: SessionCoordinator
 
     /// Beige tint for sessions running Claude Code.
-    private static let claudeBackground = Color(red: 0.96, green: 0.93, blue: 0.87)
+    private static let claudeBackground = Color(red: 0.91, green: 0.86, blue: 0.76)
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -209,22 +209,19 @@ private struct SessionTabBar: View {
                 ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
                     let isSelected = session.id == coordinator.activeSessionId
                     let isClaude = coordinator.isRunningClaude(sessionId: session.id)
+                    let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
                     Button {
                         if AppSettings.shared.hapticFeedbackEnabled {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
                         Task { await coordinator.switchToSession(id: session.id) }
                     } label: {
-                        Text("\(index + 1)")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(.primary)
-                            .frame(minWidth: 26, minHeight: 22)
-                            .background(isClaude ? Self.claudeBackground : Color(.systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(isSelected ? Color.primary : Color.secondary.opacity(0.5), lineWidth: isSelected ? 2.5 : 1)
-                            )
+                        SessionTab(
+                            number: index + 1,
+                            isSelected: isSelected,
+                            isClaude: isClaude,
+                            needsAttention: needsAttention
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -233,6 +230,53 @@ private struct SessionTabBar: View {
             .padding(.vertical, 4)
         }
         .frame(height: 30)
+    }
+}
+
+/// Individual session tab with optional flash animation when input is needed.
+private struct SessionTab: View {
+    let number: Int
+    let isSelected: Bool
+    let isClaude: Bool
+    let needsAttention: Bool
+
+    @State private var flashOn = false
+
+    private static let claudeBackground = Color(red: 0.91, green: 0.86, blue: 0.76)
+
+    var body: some View {
+        Text("\(number)")
+            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+            .foregroundStyle(.primary)
+            .frame(minWidth: 26, minHeight: 22)
+            .background(tabBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isSelected ? Color.primary : Color.secondary.opacity(0.5), lineWidth: isSelected ? 2.5 : 1)
+            )
+            .opacity(needsAttention && !flashOn ? 0.4 : 1.0)
+            .onChange(of: needsAttention) { _, flashing in
+                if flashing {
+                    withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                        flashOn = true
+                    }
+                } else {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        flashOn = false
+                    }
+                }
+            }
+    }
+
+    private var tabBackground: Color {
+        if needsAttention && flashOn {
+            return Color.orange.opacity(0.5)
+        }
+        if isClaude {
+            return Self.claudeBackground
+        }
+        return Color(.systemBackground)
     }
 }
 
