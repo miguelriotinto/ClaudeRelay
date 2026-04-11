@@ -44,6 +44,9 @@ struct ActiveTerminalView: View {
                     MicButton(engine: speechEngine, settings: AppSettings.shared, coordinator: coordinator)
 
                     Button {
+                        if AppSettings.shared.hapticFeedbackEnabled {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
                         if isKeyboardVisible {
                             NotificationCenter.default.post(
                                 name: .terminalResignFocus, object: nil
@@ -257,18 +260,21 @@ private struct MicButton: View {
     }
 
     private func handleTap() {
-        let haptics = UIImpactFeedbackGenerator(style: .medium)
-
         switch engine.state {
         case .idle:
             guard engine.modelsReady else {
                 showDownloadAlert = true
                 return
             }
-            haptics.impactOccurred()
+            if settings.hapticFeedbackEnabled {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
             Task { await engine.startRecording() }
 
         case .recording:
+            if settings.hapticFeedbackEnabled {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
             Task {
                 if let text = await engine.stopAndProcess(
                     smartCleanup: settings.smartCleanupEnabled,
@@ -276,10 +282,16 @@ private struct MicButton: View {
                     bearerToken: settings.bedrockBearerToken,
                     region: settings.bedrockRegion
                 ) {
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    if settings.hapticFeedbackEnabled {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                     guard let id = coordinator.activeSessionId,
                           let vm = coordinator.viewModel(for: id) else { return }
                     vm.sendInput(text)
+                } else {
+                    if settings.hapticFeedbackEnabled {
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    }
                 }
             }
 

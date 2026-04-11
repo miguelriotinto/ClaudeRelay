@@ -33,6 +33,10 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("General") {
+                    Toggle("Haptic Feedback", isOn: $settings.hapticFeedbackEnabled)
+                }
+
                 Section("About") {
                     LabeledContent("Version", value: appVersion)
                     LabeledContent("Build", value: buildNumber)
