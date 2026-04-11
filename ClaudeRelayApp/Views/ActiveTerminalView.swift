@@ -75,7 +75,7 @@ struct ActiveTerminalView: View {
         }
         .safeAreaInset(edge: .top) {
             HStack(spacing: 6) {
-                // Left: icon buttons with tab-style borders
+                // Fixed left: icon buttons
                 ToolbarIconButton(icon: "chevron.left") { onDisconnect() }
                 ToolbarIconButton(icon: "sidebar.left") {
                     withAnimation {
@@ -84,32 +84,19 @@ struct ActiveTerminalView: View {
                 }
                 ToolbarIconButton(icon: "fn", isActive: showKeyBar) { showKeyBar.toggle() }
 
-                // Status info for active session
+                // Fixed left: connectivity indicator + session time
                 if let id = coordinator.activeSessionId,
                    let vm = coordinator.viewModel(for: id) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(statusColor(vm.connectionState))
-                            .frame(width: 8, height: 8)
+                    Circle()
+                        .fill(statusColor(vm.connectionState))
+                        .frame(width: 8, height: 8)
 
-                        if let createdAt = coordinator.createdAt(for: id) {
-                            SessionUptimeView(since: createdAt)
-                        }
-
-                        Text(coordinator.name(for: id))
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
+                    if let createdAt = coordinator.createdAt(for: id) {
+                        SessionUptimeView(since: createdAt)
                     }
-                    .padding(.horizontal, 8)
-                    .frame(minHeight: 22)
-                    .background(Color.secondary.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
 
-                Spacer(minLength: 8)
-
-                // Right: scrollable session tabs
+                // Scrollable middle: session tabs
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
@@ -132,6 +119,20 @@ struct ActiveTerminalView: View {
                             .buttonStyle(.plain)
                         }
                     }
+                }
+
+                // Fixed right: session name pill
+                if let id = coordinator.activeSessionId {
+                    Text(coordinator.name(for: id))
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .frame(maxWidth: 100)
+                        .padding(.horizontal, 8)
+                        .frame(minHeight: 22)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .layoutPriority(1)
                 }
             }
             .padding(.horizontal, 12)
@@ -186,7 +187,7 @@ struct ActiveTerminalView: View {
 
 // MARK: - Toolbar Icon Button
 
-/// Icon button styled to match session tabs (rounded rect with stroke border).
+/// Compact icon button for the status bar toolbar.
 private struct ToolbarIconButton: View {
     let icon: String
     var isActive: Bool = false
