@@ -182,7 +182,7 @@ private struct ModelLoadingOverlay: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                Image(systemName: "brain")
+                Image(systemName: "waveform")
                     .font(.system(size: 28))
                     .foregroundStyle(.secondary)
 

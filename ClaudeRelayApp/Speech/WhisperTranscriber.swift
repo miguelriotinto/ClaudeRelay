@@ -43,6 +43,11 @@ final class WhisperTranscriber: SpeechTranscribing {
         try await kit.loadModels()
         try await kit.prewarmModels()
 
+        // Clear the state callback so it doesn't fire during transcription.
+        // WhisperKit re-validates model state internally and emits transitions
+        // that would otherwise re-trigger the caller's progress UI.
+        kit.modelStateCallback = nil
+
         self.whisperKit = kit
         self.isLoaded = true
     }

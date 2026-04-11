@@ -95,7 +95,10 @@ final class OnDeviceSpeechEngine: ObservableObject {
                 modelLoadProgress = 0.0
 
                 try await whisperTranscriber?.loadModel { [weak self] progress in
-                    Task { @MainActor in self?.modelLoadProgress = progress * 0.8 }
+                    Task { @MainActor in
+                        guard self?.state == .loadingModel else { return }
+                        self?.modelLoadProgress = progress * 0.8
+                    }
                 }
                 modelLoadProgress = 0.8
 
