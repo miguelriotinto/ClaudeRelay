@@ -74,73 +74,80 @@ struct ActiveTerminalView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            // Thin custom toolbar — sits below the status bar automatically
-            HStack(spacing: 16) {
-                HStack(spacing: 12) {
-                    Button {
-                        if AppSettings.shared.hapticFeedbackEnabled {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            VStack(spacing: 0) {
+                // Thin custom toolbar — sits below the status bar automatically
+                HStack(spacing: 16) {
+                    HStack(spacing: 12) {
+                        Button {
+                            if AppSettings.shared.hapticFeedbackEnabled {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                            onDisconnect()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(.primary)
                         }
-                        onDisconnect()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.primary)
+
+                        Button {
+                            if AppSettings.shared.hapticFeedbackEnabled {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                            withAnimation {
+                                columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                            }
+                        } label: {
+                            Image(systemName: "sidebar.left")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.primary)
+                        }
+
+                        Button {
+                            if AppSettings.shared.hapticFeedbackEnabled {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                            showKeyBar.toggle()
+                        } label: {
+                            Image(systemName: "fn")
+                                .font(.system(size: 16))
+                                .foregroundStyle(showKeyBar ? .white : .primary)
+                                .padding(4)
+                                .background(showKeyBar ? Color.primary : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                        }
                     }
 
-                    Button {
-                        if AppSettings.shared.hapticFeedbackEnabled {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                        withAnimation {
-                            columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-                        }
-                    } label: {
-                        Image(systemName: "sidebar.left")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.primary)
-                    }
+                    Spacer()
 
-                    Button {
-                        if AppSettings.shared.hapticFeedbackEnabled {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    HStack(spacing: 8) {
+                        if let id = coordinator.activeSessionId {
+                            Text("[\(coordinator.activeSessions.count)]")
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            if let createdAt = coordinator.createdAt(for: id) {
+                                SessionUptimeView(since: createdAt)
+                            }
+                            Text(coordinator.name(for: id))
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(id.uuidString.prefix(8))
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.tertiary)
+                            if let vm = coordinator.viewModel(for: id) {
+                                Circle()
+                                    .fill(statusColor(vm.connectionState))
+                                    .frame(width: 8, height: 8)
+                            }
                         }
-                        showKeyBar.toggle()
-                    } label: {
-                        Image(systemName: "fn")
-                            .font(.system(size: 16))
-                            .foregroundStyle(showKeyBar ? .white : .primary)
-                            .padding(4)
-                            .background(showKeyBar ? Color.primary : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
+                .padding(.horizontal, 16)
+                .frame(height: 36)
 
-                Spacer()
-
-                HStack(spacing: 8) {
-                    if let id = coordinator.activeSessionId {
-                        Text("[\(coordinator.activeSessions.count)]")
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                        if let createdAt = coordinator.createdAt(for: id) {
-                            SessionUptimeView(since: createdAt)
-                        }
-                        Text(coordinator.name(for: id))
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Text(id.uuidString.prefix(8))
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.tertiary)
-                        if let vm = coordinator.viewModel(for: id) {
-                            Circle()
-                                .fill(statusColor(vm.connectionState))
-                                .frame(width: 8, height: 8)
-                        }
-                    }
+                // Session switcher tab bar
+                if coordinator.activeSessions.count > 1 {
+                    SessionTabBar(coordinator: coordinator)
                 }
             }
-            .padding(.horizontal, 16)
-            .frame(height: 36)
             .background(Color(.systemBackground))
         }
         .ignoresSafeArea(.container, edges: .horizontal)
@@ -187,6 +194,47 @@ struct ActiveTerminalView: View {
         }
     }
 
+}
+
+// MARK: - Session Tab Bar
+
+private struct SessionTabBar: View {
+    @ObservedObject var coordinator: SessionCoordinator
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
+                    let isSelected = session.id == coordinator.activeSessionId
+                    Button {
+                        if AppSettings.shared.hapticFeedbackEnabled {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                        Task { await coordinator.switchToSession(id: session.id) }
+                    } label: {
+                        Text("\(index + 1)")
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(isSelected ? .white : .primary)
+                            .frame(minWidth: 26, minHeight: 22)
+                            .background(
+                                isSelected
+                                    ? AnyShapeStyle(Color.green)
+                                    : AnyShapeStyle(Color(.systemBackground))
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(isSelected ? Color.green : Color.secondary.opacity(0.4), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+        }
+        .frame(height: 30)
+    }
 }
 
 // MARK: - Model Loading Overlay
