@@ -17,6 +17,8 @@ final class TerminalViewModel: ObservableObject {
 
     /// Set by SwiftTermView.makeUIView. Does NOT auto-flush — call `terminalReady()` after first layout.
     var onTerminalOutput: ((Data) -> Void)?
+    /// Called when the terminal title changes — used to persist titles on the coordinator.
+    var onTitleChanged: ((String) -> Void)?
 
     /// Whether the terminal has received its first sizeChanged callback (i.e. is laid out).
     private var terminalSized = false

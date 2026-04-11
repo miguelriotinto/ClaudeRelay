@@ -223,7 +223,7 @@ private struct SessionTabBar: View {
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.secondary.opacity(0.5), lineWidth: isSelected ? 2.5 : 1)
+                                    .stroke(isSelected ? Color.primary : Color.secondary.opacity(0.5), lineWidth: isSelected ? 2.5 : 1)
                             )
                     }
                     .buttonStyle(.plain)
@@ -597,6 +597,7 @@ struct SwiftTermView: UIViewRepresentable {
         func setTerminalTitle(source: TerminalView, title: String) {
             Task { @MainActor in
                 viewModel.terminalTitle = title
+                viewModel.onTitleChanged?(title)
             }
         }
         func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}

@@ -12,6 +12,8 @@ final class SessionCoordinator: ObservableObject {
     @Published var sessions: [SessionInfo] = []
     @Published var activeSessionId: UUID?
     @Published var sessionNames: [UUID: String] = [:]
+    /// Last known terminal title per session (survives VM destruction on session switch).
+    @Published var terminalTitles: [UUID: String] = [:]
     @Published var isLoading = false
     @Published private(set) var isRecovering = false
     @Published var errorMessage: String?
@@ -193,6 +195,7 @@ final class SessionCoordinator: ObservableObject {
                 terminalViewModels[id] = nil
             }
             sessionNames.removeValue(forKey: id)
+            terminalTitles.removeValue(forKey: id)
             Self.saveNames(sessionNames)
             await fetchSessions()
         } catch {
@@ -212,8 +215,13 @@ final class SessionCoordinator: ObservableObject {
 
     /// Whether the session's terminal title suggests Claude Code is running.
     func isRunningClaude(sessionId: UUID) -> Bool {
-        guard let title = terminalViewModels[sessionId]?.terminalTitle else { return false }
+        guard let title = terminalTitles[sessionId], !title.isEmpty else { return false }
         return title.localizedCaseInsensitiveContains("claude")
+    }
+
+    /// Called by the SwiftTerm delegate when the terminal title changes.
+    func updateTerminalTitle(_ title: String, for sessionId: UUID) {
+        terminalTitles[sessionId] = title
     }
 
     // MARK: - Connection Recovery
@@ -308,6 +316,10 @@ final class SessionCoordinator: ObservableObject {
         // so no extra Task hop is needed.
         connection.onTerminalOutput = { [weak self] data in
             self?.terminalViewModels[sessionId]?.receiveOutput(data)
+        }
+        // Persist terminal title changes so they survive VM destruction on session switch.
+        terminalViewModels[sessionId]?.onTitleChanged = { [weak self] title in
+            self?.updateTerminalTitle(title, for: sessionId)
         }
     }
 
