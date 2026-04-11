@@ -210,6 +210,12 @@ final class SessionCoordinator: ObservableObject {
         sessions.first { $0.id == sessionId }?.createdAt
     }
 
+    /// Whether the session's terminal title suggests Claude Code is running.
+    func isRunningClaude(sessionId: UUID) -> Bool {
+        guard let title = terminalViewModels[sessionId]?.terminalTitle else { return false }
+        return title.localizedCaseInsensitiveContains("claude")
+    }
+
     // MARK: - Connection Recovery
 
     /// Called when the app returns to the foreground. Checks if the WebSocket

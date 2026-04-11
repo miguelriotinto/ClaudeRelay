@@ -86,7 +86,6 @@ struct ActiveTerminalView: View {
                         } label: {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(.primary)
                         }
 
                         Button {
@@ -99,7 +98,6 @@ struct ActiveTerminalView: View {
                         } label: {
                             Image(systemName: "sidebar.left")
                                 .font(.system(size: 16))
-                                .foregroundStyle(.primary)
                         }
 
                         Button {
@@ -115,6 +113,7 @@ struct ActiveTerminalView: View {
                                 .background(showKeyBar ? Color.primary : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                         }
                     }
+                    .tint(.primary)
 
                     Spacer()
 
@@ -201,11 +200,15 @@ struct ActiveTerminalView: View {
 private struct SessionTabBar: View {
     @ObservedObject var coordinator: SessionCoordinator
 
+    /// Beige tint for sessions running Claude Code.
+    private static let claudeBackground = Color(red: 0.96, green: 0.93, blue: 0.87)
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
                     let isSelected = session.id == coordinator.activeSessionId
+                    let isClaude = coordinator.isRunningClaude(sessionId: session.id)
                     Button {
                         if AppSettings.shared.hapticFeedbackEnabled {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -214,17 +217,13 @@ private struct SessionTabBar: View {
                     } label: {
                         Text("\(index + 1)")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(isSelected ? .white : .primary)
+                            .foregroundStyle(.primary)
                             .frame(minWidth: 26, minHeight: 22)
-                            .background(
-                                isSelected
-                                    ? AnyShapeStyle(Color.green)
-                                    : AnyShapeStyle(Color(.systemBackground))
-                            )
+                            .background(isClaude ? Self.claudeBackground : Color(.systemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(isSelected ? Color.green : Color.secondary.opacity(0.4), lineWidth: 1)
+                                    .stroke(Color.secondary.opacity(0.5), lineWidth: isSelected ? 2.5 : 1)
                             )
                     }
                     .buttonStyle(.plain)
@@ -595,7 +594,11 @@ struct SwiftTermView: UIViewRepresentable {
         }
 
         func scrolled(source: TerminalView, position: Double) {}
-        func setTerminalTitle(source: TerminalView, title: String) {}
+        func setTerminalTitle(source: TerminalView, title: String) {
+            Task { @MainActor in
+                viewModel.terminalTitle = title
+            }
+        }
         func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
         func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
         func bell(source: TerminalView) {}

@@ -12,6 +12,8 @@ final class TerminalViewModel: ObservableObject {
     // MARK: - Published State
 
     @Published var connectionState: RelayConnection.ConnectionState = .disconnected
+    /// Terminal title set by the running process via OSC escape sequences.
+    @Published var terminalTitle: String = ""
 
     /// Set by SwiftTermView.makeUIView. Does NOT auto-flush — call `terminalReady()` after first layout.
     var onTerminalOutput: ((Data) -> Void)?
