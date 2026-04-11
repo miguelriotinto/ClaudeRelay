@@ -269,7 +269,7 @@ private struct SessionTab: View {
             }
     }
 
-    private var tabBackground: Color {
+    private var tabBackground: SwiftUI.Color {
         if needsAttention && flashOn {
             return Color.orange.opacity(0.5)
         }
