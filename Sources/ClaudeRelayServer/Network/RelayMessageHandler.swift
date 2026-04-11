@@ -18,6 +18,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private var context: ChannelHandlerContext?
     private var authTimeout: Scheduled<Void>?
     private var authAttempts = 0
+    private var activityObserverId: UUID?
     private static let maxAuthAttempts = 3
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
@@ -154,6 +155,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         let inputData = data.withUnsafeReadableBytes { Data($0) }
         Task {
             await pty.write(inputData)
+            await pty.recordInput()
         }
     }
 
@@ -173,6 +175,23 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     self.authTimeout = nil
                     RelayLogger.log(category: "auth", "Auth success for token \(info.id)")
                     self.sendServerMessage(.authSuccess, context: ctx.value)
+
+                    // Subscribe to activity updates for all sessions owned by this token.
+                    let manager = self.sessionManager
+                    let observerCtx = UnsafeTransfer(ctx.value)
+                    Task { [weak self] in
+                        let observerId = await manager.addActivityObserver(tokenId: info.id) { [weak self] sessionId, activity in
+                            observerCtx.value.eventLoop.execute {
+                                self?.sendServerMessage(
+                                    .sessionActivity(sessionId: sessionId, activity: activity),
+                                    context: observerCtx.value
+                                )
+                            }
+                        }
+                        observerCtx.value.eventLoop.execute {
+                            self?.activityObserverId = observerId
+                        }
+                    }
                 } else {
                     self.authAttempts += 1
                     let remote = ctx.value.remoteAddress?.description ?? "unknown"
@@ -391,6 +410,14 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     // MARK: - Cleanup
 
     private func cleanupSession() {
+        if let observerId = activityObserverId {
+            let manager = sessionManager
+            activityObserverId = nil
+            Task {
+                await manager.removeActivityObserver(id: observerId)
+            }
+        }
+
         guard let sessionId = attachedSessionId else { return }
         let sessionManager = self.sessionManager
         let pty = self.attachedPTY
