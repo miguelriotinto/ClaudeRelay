@@ -8,6 +8,7 @@ struct KeyboardAccessory: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 // Special keys
+                keyButton("RET", icon: "return") { send(0x0D) }
                 keyButton("ESC", icon: "escape") { send(0x1B) }
                 keyButton("TAB", icon: "arrow.right.to.line") { send(0x09) }
                 keyButton("CLR", icon: "delete.backward") { send(0x15) } // Ctrl-U (clear to start of line)
