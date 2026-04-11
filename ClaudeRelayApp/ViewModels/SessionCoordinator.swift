@@ -53,6 +53,12 @@ final class SessionCoordinator: ObservableObject {
                 await self?.handleAutoReconnect()
             }
         }
+
+        connection.onSessionActivity = { [weak self] sessionId, activity in
+            Task { @MainActor [weak self] in
+                self?.handleActivityUpdate(sessionId: sessionId, activity: activity)
+            }
+        }
     }
 
     // MARK: - Names
@@ -274,6 +280,31 @@ final class SessionCoordinator: ObservableObject {
         sessionsAwaitingInput.remove(sessionId)
         terminalViewModels[sessionId]?.isClaudeActive = false
         saveClaudeSessions()
+    }
+
+    /// Handle server-pushed activity state changes for any session (including background ones).
+    private func handleActivityUpdate(sessionId: UUID, activity: ActivityState) {
+        // Update Claude running state
+        if activity.isClaudeRunning {
+            if !claudeSessions.contains(sessionId) {
+                claudeSessions.insert(sessionId)
+                terminalViewModels[sessionId]?.isClaudeActive = true
+                saveClaudeSessions()
+            }
+        } else {
+            if claudeSessions.contains(sessionId) {
+                claudeSessions.remove(sessionId)
+                terminalViewModels[sessionId]?.isClaudeActive = false
+                saveClaudeSessions()
+            }
+        }
+
+        // Update awaiting-input state (only flash for Claude sessions)
+        if activity.isAwaitingInput && activity.isClaudeRunning {
+            sessionsAwaitingInput.insert(sessionId)
+        } else {
+            sessionsAwaitingInput.remove(sessionId)
+        }
     }
 
     /// Process ANSI-stripped terminal output for shell prompt capture and Claude exit detection.

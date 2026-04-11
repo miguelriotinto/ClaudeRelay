@@ -49,6 +49,9 @@ public final class RelayConnection: ObservableObject {
     /// Called when terminal output (binary) data is received from the server.
     public var onTerminalOutput: ((Data) -> Void)?
 
+    /// Called when the server pushes an activity state change for any session.
+    public var onSessionActivity: ((UUID, ActivityState) -> Void)?
+
     /// Called after a successful auto-reconnect (exponential backoff).
     /// Use this to re-authenticate and resume the active session.
     /// NOTE: Callers should capture [weak coordinator] in the closure to avoid retain cycles.
@@ -213,6 +216,11 @@ public final class RelayConnection: ObservableObject {
                 let envelope = try decoder.decode(MessageEnvelope.self, from: data)
                 if case .server(let serverMessage) = envelope {
                     onServerMessage?(serverMessage)
+
+                    // Route activity updates directly — these are push-only, not request/response.
+                    if case .sessionActivity(let sessionId, let activity) = serverMessage {
+                        onSessionActivity?(sessionId, activity)
+                    }
                 }
             } catch {
                 logger.warning("Failed to decode: \(error.localizedDescription, privacy: .public)")
