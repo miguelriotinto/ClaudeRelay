@@ -212,6 +212,8 @@ private struct ToolbarIconButton: View {
 }
 
 /// Individual session tab with optional flash animation when input is needed.
+/// Uses a timer-driven flash instead of repeatForever to ensure the animation
+/// reliably stops when needsAttention becomes false.
 private struct SessionTab: View {
     let number: Int
     let isSelected: Bool
@@ -230,12 +232,14 @@ private struct SessionTab: View {
             .background(tabBackground)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .opacity(needsAttention && !flashOn ? 0.4 : 1.0)
-            .onChange(of: needsAttention) { _, flashing in
-                if flashing {
-                    withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
-                        flashOn = true
-                    }
-                } else {
+            .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+                guard needsAttention else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    flashOn.toggle()
+                }
+            }
+            .onChange(of: needsAttention) { _, attention in
+                if !attention {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         flashOn = false
                     }

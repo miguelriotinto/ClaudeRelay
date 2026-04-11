@@ -46,6 +46,7 @@ final class SessionCoordinator: ObservableObject {
         self.connection = connection
         self.token = token
         sessionNames = Self.loadNames()
+        claudeSessions = Self.loadClaudeSessions()
 
         connection.onReconnected = { [weak self] in
             Task { @MainActor [weak self] in
@@ -77,6 +78,7 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Persistence
 
     private static let namesKey = "com.clauderelay.sessionNames"
+    private static let claudeSessionsKey = "com.clauderelay.claudeSessions"
 
     private static func loadNames() -> [UUID: String] {
         guard let data = UserDefaults.standard.data(forKey: namesKey),
@@ -95,6 +97,16 @@ final class SessionCoordinator: ObservableObject {
         if let data = try? JSONEncoder().encode(dict) {
             UserDefaults.standard.set(data, forKey: namesKey)
         }
+    }
+
+    private static func loadClaudeSessions() -> Set<UUID> {
+        guard let ids = UserDefaults.standard.stringArray(forKey: claudeSessionsKey) else { return [] }
+        return Set(ids.compactMap { UUID(uuidString: $0) })
+    }
+
+    private func saveClaudeSessions() {
+        let ids = claudeSessions.map { $0.uuidString }
+        UserDefaults.standard.set(ids, forKey: Self.claudeSessionsKey)
     }
 
     // MARK: - Authentication
@@ -125,6 +137,15 @@ final class SessionCoordinator: ObservableObject {
         do {
             let controller = try await ensureAuthenticated()
             sessions = try await controller.listSessions()
+
+            // Prune persisted Claude state for sessions that no longer exist on the server.
+            let serverIds = Set(sessions.map { $0.id })
+            let stale = claudeSessions.subtracting(serverIds)
+            if !stale.isEmpty {
+                claudeSessions.subtract(stale)
+                sessionsAwaitingInput.subtract(stale)
+                saveClaudeSessions()
+            }
         } catch {
             // Session list refresh is non-critical — log but don't alert the user.
             print("[SessionCoordinator] fetchSessions failed: \(error.localizedDescription)")
@@ -201,12 +222,13 @@ final class SessionCoordinator: ObservableObject {
                 activeSessionId = nil
                 terminalViewModels[id] = nil
             }
+            let wasClaudeSession = claudeSessions.remove(id) != nil
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
-            claudeSessions.remove(id)
             shellPrompts.removeValue(forKey: id)
             sessionsAwaitingInput.remove(id)
             Self.saveNames(sessionNames)
+            if wasClaudeSession { saveClaudeSessions() }
             await fetchSessions()
         } catch {
             presentError(error.localizedDescription)
@@ -229,7 +251,11 @@ final class SessionCoordinator: ObservableObject {
     }
 
     /// Called by the SwiftTerm delegate when the terminal title changes.
-    /// Handles Claude entry detection — exit is detected via shell prompt reappearance.
+    /// Only handles Claude **entry** detection (title contains "claude").
+    /// Exit detection relies on stronger signals: alternate screen buffer exit
+    /// and shell prompt appearance — not title changes, because Claude Code
+    /// dynamically sets the title during tool execution (e.g. to the CWD or
+    /// running command), which would cause false exit triggers.
     func updateTerminalTitle(_ title: String, for sessionId: UUID) {
         terminalTitles[sessionId] = title
 
@@ -237,8 +263,17 @@ final class SessionCoordinator: ObservableObject {
             if !claudeSessions.contains(sessionId) {
                 claudeSessions.insert(sessionId)
                 terminalViewModels[sessionId]?.isClaudeActive = true
+                saveClaudeSessions()
             }
         }
+    }
+
+    /// Centralized Claude exit handler — clears all related state and persists.
+    private func markClaudeExited(_ sessionId: UUID) {
+        claudeSessions.remove(sessionId)
+        sessionsAwaitingInput.remove(sessionId)
+        terminalViewModels[sessionId]?.isClaudeActive = false
+        saveClaudeSessions()
     }
 
     /// Process ANSI-stripped terminal output for shell prompt capture and Claude exit detection.
@@ -252,9 +287,7 @@ final class SessionCoordinator: ObservableObject {
             // Uses the general heuristic (line ending in $/%/#) rather than an exact match,
             // because the working directory — and thus the full prompt — may differ after exit.
             if let lastLine = lines.last, Self.looksLikeShellPrompt(lastLine) {
-                claudeSessions.remove(sessionId)
-                sessionsAwaitingInput.remove(sessionId)
-                terminalViewModels[sessionId]?.isClaudeActive = false
+                markClaudeExited(sessionId)
             }
         } else {
             // Shell prompt capture/update: keep tracking the latest prompt
@@ -364,6 +397,11 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Private
 
     private func wireTerminalOutput(to sessionId: UUID) {
+        // Restore Claude state from persistence onto the (possibly new) VM.
+        if claudeSessions.contains(sessionId) {
+            terminalViewModels[sessionId]?.isClaudeActive = true
+        }
+
         // The callback fires from the receive loop which is already on MainActor,
         // so no extra Task hop is needed.
         connection.onTerminalOutput = { [weak self] data in
@@ -376,6 +414,11 @@ final class SessionCoordinator: ObservableObject {
         // Feed ANSI-stripped output to coordinator for prompt capture / Claude exit detection.
         terminalViewModels[sessionId]?.onCleanOutput = { [weak self] text in
             self?.processCleanOutput(text, for: sessionId)
+        }
+        // Alternate screen exit — strong signal Claude Code has exited.
+        terminalViewModels[sessionId]?.onAlternateScreenLeft = { [weak self] in
+            guard let self, claudeSessions.contains(sessionId) else { return }
+            markClaudeExited(sessionId)
         }
         // Track input-awaiting state for tab flashing.
         // Only flash when Claude is running — normal shell idle doesn't flash.
