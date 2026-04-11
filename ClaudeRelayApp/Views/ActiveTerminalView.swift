@@ -202,7 +202,7 @@ private struct ToolbarIconButton: View {
         } label: {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isActive ? .white : .secondary)
+                .foregroundStyle(isActive ? SwiftUI.Color(.systemBackground) : SwiftUI.Color.secondary)
                 .frame(minWidth: 26, minHeight: 22)
                 .background(isActive ? Color.primary : Color.secondary.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -227,7 +227,7 @@ private struct SessionTab: View {
     var body: some View {
         Text("\(number)")
             .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .monospaced))
-            .foregroundStyle(isSelected ? .primary : .secondary)
+            .foregroundStyle(tabForeground)
             .frame(minWidth: 26, minHeight: 22)
             .background(tabBackground)
             .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -245,6 +245,18 @@ private struct SessionTab: View {
                     }
                 }
             }
+    }
+
+    /// Dark foreground for fixed light backgrounds (beige Claude, orange attention);
+    /// adaptive foreground for system-adaptive backgrounds.
+    private var tabForeground: SwiftUI.Color {
+        if needsAttention && flashOn {
+            return .black
+        }
+        if isClaude {
+            return .black
+        }
+        return isSelected ? SwiftUI.Color(.label) : SwiftUI.Color(.secondaryLabel)
     }
 
     private var tabBackground: SwiftUI.Color {
