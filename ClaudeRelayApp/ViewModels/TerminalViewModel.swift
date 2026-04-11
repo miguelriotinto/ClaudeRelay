@@ -23,6 +23,8 @@ final class TerminalViewModel: ObservableObject {
     var onTitleChanged: ((String) -> Void)?
     /// Called when the awaiting-input state changes — persisted on the coordinator.
     var onAwaitingInputChanged: ((Bool) -> Void)?
+    /// Called with ANSI-stripped output text for shell prompt capture and Claude exit detection.
+    var onCleanOutput: ((String) -> Void)?
 
     /// Whether the terminal has received its first sizeChanged callback (i.e. is laid out).
     private var terminalSized = false
@@ -145,11 +147,11 @@ final class TerminalViewModel: ObservableObject {
             if recentOutput.count > 1024 {
                 recentOutput = String(recentOutput.suffix(1024))
             }
+            onCleanOutput?(clean)
         }
 
-        // Check for numbered options (at least 2 consecutive: "1." and "2.").
+        // Check for any numbered option (e.g. "1. Yes", "2. No").
         let hasOptions = recentOutput.contains(Self.numberedOptionPattern)
-            && recentOutput.ranges(of: Self.numberedOptionPattern).count >= 2
 
         guard hasOptions else { return }
 

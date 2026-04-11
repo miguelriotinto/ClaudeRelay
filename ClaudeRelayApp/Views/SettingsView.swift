@@ -35,6 +35,11 @@ struct SettingsView: View {
 
                 Section("General") {
                     Toggle("Haptic Feedback", isOn: $settings.hapticFeedbackEnabled)
+                    Picker("Session Names", selection: $settings.sessionNamingTheme) {
+                        ForEach(SessionNamingTheme.allCases) { theme in
+                            Text(theme.displayName).tag(theme)
+                        }
+                    }
                 }
 
                 Section("About") {

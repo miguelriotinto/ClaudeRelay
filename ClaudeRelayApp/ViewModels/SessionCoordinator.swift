@@ -14,7 +14,7 @@ final class SessionCoordinator: ObservableObject {
     @Published var sessionNames: [UUID: String] = [:]
     /// Last known terminal title per session (survives VM destruction on session switch).
     @Published var terminalTitles: [UUID: String] = [:]
-    /// Sessions where Claude Code has been detected (sticky with cooldown).
+    /// Sessions where Claude Code is currently running.
     @Published var claudeSessions: Set<UUID> = []
     /// Sessions currently waiting for user input (e.g. Claude Code prompt).
     @Published var sessionsAwaitingInput: Set<UUID> = []
@@ -35,8 +35,8 @@ final class SessionCoordinator: ObservableObject {
     private let token: String
     private var sessionController: SessionController?
     private var terminalViewModels: [UUID: TerminalViewModel] = [:]
-    /// Cooldown timers for sticky Claude detection — keyed by session ID.
-    private var claudeCooldownTasks: [UUID: Task<Void, Never>] = [:]
+    /// Captured shell prompts per session — used to detect Claude exit.
+    private var shellPrompts: [UUID: String] = [:]
     var recoveryTask: Task<Void, Never>?
     private var isTornDown = false
 
@@ -67,7 +67,8 @@ final class SessionCoordinator: ObservableObject {
 
     private func assignDefaultName(for id: UUID) {
         let usedNames = Set(sessionNames.values)
-        let available = Self.gotNames.filter { !usedNames.contains($0) }
+        let themeNames = AppSettings.shared.sessionNamingTheme.names
+        let available = themeNames.filter { !usedNames.contains($0) }
         let name = available.randomElement() ?? "Session \(sessionNames.count + 1)"
         sessionNames[id] = name
         Self.saveNames(sessionNames)
@@ -203,8 +204,7 @@ final class SessionCoordinator: ObservableObject {
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
             claudeSessions.remove(id)
-            claudeCooldownTasks[id]?.cancel()
-            claudeCooldownTasks.removeValue(forKey: id)
+            shellPrompts.removeValue(forKey: id)
             sessionsAwaitingInput.remove(id)
             Self.saveNames(sessionNames)
             await fetchSessions()
@@ -223,38 +223,48 @@ final class SessionCoordinator: ObservableObject {
         sessions.first { $0.id == sessionId }?.createdAt
     }
 
-    /// Whether the session is considered to be running Claude Code.
-    /// Uses sticky detection: once Claude is detected, it stays flagged
-    /// through brief title changes (e.g. tool execution) via a cooldown.
+    /// Whether the session is currently running Claude Code.
     func isRunningClaude(sessionId: UUID) -> Bool {
         claudeSessions.contains(sessionId)
     }
 
     /// Called by the SwiftTerm delegate when the terminal title changes.
-    /// Manages sticky Claude detection with a 10-second cooldown.
+    /// Handles Claude entry detection — exit is detected via shell prompt reappearance.
     func updateTerminalTitle(_ title: String, for sessionId: UUID) {
         terminalTitles[sessionId] = title
 
-        let containsClaude = title.localizedCaseInsensitiveContains("claude")
-
-        if containsClaude {
-            // Cancel any pending cooldown — Claude is back.
-            claudeCooldownTasks[sessionId]?.cancel()
-            claudeCooldownTasks[sessionId] = nil
+        if title.localizedCaseInsensitiveContains("claude") {
             if !claudeSessions.contains(sessionId) {
                 claudeSessions.insert(sessionId)
             }
-        } else if claudeSessions.contains(sessionId) {
-            // Title no longer says "claude" — start cooldown before removing.
-            if claudeCooldownTasks[sessionId] == nil {
-                claudeCooldownTasks[sessionId] = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(10))
-                    guard !Task.isCancelled else { return }
-                    self?.claudeSessions.remove(sessionId)
-                    self?.claudeCooldownTasks[sessionId] = nil
-                }
+        }
+    }
+
+    /// Process ANSI-stripped terminal output for shell prompt capture and Claude exit detection.
+    func processCleanOutput(_ text: String, for sessionId: UUID) {
+        let lines = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        if claudeSessions.contains(sessionId) {
+            // Claude exit detection: if the shell prompt reappears, Claude has exited.
+            if let prompt = shellPrompts[sessionId],
+               lines.contains(where: { $0.contains(prompt) }) {
+                claudeSessions.remove(sessionId)
+            }
+        } else {
+            // Shell prompt capture/update: keep tracking the latest prompt
+            // so it reflects the shell state right before Claude starts.
+            if let prompt = lines.last(where: { Self.looksLikeShellPrompt($0) }) {
+                shellPrompts[sessionId] = prompt
             }
         }
+    }
+
+    /// Heuristic: does this ANSI-stripped line look like a shell prompt?
+    private static func looksLikeShellPrompt(_ line: String) -> Bool {
+        guard line.count >= 2 else { return false }
+        return line.hasSuffix("$") || line.hasSuffix("%") || line.hasSuffix("#")
     }
 
     // MARK: - Connection Recovery
@@ -354,6 +364,10 @@ final class SessionCoordinator: ObservableObject {
         terminalViewModels[sessionId]?.onTitleChanged = { [weak self] title in
             self?.updateTerminalTitle(title, for: sessionId)
         }
+        // Feed ANSI-stripped output to coordinator for prompt capture / Claude exit detection.
+        terminalViewModels[sessionId]?.onCleanOutput = { [weak self] text in
+            self?.processCleanOutput(text, for: sessionId)
+        }
         // Track input-awaiting state for tab flashing.
         terminalViewModels[sessionId]?.onAwaitingInputChanged = { [weak self] awaiting in
             if awaiting {
@@ -369,22 +383,4 @@ final class SessionCoordinator: ObservableObject {
         showError = true
     }
 
-    // MARK: - GoT Character Names
-
-    static let gotNames = [
-        "Arya", "Tyrion", "Daenerys", "Jon Snow", "Cersei",
-        "Sansa", "Bran", "Jaime", "Brienne", "Theon",
-        "Samwell", "Jorah", "Davos", "Missandei", "Varys",
-        "Tormund", "Podrick", "Gendry", "Bronn", "Sandor",
-        "Melisandre", "Ygritte", "Oberyn", "Margaery", "Olenna",
-        "Ramsay", "Stannis", "Robb", "Catelyn", "Ned",
-        "Hodor", "Gilly", "Drogo", "Viserys", "Littlefinger",
-        "Tywin", "Joffrey", "Tommen", "Myrcella", "Rickon",
-        "Osha", "Shae", "Yara", "Euron", "Ellaria",
-        "Grey Worm", "Barristan", "Jojen", "Meera", "Benjen",
-        "Lyanna", "Rhaegar", "Aemon", "Qyburn", "Septa",
-        "Ros", "Talisa", "Edmure", "Blackfish", "Walder Frey",
-        "Loras", "Renly", "Robert", "Lancel", "Hot Pie",
-        "Nymeria", "Ghost", "Drogon", "Rhaegal", "Viserion"
-    ]
 }
