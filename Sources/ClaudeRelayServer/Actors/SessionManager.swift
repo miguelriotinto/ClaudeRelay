@@ -20,6 +20,8 @@ public actor SessionManager {
     private let ptyFactory: PTYFactory
     private var sessions: [UUID: ManagedSession] = [:]
     private var detachTimers: [UUID: Task<Void, Never>] = [:]
+    public typealias ActivityObserver = @Sendable (UUID, ActivityState) -> Void
+    private var activityObservers: [UUID: (tokenId: String, callback: ActivityObserver)] = [:]
 
     struct ManagedSession {
         var info: SessionInfo
@@ -80,6 +82,13 @@ public actor SessionManager {
         await pty.setExitHandler {
             Task {
                 await manager.handlePTYExit(sessionId: id)
+            }
+        }
+
+        let sessionId = id
+        await pty.setActivityHandler { [weak self] newState in
+            Task {
+                await self?.reportActivityChange(sessionId: sessionId, activity: newState)
             }
         }
 
@@ -305,6 +314,30 @@ public actor SessionManager {
         return sessions.values
             .filter { $0.info.tokenId == tokenId }
             .map { $0.info }
+    }
+
+    // MARK: - Activity Observers
+
+    @discardableResult
+    public func addActivityObserver(
+        tokenId: String,
+        callback: @escaping ActivityObserver
+    ) -> UUID {
+        let observerId = UUID()
+        activityObservers[observerId] = (tokenId: tokenId, callback: callback)
+        return observerId
+    }
+
+    public func removeActivityObserver(id: UUID) {
+        activityObservers.removeValue(forKey: id)
+    }
+
+    public func reportActivityChange(sessionId: UUID, activity: ActivityState) {
+        guard let managed = sessions[sessionId] else { return }
+        let tokenId = managed.info.tokenId
+        for (_, observer) in activityObservers where observer.tokenId == tokenId {
+            observer.callback(sessionId, activity)
+        }
     }
 
     // MARK: - Shutdown

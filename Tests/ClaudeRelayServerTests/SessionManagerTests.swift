@@ -182,4 +182,70 @@ final class SessionManagerTests: XCTestCase {
             }
         }
     }
+
+    func testActivityObserverReceivesChanges() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+
+        let expectation = XCTestExpectation(description: "activity callback")
+        let observerId = await manager.addActivityObserver(tokenId: tokenInfo.id) { sessionId, activity in
+            XCTAssertEqual(sessionId, session.id)
+            XCTAssertEqual(activity, .claudeActive)
+            expectation.fulfill()
+        }
+
+        await manager.reportActivityChange(sessionId: session.id, activity: .claudeActive)
+        await fulfillment(of: [expectation], timeout: 1.0)
+        await manager.removeActivityObserver(id: observerId)
+    }
+
+    func testActivityObserverOnlyReceivesOwnToken() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "other")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let sessionA = try await manager.createSession(tokenId: tokenA.id)
+        let sessionB = try await manager.createSession(tokenId: tokenB.id)
+
+        var receivedSessionIds: [UUID] = []
+        let expectation = XCTestExpectation(description: "only token A")
+        let observerId = await manager.addActivityObserver(tokenId: tokenA.id) { sessionId, _ in
+            receivedSessionIds.append(sessionId)
+            expectation.fulfill()
+        }
+
+        await manager.reportActivityChange(sessionId: sessionB.id, activity: .claudeActive)
+        await manager.reportActivityChange(sessionId: sessionA.id, activity: .idle)
+
+        await fulfillment(of: [expectation], timeout: 1.0)
+        XCTAssertEqual(receivedSessionIds, [sessionA.id])
+        await manager.removeActivityObserver(id: observerId)
+    }
+
+    func testRemoveActivityObserverStopsCallbacks() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+
+        var callCount = 0
+        let observerId = await manager.addActivityObserver(tokenId: tokenInfo.id) { _, _ in
+            callCount += 1
+        }
+
+        await manager.reportActivityChange(sessionId: session.id, activity: .claudeActive)
+        await manager.removeActivityObserver(id: observerId)
+        await manager.reportActivityChange(sessionId: session.id, activity: .idle)
+
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(callCount, 1, "Should not receive callbacks after removal")
+    }
 }
