@@ -11,7 +11,7 @@ final class TerminalViewModel: ObservableObject {
 
     // MARK: - Published State
 
-    @Published var connectionState: RelayConnection.ConnectionState = .disconnected
+    @Published var connectionState: RelayConnection.ConnectionState
     /// Terminal title set by the running process via OSC escape sequences.
     @Published var terminalTitle: String = ""
 
@@ -32,6 +32,7 @@ final class TerminalViewModel: ObservableObject {
     init(sessionId: UUID, connection: RelayConnection) {
         self.sessionId = sessionId
         self.connection = connection
+        self.connectionState = connection.state
 
         connection.$state
             .removeDuplicates()
