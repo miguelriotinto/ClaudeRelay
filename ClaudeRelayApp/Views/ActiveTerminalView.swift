@@ -105,9 +105,11 @@ struct ActiveTerminalView: View {
                         }
                         showKeyBar.toggle()
                     } label: {
-                        Image(systemName: showKeyBar ? "fn" : "fn")
+                        Image(systemName: "fn")
                             .font(.system(size: 16))
-                            .fontWeight(showKeyBar ? .bold : .regular)
+                            .foregroundStyle(showKeyBar ? .white : .primary)
+                            .padding(4)
+                            .background(showKeyBar ? Color.primary : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
 
