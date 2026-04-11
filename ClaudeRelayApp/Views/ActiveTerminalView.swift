@@ -74,79 +74,72 @@ struct ActiveTerminalView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            VStack(spacing: 0) {
-                // Thin custom toolbar — sits below the status bar automatically
-                HStack(spacing: 16) {
-                    HStack(spacing: 12) {
-                        Button {
-                            if AppSettings.shared.hapticFeedbackEnabled {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
-                            onDisconnect()
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .medium))
-                        }
-
-                        Button {
-                            if AppSettings.shared.hapticFeedbackEnabled {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
-                            withAnimation {
-                                columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-                            }
-                        } label: {
-                            Image(systemName: "sidebar.left")
-                                .font(.system(size: 16))
-                        }
-
-                        Button {
-                            if AppSettings.shared.hapticFeedbackEnabled {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
-                            showKeyBar.toggle()
-                        } label: {
-                            Image(systemName: "fn")
-                                .font(.system(size: 16))
-                                .foregroundStyle(showKeyBar ? .white : .primary)
-                                .padding(4)
-                                .background(showKeyBar ? Color.primary : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-                        }
-                    }
-                    .tint(.primary)
-
-                    Spacer()
-
-                    HStack(spacing: 8) {
-                        if let id = coordinator.activeSessionId {
-                            Text("[\(coordinator.activeSessions.count)]")
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                            if let createdAt = coordinator.createdAt(for: id) {
-                                SessionUptimeView(since: createdAt)
-                            }
-                            Text(coordinator.name(for: id))
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(id.uuidString.prefix(8))
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(.tertiary)
-                            if let vm = coordinator.viewModel(for: id) {
-                                Circle()
-                                    .fill(statusColor(vm.connectionState))
-                                    .frame(width: 8, height: 8)
-                            }
-                        }
+            HStack(spacing: 6) {
+                // Left: icon buttons with tab-style borders
+                ToolbarIconButton(icon: "chevron.left") { onDisconnect() }
+                ToolbarIconButton(icon: "sidebar.left") {
+                    withAnimation {
+                        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
                     }
                 }
-                .padding(.horizontal, 16)
-                .frame(height: 36)
+                ToolbarIconButton(icon: "fn", isActive: showKeyBar) { showKeyBar.toggle() }
 
-                // Session switcher tab bar
-                if coordinator.activeSessions.count > 1 {
-                    SessionTabBar(coordinator: coordinator)
+                // Status info for active session
+                if let id = coordinator.activeSessionId,
+                   let vm = coordinator.viewModel(for: id) {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(statusColor(vm.connectionState))
+                            .frame(width: 8, height: 8)
+
+                        if let createdAt = coordinator.createdAt(for: id) {
+                            SessionUptimeView(since: createdAt)
+                        }
+
+                        Text(coordinator.name(for: id))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 22)
+                    .background(Color(.systemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
+                    )
+                }
+
+                Spacer(minLength: 8)
+
+                // Right: scrollable session tabs
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
+                            let isSelected = session.id == coordinator.activeSessionId
+                            let isClaude = coordinator.isRunningClaude(sessionId: session.id)
+                            let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
+                            Button {
+                                if AppSettings.shared.hapticFeedbackEnabled {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
+                                Task { await coordinator.switchToSession(id: session.id) }
+                            } label: {
+                                SessionTab(
+                                    number: index + 1,
+                                    isSelected: isSelected,
+                                    isClaude: isClaude,
+                                    needsAttention: needsAttention
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
             }
+            .padding(.horizontal, 12)
+            .frame(height: 36)
             .background(Color(.systemBackground))
         }
         .ignoresSafeArea(.container, edges: .horizontal)
@@ -195,41 +188,33 @@ struct ActiveTerminalView: View {
 
 }
 
-// MARK: - Session Tab Bar
+// MARK: - Toolbar Icon Button
 
-private struct SessionTabBar: View {
-    @ObservedObject var coordinator: SessionCoordinator
-
-    /// Beige tint for sessions running Claude Code.
-    private static let claudeBackground = Color(red: 0.91, green: 0.86, blue: 0.76)
+/// Icon button styled to match session tabs (rounded rect with stroke border).
+private struct ToolbarIconButton: View {
+    let icon: String
+    var isActive: Bool = false
+    let action: () -> Void
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
-                    let isSelected = session.id == coordinator.activeSessionId
-                    let isClaude = coordinator.isRunningClaude(sessionId: session.id)
-                    let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
-                    Button {
-                        if AppSettings.shared.hapticFeedbackEnabled {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                        Task { await coordinator.switchToSession(id: session.id) }
-                    } label: {
-                        SessionTab(
-                            number: index + 1,
-                            isSelected: isSelected,
-                            isClaude: isClaude,
-                            needsAttention: needsAttention
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+        Button {
+            if AppSettings.shared.hapticFeedbackEnabled {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 4)
+            action()
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isActive ? .white : .primary)
+                .frame(minWidth: 26, minHeight: 22)
+                .background(isActive ? Color.primary : Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
+                )
         }
-        .frame(height: 30)
+        .buttonStyle(.plain)
     }
 }
 
