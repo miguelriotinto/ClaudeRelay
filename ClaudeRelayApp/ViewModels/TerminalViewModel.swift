@@ -37,6 +37,10 @@ final class TerminalViewModel: ObservableObject {
 
     // MARK: - Input Detection
 
+    /// Whether Claude Code is currently running in this session.
+    /// Set by the coordinator — controls the silence threshold for input detection.
+    var isClaudeActive = false
+
     private var promptDebounceTask: Task<Void, Never>?
 
     /// Comprehensive ANSI/VT escape sequence stripper.
@@ -139,9 +143,12 @@ final class TerminalViewModel: ObservableObject {
             onCleanOutput?(clean)
         }
 
-        // After 1 second of silence, flag as potentially awaiting input.
+        // After a period of silence, flag as potentially awaiting input.
+        // Use a longer threshold when Claude is running to avoid false positives
+        // during normal tool execution gaps (API calls, file reads take 2-5s).
+        let threshold: Duration = isClaudeActive ? .milliseconds(4000) : .milliseconds(1000)
         promptDebounceTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(1000))
+            try? await Task.sleep(for: threshold)
             guard !Task.isCancelled else { return }
             self?.setAwaitingInput(true)
         }

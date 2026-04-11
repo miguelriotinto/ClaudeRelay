@@ -5,13 +5,15 @@ A remote terminal relay server and CLI over WebSocket, enabling secure terminal 
 ## Features
 
 - **WebSocket-based terminal relay** - Real-time bidirectional communication
-- **Session management** - Create, list, attach, and detach terminal sessions
+- **Session management** - Create, list, attach, and detach terminal sessions with tab-based switching
 - **Token-based authentication** - Secure access control with configurable tokens
 - **PTY sessions** - Interactive shell sessions with full terminal emulation
 - **Session persistence** - Detach and reattach to running sessions
 - **TLS encryption** - Optional NIO-SSL support for secure WebSocket connections
 - **Service management** - Run as a background service with launchd/brew services
-- **iOS client** - Native iOS app with terminal emulation and speech recognition
+- **iOS client** - Native iOS app with terminal emulation, session tabs, and Claude Code detection
+- **On-device speech engine** - Offline speech-to-text via WhisperKit (CoreML/ANE) with LLM text cleanup
+- **Cloud prompt enhancement** - Optional rewriting of transcriptions into clear prompts via Anthropic Haiku
 - **Admin API** - Localhost-only HTTP API for service management and monitoring
 - **Config validation** - Server-side validation of all configuration parameters
 
@@ -191,7 +193,7 @@ swift build
 ### Run Tests
 
 ```bash
-swift test                                    # All tests (123 tests)
+swift test                                    # All SPM tests
 swift test --filter ClaudeRelayKitTests      # Specific suite
 swift test --filter testTokenGeneration       # Specific test
 ```
@@ -201,6 +203,11 @@ swift test --filter testTokenGeneration       # Specific test
 Open `ClaudeRelay.xcodeproj` in Xcode and press Cmd+R to build and run the iOS app.
 
 After modifying `ClaudeRelayClient` or `ClaudeRelayKit` sources, rebuild the iOS app in Xcode to pick up changes.
+
+**Note for contributors:**
+- `project.yml` contains a hardcoded `DEVELOPMENT_TEAM` — update this to your own Apple Developer Team ID.
+- The `LLMSwift` package uses a local path (`../LLM.swift`). Clone [LLM.swift](https://github.com/obra/LLM.swift) as a sibling directory, or change the path in `project.yml` to a git URL.
+- Run `xcodegen generate` after modifying `project.yml` to regenerate the Xcode project.
 
 ### Project Structure
 
@@ -213,12 +220,18 @@ ClaudeRelay/
 │   ├── ClaudeRelayClient/      # Swift client library
 │   └── CPTYShim/               # C shim for PTY operations
 ├── ClaudeRelayApp/             # iOS application (SwiftUI, XcodeGen-managed)
+│   ├── Views/                  # SwiftUI views
+│   ├── ViewModels/             # Observable view models
+│   ├── Models/                 # App settings, saved connections
+│   └── Speech/                 # On-device speech pipeline (WhisperKit + LLM)
 ├── Tests/
 │   ├── ClaudeRelayKitTests/
 │   ├── ClaudeRelayServerTests/
 │   └── ClaudeRelayCLITests/
+├── ClaudeRelayAppTests/        # iOS app unit tests
 ├── Formula/
 │   └── clauderelay.rb          # Homebrew formula
+├── docs/                       # Design specs and implementation plans
 └── Package.swift
 ```
 
@@ -249,6 +262,29 @@ All WebSocket messages use `MessageEnvelope` with JSON encoding:
 - `session_attached` - Attachment confirmation
 - `output` - Terminal output
 - `error` - Error message
+
+## Admin API
+
+The Admin HTTP API (default port 9100) binds to `127.0.0.1` only. No authentication beyond localhost binding.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check (`{"status": "ok"}`) |
+| `GET` | `/status` | Server PID, uptime, session count |
+| `GET` | `/sessions` | List all active sessions |
+| `GET` | `/sessions/{id}` | Get session details |
+| `DELETE` | `/sessions/{id}` | Terminate a session |
+| `POST` | `/tokens` | Create token (body: `{"label": "...", "expiryDays": N}`) |
+| `GET` | `/tokens` | List all tokens (metadata only) |
+| `GET` | `/tokens/{id}` | Get token details |
+| `DELETE` | `/tokens/{id}` | Delete a token |
+| `POST` | `/tokens/{id}/rotate` | Rotate (regenerate) a token |
+| `PATCH` | `/tokens/{id}` | Update token label (body: `{"label": "..."}`) |
+| `GET` | `/config` | Get current configuration |
+| `PUT` | `/config/{key}` | Update config value (body: `{"value": ...}`) |
+| `GET` | `/logs` | Get recent logs (query: `?lines=N`, max 2000) |
+
+All responses are JSON. Token creation returns `201 Created`; all other successes return `200 OK`.
 
 ## Security
 

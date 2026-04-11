@@ -2,7 +2,9 @@
 
 All notable changes to ClaudeRelay are documented in this file.
 
-## [Unreleased]
+The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; the iOS app uses X.Y.Z.
+
+## [Unreleased] (Server/CLI)
 
 ### Added
 - TLS support for WebSocket server via NIO-SSL (`tlsCert`/`tlsKey` config)
@@ -25,8 +27,64 @@ All notable changes to ClaudeRelay are documented in this file.
 ### Removed
 - `AGENTS.md` (stale Codex-branded duplicate of CLAUDE.md)
 - `REVIEW.md` (findings tracked, no longer needed)
-- Empty `docs/` directory
 - Duplicate `UnsafeTransfer` definitions (consolidated to single file)
+
+## [1.3.0] - 2026-04-11 (iOS)
+
+### Added
+- Session tab bar with numbered tabs and Claude Code detection
+- Tab flash notification when Claude Code awaits user input
+- Star Wars, Dune, and Lord of the Rings naming themes for sessions
+- Clear-line special key
+- Haptic feedback with settings toggle
+- Scrollable tab zone in status bar
+
+### Changed
+- Single-line compact status bar (replaced two-line layout)
+- Removed stroke borders from status bar icons
+- Reorganized header layout: chevron → servers → sessions → function keys → connectivity → time → tabs → name
+- Standardized toolbar icons with capitalized key labels
+
+### Fixed
+- Backspace key repeat behavior
+
+## [1.2.0] - 2026-04-10 (iOS)
+
+### Added
+- On-device speech engine using WhisperKit (CoreML/ANE) for transcription
+- LLM-based text cleanup via LLM.swift (Metal GPU)
+- Cloud prompt enhancement via Anthropic Haiku (`CloudPromptEnhancer`)
+- Settings page with Prompt Improvement toggle
+- Model download manager with progress UI
+- Silence hallucination filtering for Whisper
+- Speech pipeline: `AudioCaptureSession`, `WhisperTranscriber`, `TextCleaner`, `OnDeviceSpeechEngine`, `SpeechModelStore`
+
+### Changed
+- Replaced `SFSpeechRecognizer` with WhisperKit for fully offline speech-to-text
+- Model loading shows modal progress bar instead of hourglass
+
+### Removed
+- `SpeechRecognizer` (replaced by `OnDeviceSpeechEngine`)
+
+## [1.1.0] - 2026-03-28 (iOS)
+
+### Added
+- Hardware keyboard support: Cmd+C (copy), Cmd+V (paste), Cmd+X (cut)
+- App version display on splash screen
+
+## [1.0.0] - 2026-03-27 (iOS)
+
+### Added
+- Server list with status indicators and swipe actions (edit/delete)
+- Add/edit server modal configuration
+- Terminal emulation via SwiftTerm
+- Session sidebar with named sessions
+- Speech-to-text input via SFSpeechRecognizer
+- Splash screen with animated logo
+- Auto-reconnection and session resume on foreground return
+- Session uptime display in toolbar
+- Fn key toolbar with special keys
+- Hardware keyboard detection (auto-hide software keyboard toggle)
 
 ## [0.1.5] - 2026-03-29
 

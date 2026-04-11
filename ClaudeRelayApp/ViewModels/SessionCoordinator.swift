@@ -236,6 +236,7 @@ final class SessionCoordinator: ObservableObject {
         if title.localizedCaseInsensitiveContains("claude") {
             if !claudeSessions.contains(sessionId) {
                 claudeSessions.insert(sessionId)
+                terminalViewModels[sessionId]?.isClaudeActive = true
             }
         }
     }
@@ -250,9 +251,10 @@ final class SessionCoordinator: ObservableObject {
             // Claude exit detection: if any shell prompt pattern appears, Claude has exited.
             // Uses the general heuristic (line ending in $/%/#) rather than an exact match,
             // because the working directory — and thus the full prompt — may differ after exit.
-            if lines.contains(where: { Self.looksLikeShellPrompt($0) }) {
+            if let lastLine = lines.last, Self.looksLikeShellPrompt(lastLine) {
                 claudeSessions.remove(sessionId)
                 sessionsAwaitingInput.remove(sessionId)
+                terminalViewModels[sessionId]?.isClaudeActive = false
             }
         } else {
             // Shell prompt capture/update: keep tracking the latest prompt
@@ -264,9 +266,14 @@ final class SessionCoordinator: ObservableObject {
     }
 
     /// Heuristic: does this ANSI-stripped line look like a shell prompt?
+    /// Filters out code lines that happen to end with $/%/# (regex, comments, etc.)
+    /// by checking length and rejecting indented lines.
     private static func looksLikeShellPrompt(_ line: String) -> Bool {
-        guard line.count >= 2 else { return false }
-        return line.hasSuffix("$") || line.hasSuffix("%") || line.hasSuffix("#")
+        guard line.count >= 2, line.count <= 120 else { return false }
+        guard line.hasSuffix("$") || line.hasSuffix("%") || line.hasSuffix("#") else { return false }
+        // Indented lines are code, not prompts
+        if line.hasPrefix("  ") || line.hasPrefix("\t") { return false }
+        return true
     }
 
     // MARK: - Connection Recovery
