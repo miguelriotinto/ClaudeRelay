@@ -103,12 +103,8 @@ struct ActiveTerminalView: View {
                     }
                     .padding(.horizontal, 8)
                     .frame(minHeight: 22)
-                    .background(Color(.systemBackground))
+                    .background(Color.secondary.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
-                    )
                 }
 
                 Spacer(minLength: 8)
@@ -205,14 +201,10 @@ private struct ToolbarIconButton: View {
         } label: {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isActive ? .white : .primary)
+                .foregroundStyle(isActive ? .white : .secondary)
                 .frame(minWidth: 26, minHeight: 22)
-                .background(isActive ? Color.primary : Color(.systemBackground))
+                .background(isActive ? Color.primary : Color.secondary.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
-                )
         }
         .buttonStyle(.plain)
     }
@@ -231,15 +223,11 @@ private struct SessionTab: View {
 
     var body: some View {
         Text("\(number)")
-            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-            .foregroundStyle(.primary)
+            .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .monospaced))
+            .foregroundStyle(isSelected ? .primary : .secondary)
             .frame(minWidth: 26, minHeight: 22)
             .background(tabBackground)
             .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSelected ? Color.primary : Color.secondary.opacity(0.5), lineWidth: isSelected ? 2.5 : 1)
-            )
             .opacity(needsAttention && !flashOn ? 0.4 : 1.0)
             .onChange(of: needsAttention) { _, flashing in
                 if flashing {
@@ -261,7 +249,10 @@ private struct SessionTab: View {
         if isClaude {
             return Self.claudeBackground
         }
-        return Color(.systemBackground)
+        if isSelected {
+            return Color.secondary.opacity(0.2)
+        }
+        return Color.secondary.opacity(0.12)
     }
 }
 
