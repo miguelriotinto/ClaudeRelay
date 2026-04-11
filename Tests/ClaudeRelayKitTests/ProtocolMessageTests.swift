@@ -280,6 +280,7 @@ final class ProtocolMessageTests: XCTestCase {
             .sessionTerminated(sessionId: id, reason: "exit"),
             .sessionExpired(sessionId: id),
             .sessionState(sessionId: id, state: "idle"),
+            .sessionActivity(sessionId: id, activity: .claudeIdle),
             .resizeAck(cols: 120, rows: 40),
             .pong,
             .error(code: 500, message: "internal")
@@ -369,6 +370,47 @@ final class ProtocolMessageTests: XCTestCase {
         }
         XCTAssertEqual(sessions.count, 1)
         XCTAssertEqual(sessions[0].id, id)
+    }
+
+    // MARK: - sessionActivity
+
+    func testSessionActivityEncoding() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let msg = ServerMessage.sessionActivity(sessionId: id, activity: .claudeIdle)
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        XCTAssertEqual(obj["type"] as? String, "session_activity")
+        let payload = obj["payload"] as? [String: Any]
+        XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
+        XCTAssertEqual(payload?["activity"] as? String, "claude_idle")
+    }
+
+    func testSessionActivityFieldVerification() throws {
+        let id = "12345678-1234-1234-1234-123456789ABC"
+        let json = #"{"type":"session_activity","payload":{"sessionId":"\#(id)","activity":"claude_active"}}"#
+        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
+        guard case .server(.sessionActivity(let sessionId, let activity)) = envelope else {
+            XCTFail("Expected sessionActivity"); return
+        }
+        XCTAssertEqual(sessionId.uuidString, id)
+        XCTAssertEqual(activity, .claudeActive)
+    }
+
+    func testSessionActivityRoundTrip() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let states: [ActivityState] = [.active, .idle, .claudeActive, .claudeIdle]
+        for state in states {
+            let original = ServerMessage.sessionActivity(sessionId: id, activity: state)
+            let envelope = MessageEnvelope.server(original)
+            let data = try encoder.encode(envelope)
+            let decoded = try decoder.decode(MessageEnvelope.self, from: data)
+            guard case .server(let roundTripped) = decoded else {
+                XCTFail("Expected .server envelope"); continue
+            }
+            XCTAssertEqual(original, roundTripped, "Round-trip failed for activity \(state)")
+        }
     }
 
     // MARK: - Equatable
