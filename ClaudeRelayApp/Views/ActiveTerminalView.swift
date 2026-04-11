@@ -77,12 +77,20 @@ struct ActiveTerminalView: View {
             // Thin custom toolbar — sits below the status bar automatically
             HStack(spacing: 16) {
                 HStack(spacing: 12) {
-                    Button { onDisconnect() } label: {
+                    Button {
+                        if AppSettings.shared.hapticFeedbackEnabled {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                        onDisconnect()
+                    } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 16, weight: .medium))
                     }
 
                     Button {
+                        if AppSettings.shared.hapticFeedbackEnabled {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
                         withAnimation {
                             columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
                         }
@@ -92,6 +100,9 @@ struct ActiveTerminalView: View {
                     }
 
                     Button {
+                        if AppSettings.shared.hapticFeedbackEnabled {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
                         showKeyBar.toggle()
                     } label: {
                         Image(systemName: showKeyBar ? "fn" : "fn")
@@ -363,12 +374,35 @@ private class RelayTerminalView: TerminalView {
         guard !hasTextOverrideInstalled else { return }
         hasTextOverrideInstalled = true
 
+        // 1. Override hasText → always true so iOS keeps firing deleteBackward on repeat.
         let sel = sel_registerName("hasText")
         let imp = imp_implementationWithBlock({ (_: AnyObject) -> Bool in
             true
         } as @convention(block) (AnyObject) -> Bool)
         // "B16@0:8" = returns Bool, total frame 16, self at 0, _cmd at 8
         class_replaceMethod(RelayTerminalView.self, sel, imp, "B16@0:8")
+
+        // 2. Override deleteBackward to notify inputDelegate even when the internal
+        //    text buffer is empty. SwiftTerm's "buffer empty" path sends the backspace
+        //    escape code but skips beginTextInputEdit/endTextInputEdit, so iOS's text
+        //    system never sees activity and stops key repeat.
+        let delSel = sel_registerName("deleteBackward")
+        if let origMethod = class_getInstanceMethod(TerminalView.self, delSel) {
+            let origImp = method_getImplementation(origMethod)
+            typealias DeleteFn = @convention(c) (AnyObject, Selector) -> Void
+            let delImp = imp_implementationWithBlock({ (self_: AnyObject) -> Void in
+                if let textInput = self_ as? UITextInput {
+                    textInput.inputDelegate?.textWillChange(textInput)
+                }
+                let fn = unsafeBitCast(origImp, to: DeleteFn.self)
+                fn(self_, delSel)
+                if let textInput = self_ as? UITextInput {
+                    textInput.inputDelegate?.textDidChange(textInput)
+                }
+            } as @convention(block) (AnyObject) -> Void)
+            // "v16@0:8" = returns void, total frame 16, self at 0, _cmd at 8
+            class_replaceMethod(RelayTerminalView.self, delSel, delImp, "v16@0:8")
+        }
     }
 
     override func didMoveToWindow() {

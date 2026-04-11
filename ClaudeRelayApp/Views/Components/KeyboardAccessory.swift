@@ -10,6 +10,7 @@ struct KeyboardAccessory: View {
                 // Special keys
                 keyButton("esc", icon: "escape") { send(0x1B) }
                 keyButton("tab", icon: "arrow.right.to.line") { send(0x09) }
+                keyButton("clr", icon: "delete.backward") { send(0x15) } // Ctrl-U (clear to start of line)
 
                 Divider().frame(height: 24)
 
