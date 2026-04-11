@@ -85,6 +85,7 @@ struct ActiveTerminalView: View {
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.primary)
                     }
 
                     Button {
@@ -97,6 +98,7 @@ struct ActiveTerminalView: View {
                     } label: {
                         Image(systemName: "sidebar.left")
                             .font(.system(size: 16))
+                            .foregroundStyle(.primary)
                     }
 
                     Button {
