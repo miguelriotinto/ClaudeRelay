@@ -22,11 +22,11 @@ swift run claude-relay logs show               # View logs
 swift run claude-relay token create --port 9100 --label "dev"  # Create auth token
 ```
 
-Note: Subcommands are flat (`claude-relay stop`), not nested (`claude-relay service stop`).
+Note: Service commands are top-level (`claude-relay stop`), while token/session/config/log commands are grouped (`claude-relay token create`, `claude-relay session list`, etc.).
 
 **iOS app**: Open `ClaudeRelay.xcodeproj` in Xcode, Cmd+R. After changing ClaudeRelayClient or ClaudeRelayKit sources, rebuild the iOS app in Xcode to pick up changes.
 
-**Launchd**: Plist at `~/Library/LaunchAgents/com.claude.relay.plist` expects binary at `/usr/local/bin/claude-relay-server` (requires `sudo cp .build/debug/claude-relay-server /usr/local/bin/`).
+**Launchd**: Plist at `~/Library/LaunchAgents/com.claude.relay.plist`. The `load` command locates the server binary via a fallback chain: sibling of the CLI binary, `/opt/homebrew/bin/`, `/usr/local/bin/`, `~/.claude-relay/bin/`.
 
 ## Architecture
 

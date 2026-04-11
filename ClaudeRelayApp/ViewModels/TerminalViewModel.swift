@@ -37,13 +37,7 @@ final class TerminalViewModel: ObservableObject {
 
     // MARK: - Input Detection
 
-    /// Rolling buffer of recent output text for prompt pattern matching.
-    private var recentOutput = ""
     private var promptDebounceTask: Task<Void, Never>?
-
-    /// Patterns that indicate Claude Code is presenting numbered options.
-    /// Matches lines like "  1. Yes" or "  2. No, and don't ask again".
-    private static let numberedOptionPattern = /(?:^|\s)[1-9]\.\s+\S/
 
     /// Comprehensive ANSI/VT escape sequence stripper.
     /// Covers: CSI (incl. ?/> private params), OSC (BEL and ST terminators),
@@ -126,41 +120,30 @@ final class TerminalViewModel: ObservableObject {
 
     // MARK: - Input Prompt Detection
 
-    /// Scan output for Claude Code numbered-option prompts.
-    /// When a pattern is found, start a 500ms debounce. If no more output
-    /// arrives in that window, the session is likely waiting for input.
+    /// Output-silence detector: when terminal output stops flowing, the session
+    /// is likely waiting for user input. The coordinator gates flashing on whether
+    /// Claude is actually running — normal shell idle doesn't trigger a flash.
     private func detectInputPrompt(_ data: Data) {
-        // Cancel any pending "awaiting" transition — new output arrived.
+        // Cancel any pending "idle" transition — new output arrived.
         promptDebounceTask?.cancel()
         promptDebounceTask = nil
 
-        // If we were already awaiting input, new output means the user responded.
+        // New output means not idle.
         if awaitingInput {
             setAwaitingInput(false)
         }
 
-        // Strip ANSI escape sequences and append to rolling buffer.
+        // Strip ANSI escape sequences for clean output consumers.
         if let raw = String(data: data, encoding: .utf8) {
             let clean = raw.replacing(Self.ansiEscapePattern, with: "")
-            recentOutput += clean
-            // Keep only the last 1024 characters to bound memory.
-            if recentOutput.count > 1024 {
-                recentOutput = String(recentOutput.suffix(1024))
-            }
             onCleanOutput?(clean)
         }
 
-        // Check for any numbered option (e.g. "1. Yes", "2. No").
-        let hasOptions = recentOutput.contains(Self.numberedOptionPattern)
-
-        guard hasOptions else { return }
-
-        // Debounce: if no more output in 500ms, flag as awaiting input.
+        // After 1 second of silence, flag as potentially awaiting input.
         promptDebounceTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(500))
+            try? await Task.sleep(for: .milliseconds(1000))
             guard !Task.isCancelled else { return }
             self?.setAwaitingInput(true)
-            self?.recentOutput = ""
         }
     }
 

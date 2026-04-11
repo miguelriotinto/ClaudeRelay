@@ -197,7 +197,7 @@ public actor PTYSession: PTYSessionProtocol {
                     if err == EAGAIN || err == EINTR {
                         continue
                     }
-                    print("[PTYSession \(sessionId)] write error: errno \(err)")
+                    RelayLogger.log(.error, category: "session", "PTYSession \(sessionId) write error: errno \(err)")
                     break
                 }
             }
@@ -230,7 +230,7 @@ public actor PTYSession: PTYSessionProtocol {
         let pid = childPID
         let sid = sessionId
         if kill(pid, SIGTERM) != 0 {
-            print("[PTYSession \(sid)] SIGTERM failed for pid \(pid): errno \(errno)")
+            RelayLogger.log(.error, category: "session", "PTYSession \(sid) SIGTERM failed for pid \(pid): errno \(errno)")
         }
 
         // Schedule SIGKILL after 5 seconds if the process hasn't exited
@@ -238,7 +238,7 @@ public actor PTYSession: PTYSessionProtocol {
             // Check if process is still alive (kill with signal 0)
             if kill(pid, 0) == 0 {
                 if kill(pid, SIGKILL) != 0 {
-                    print("[PTYSession \(sid)] SIGKILL failed for pid \(pid): errno \(errno)")
+                    RelayLogger.log(.error, category: "session", "PTYSession \(sid) SIGKILL failed for pid \(pid): errno \(errno)")
                 }
             }
         }

@@ -358,7 +358,7 @@ public actor SessionManager {
         }
 
         if !staleIds.isEmpty {
-            print("[SessionManager] Purged \(staleIds.count) terminal session(s)")
+            RelayLogger.log(category: "session", "Purged \(staleIds.count) terminal session(s)")
         }
     }
 

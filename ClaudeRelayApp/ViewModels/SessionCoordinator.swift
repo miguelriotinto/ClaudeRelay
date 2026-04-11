@@ -247,10 +247,12 @@ final class SessionCoordinator: ObservableObject {
             .filter { !$0.isEmpty }
 
         if claudeSessions.contains(sessionId) {
-            // Claude exit detection: if the shell prompt reappears, Claude has exited.
-            if let prompt = shellPrompts[sessionId],
-               lines.contains(where: { $0.contains(prompt) }) {
+            // Claude exit detection: if any shell prompt pattern appears, Claude has exited.
+            // Uses the general heuristic (line ending in $/%/#) rather than an exact match,
+            // because the working directory — and thus the full prompt — may differ after exit.
+            if lines.contains(where: { Self.looksLikeShellPrompt($0) }) {
                 claudeSessions.remove(sessionId)
+                sessionsAwaitingInput.remove(sessionId)
             }
         } else {
             // Shell prompt capture/update: keep tracking the latest prompt
@@ -369,11 +371,13 @@ final class SessionCoordinator: ObservableObject {
             self?.processCleanOutput(text, for: sessionId)
         }
         // Track input-awaiting state for tab flashing.
+        // Only flash when Claude is running — normal shell idle doesn't flash.
         terminalViewModels[sessionId]?.onAwaitingInputChanged = { [weak self] awaiting in
-            if awaiting {
-                self?.sessionsAwaitingInput.insert(sessionId)
+            guard let self else { return }
+            if awaiting && claudeSessions.contains(sessionId) {
+                sessionsAwaitingInput.insert(sessionId)
             } else {
-                self?.sessionsAwaitingInput.remove(sessionId)
+                sessionsAwaitingInput.remove(sessionId)
             }
         }
     }
