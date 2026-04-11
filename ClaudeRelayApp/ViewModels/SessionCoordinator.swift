@@ -35,8 +35,6 @@ final class SessionCoordinator: ObservableObject {
     private let token: String
     private var sessionController: SessionController?
     private var terminalViewModels: [UUID: TerminalViewModel] = [:]
-    /// Captured shell prompts per session — used to detect Claude exit.
-    private var shellPrompts: [UUID: String] = [:]
     var recoveryTask: Task<Void, Never>?
     private var isTornDown = false
 
@@ -46,7 +44,7 @@ final class SessionCoordinator: ObservableObject {
         self.connection = connection
         self.token = token
         sessionNames = Self.loadNames()
-        claudeSessions = Self.loadClaudeSessions()
+        claudeSessions = []
 
         connection.onReconnected = { [weak self] in
             Task { @MainActor [weak self] in
@@ -84,8 +82,6 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Persistence
 
     private static let namesKey = "com.clauderelay.sessionNames"
-    private static let claudeSessionsKey = "com.clauderelay.claudeSessions"
-
     private static func loadNames() -> [UUID: String] {
         guard let data = UserDefaults.standard.data(forKey: namesKey),
               let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
@@ -103,16 +99,6 @@ final class SessionCoordinator: ObservableObject {
         if let data = try? JSONEncoder().encode(dict) {
             UserDefaults.standard.set(data, forKey: namesKey)
         }
-    }
-
-    private static func loadClaudeSessions() -> Set<UUID> {
-        guard let ids = UserDefaults.standard.stringArray(forKey: claudeSessionsKey) else { return [] }
-        return Set(ids.compactMap { UUID(uuidString: $0) })
-    }
-
-    private func saveClaudeSessions() {
-        let ids = claudeSessions.map { $0.uuidString }
-        UserDefaults.standard.set(ids, forKey: Self.claudeSessionsKey)
     }
 
     // MARK: - Authentication
@@ -144,13 +130,12 @@ final class SessionCoordinator: ObservableObject {
             let controller = try await ensureAuthenticated()
             sessions = try await controller.listSessions()
 
-            // Prune persisted Claude state for sessions that no longer exist on the server.
+            // Prune Claude state for sessions that no longer exist on the server.
             let serverIds = Set(sessions.map { $0.id })
             let stale = claudeSessions.subtracting(serverIds)
             if !stale.isEmpty {
                 claudeSessions.subtract(stale)
                 sessionsAwaitingInput.subtract(stale)
-                saveClaudeSessions()
             }
         } catch {
             // Session list refresh is non-critical — log but don't alert the user.
@@ -228,13 +213,11 @@ final class SessionCoordinator: ObservableObject {
                 activeSessionId = nil
                 terminalViewModels[id] = nil
             }
-            let wasClaudeSession = claudeSessions.remove(id) != nil
+            claudeSessions.remove(id)
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
-            shellPrompts.removeValue(forKey: id)
             sessionsAwaitingInput.remove(id)
             Self.saveNames(sessionNames)
-            if wasClaudeSession { saveClaudeSessions() }
             await fetchSessions()
         } catch {
             presentError(error.localizedDescription)
@@ -269,17 +252,15 @@ final class SessionCoordinator: ObservableObject {
             if !claudeSessions.contains(sessionId) {
                 claudeSessions.insert(sessionId)
                 terminalViewModels[sessionId]?.isClaudeActive = true
-                saveClaudeSessions()
             }
         }
     }
 
-    /// Centralized Claude exit handler — clears all related state and persists.
+    /// Centralized Claude exit handler — clears all related state.
     private func markClaudeExited(_ sessionId: UUID) {
         claudeSessions.remove(sessionId)
         sessionsAwaitingInput.remove(sessionId)
         terminalViewModels[sessionId]?.isClaudeActive = false
-        saveClaudeSessions()
     }
 
     /// Handle server-pushed activity state changes for any session (including background ones).
@@ -289,13 +270,11 @@ final class SessionCoordinator: ObservableObject {
             if !claudeSessions.contains(sessionId) {
                 claudeSessions.insert(sessionId)
                 terminalViewModels[sessionId]?.isClaudeActive = true
-                saveClaudeSessions()
             }
         } else {
             if claudeSessions.contains(sessionId) {
                 claudeSessions.remove(sessionId)
                 terminalViewModels[sessionId]?.isClaudeActive = false
-                saveClaudeSessions()
             }
         }
 
@@ -307,7 +286,7 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
-    /// Process ANSI-stripped terminal output for shell prompt capture and Claude exit detection.
+    /// Process ANSI-stripped terminal output for Claude exit detection.
     func processCleanOutput(_ text: String, for sessionId: UUID) {
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -319,12 +298,6 @@ final class SessionCoordinator: ObservableObject {
             // because the working directory — and thus the full prompt — may differ after exit.
             if let lastLine = lines.last, Self.looksLikeShellPrompt(lastLine) {
                 markClaudeExited(sessionId)
-            }
-        } else {
-            // Shell prompt capture/update: keep tracking the latest prompt
-            // so it reflects the shell state right before Claude starts.
-            if let prompt = lines.last(where: { Self.looksLikeShellPrompt($0) }) {
-                shellPrompts[sessionId] = prompt
             }
         }
     }
