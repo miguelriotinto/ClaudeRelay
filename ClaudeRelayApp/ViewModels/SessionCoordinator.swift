@@ -255,13 +255,6 @@ final class SessionCoordinator: ObservableObject {
         terminalTitles[sessionId] = title
     }
 
-    /// Centralized Claude exit handler — clears all related state.
-    private func markClaudeExited(_ sessionId: UUID) {
-        claudeSessions.remove(sessionId)
-        sessionsAwaitingInput.remove(sessionId)
-        terminalViewModels[sessionId]?.isClaudeActive = false
-    }
-
     /// Handle server-pushed activity state changes for any session (including background ones).
     private func handleActivityUpdate(sessionId: UUID, activity: ActivityState) {
         // Update Claude running state
@@ -283,30 +276,6 @@ final class SessionCoordinator: ObservableObject {
         } else {
             sessionsAwaitingInput.remove(sessionId)
         }
-    }
-
-    /// Process ANSI-stripped terminal output for Claude exit detection.
-    func processCleanOutput(_ text: String, for sessionId: UUID) {
-        let lines = text.components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-
-        if claudeSessions.contains(sessionId) {
-            if let lastLine = lines.last, Self.looksLikeShellPrompt(lastLine) {
-                markClaudeExited(sessionId)
-            }
-        }
-    }
-
-    /// Heuristic: does this ANSI-stripped line look like a shell prompt?
-    /// Filters out code lines that happen to end with $/%/# (regex, comments, etc.)
-    /// by checking length and rejecting indented lines.
-    private static func looksLikeShellPrompt(_ line: String) -> Bool {
-        guard line.count >= 2, line.count <= 120 else { return false }
-        guard line.hasSuffix("$") || line.hasSuffix("%") || line.hasSuffix("#") else { return false }
-        // Indented lines are code, not prompts
-        if line.hasPrefix("  ") || line.hasPrefix("\t") { return false }
-        return true
     }
 
     // MARK: - Connection Recovery
@@ -406,18 +375,9 @@ final class SessionCoordinator: ObservableObject {
         terminalViewModels[sessionId]?.onTitleChanged = { [weak self] title in
             self?.updateTerminalTitle(title, for: sessionId)
         }
-        // Feed ANSI-stripped output to coordinator for prompt capture / Claude exit detection.
-        terminalViewModels[sessionId]?.onCleanOutput = { [weak self] text in
-            self?.processCleanOutput(text, for: sessionId)
-        }
-        // Alternate screen exit — strong signal Claude Code has exited.
-        terminalViewModels[sessionId]?.onAlternateScreenLeft = { [weak self] in
-            guard let self, claudeSessions.contains(sessionId) else { return }
-            markClaudeExited(sessionId)
-        }
-        // Note: awaiting-input state is driven by the server's sessionActivity
-        // messages (handleActivityUpdate). Client-side silence detection is no
-        // longer wired here to avoid races with the authoritative server state.
+        // Claude entry/exit and awaiting-input state are driven exclusively by
+        // server-side SessionActivityMonitor via sessionActivity messages
+        // (handleActivityUpdate). No client-side detection is wired here.
     }
 
     private func presentError(_ message: String) {

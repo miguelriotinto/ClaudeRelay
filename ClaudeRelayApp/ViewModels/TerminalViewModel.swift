@@ -23,8 +23,6 @@ final class TerminalViewModel: ObservableObject {
     var onTitleChanged: ((String) -> Void)?
     /// Called when the awaiting-input state changes — persisted on the coordinator.
     var onAwaitingInputChanged: ((Bool) -> Void)?
-    /// Called with ANSI-stripped output text for shell prompt capture and Claude exit detection.
-    var onCleanOutput: ((String) -> Void)?
 
     /// Whether the terminal has received its first sizeChanged callback (i.e. is laid out).
     private var terminalSized = false
@@ -40,20 +38,7 @@ final class TerminalViewModel: ObservableObject {
     /// Whether Claude Code is currently running in this session.
     /// Set by the coordinator — controls the silence threshold for input detection.
     var isClaudeActive = false
-    /// Called when the terminal leaves the alternate screen buffer (\x1B[?1049l).
-    /// Strong signal that a TUI app (e.g. Claude Code) has exited.
-    var onAlternateScreenLeft: (() -> Void)?
-
     private var promptDebounceTask: Task<Void, Never>?
-
-    /// ESC [ ? 1 0 4 9 l — leave alternate screen buffer.
-    private static let leaveAlternateScreen = Data([0x1B, 0x5B, 0x3F, 0x31, 0x30, 0x34, 0x39, 0x6C])
-
-    /// Comprehensive ANSI/VT escape sequence stripper (ECMA-48 compliant).
-    /// CSI: parameter bytes 0x20–0x3F (digits, semicolons, private prefixes like ? > < =,
-    /// plus intermediate bytes like space), final byte 0x40–0x7E.
-    /// Also covers: OSC (BEL and ST terminators), character set selection, two-byte sequences.
-    private static let ansiEscapePattern = /\x1B(?:\[[\x20-\x3F]*[\x40-\x7E]|\][^\x07\x1B]*(?:\x07|\x1B\\)|\([A-B0-2]|[=>])/
 
     // MARK: - Init
 
@@ -106,9 +91,7 @@ final class TerminalViewModel: ObservableObject {
         promptDebounceTask = nil
         onTerminalOutput = nil
         onTitleChanged = nil
-        onCleanOutput = nil
         onAwaitingInputChanged = nil
-        onAlternateScreenLeft = nil
         terminalSized = false
         pendingOutput.removeAll()
     }
@@ -148,17 +131,6 @@ final class TerminalViewModel: ObservableObject {
         // New output means not idle.
         if awaitingInput {
             setAwaitingInput(false)
-        }
-
-        // Detect alternate screen buffer exit — strong TUI exit signal.
-        if isClaudeActive, data.range(of: Self.leaveAlternateScreen) != nil {
-            onAlternateScreenLeft?()
-        }
-
-        // Strip ANSI escape sequences for clean output consumers.
-        if let raw = String(data: data, encoding: .utf8) {
-            let clean = raw.replacing(Self.ansiEscapePattern, with: "")
-            onCleanOutput?(clean)
         }
 
         // After a period of silence, flag as potentially awaiting input.
