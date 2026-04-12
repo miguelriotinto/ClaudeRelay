@@ -42,6 +42,28 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    Toggle("Recording Shortcut", isOn: $settings.recordingShortcutEnabled)
+                    if settings.recordingShortcutEnabled {
+                        Picker("Modifier", selection: $settings.recordingShortcutModifier) {
+                            ForEach(ShortcutModifier.allCases) { mod in
+                                Text(mod.displayName).tag(mod)
+                            }
+                        }
+                        Picker("Key", selection: $settings.recordingShortcutKey) {
+                            ForEach(Array("abcdefghijklmnopqrstuvwxyz"), id: \.self) { ch in
+                                Text(String(ch).uppercased()).tag(String(ch))
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Keyboard Shortcuts")
+                } footer: {
+                    if settings.recordingShortcutEnabled {
+                        Text("Press \(settings.recordingShortcutModifier.symbol)\(settings.recordingShortcutKey.uppercased()) to toggle speech recording when a hardware keyboard is connected.")
+                    }
+                }
+
                 Section("About") {
                     LabeledContent("Version", value: appVersion)
                     LabeledContent("Build", value: buildNumber)

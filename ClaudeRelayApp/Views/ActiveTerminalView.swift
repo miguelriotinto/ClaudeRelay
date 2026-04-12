@@ -347,6 +347,9 @@ private struct MicButton: View {
         } message: {
             Text("On-device voice recognition requires a one-time download (~1 GB). This enables offline, private speech-to-text.")
         }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSpeechRecording)) { _ in
+            handleTap()
+        }
     }
 
     private func handleTap() {
@@ -429,6 +432,7 @@ private struct MicButton: View {
 extension Notification.Name {
     static let terminalRequestFocus = Notification.Name("terminalRequestFocus")
     static let terminalResignFocus = Notification.Name("terminalResignFocus")
+    static let toggleSpeechRecording = Notification.Name("toggleSpeechRecording")
 }
 
 // MARK: - TerminalView subclass for hardware keyboard commands
@@ -498,7 +502,23 @@ private class RelayTerminalView: TerminalView {
             UIKeyCommand(input: "v", modifierFlags: .command, action: #selector(paste(_:))),
             UIKeyCommand(input: "x", modifierFlags: .command, action: #selector(handleCut(_:)))
         ])
+
+        let enabled = UserDefaults.standard.object(forKey: "recordingShortcutEnabled") as? Bool ?? true
+        if enabled {
+            let key = UserDefaults.standard.string(forKey: "recordingShortcutKey") ?? "r"
+            let modRaw = UserDefaults.standard.string(forKey: "recordingShortcutModifier") ?? ShortcutModifier.commandShift.rawValue
+            let modifier = ShortcutModifier(rawValue: modRaw) ?? .commandShift
+            let cmd = UIKeyCommand(input: key, modifierFlags: modifier.flags,
+                                   action: #selector(handleRecordingShortcut))
+            cmd.discoverabilityTitle = "Toggle Recording"
+            commands.append(cmd)
+        }
+
         return commands
+    }
+
+    @objc private func handleRecordingShortcut() {
+        NotificationCenter.default.post(name: .toggleSpeechRecording, object: nil)
     }
 
     @objc private func handleCut(_ sender: Any?) {

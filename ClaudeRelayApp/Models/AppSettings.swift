@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @MainActor
 final class AppSettings: ObservableObject {
@@ -10,6 +11,43 @@ final class AppSettings: ObservableObject {
     @AppStorage("bedrockRegion") var bedrockRegion = "us-east-1"
     @AppStorage("hapticFeedbackEnabled") var hapticFeedbackEnabled = true
     @AppStorage("sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
+    @AppStorage("recordingShortcutEnabled") var recordingShortcutEnabled = true
+    @AppStorage("recordingShortcutModifier") var recordingShortcutModifier: ShortcutModifier = .commandShift
+    @AppStorage("recordingShortcutKey") var recordingShortcutKey = "r"
+}
+
+// MARK: - Keyboard Shortcut Modifier
+
+enum ShortcutModifier: String, CaseIterable, Identifiable {
+    case commandShift
+    case commandOption
+    case commandControl
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .commandShift: return "⌘⇧ Cmd + Shift"
+        case .commandOption: return "⌘⌥ Cmd + Option"
+        case .commandControl: return "⌘⌃ Cmd + Control"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .commandShift: return "⌘⇧"
+        case .commandOption: return "⌘⌥"
+        case .commandControl: return "⌘⌃"
+        }
+    }
+
+    var flags: UIKeyModifierFlags {
+        switch self {
+        case .commandShift: return [.command, .shift]
+        case .commandOption: return [.command, .alternate]
+        case .commandControl: return [.command, .control]
+        }
+    }
 }
 
 // MARK: - Session Naming Themes
