@@ -506,14 +506,16 @@ private class RelayTerminalView: TerminalView {
         let enabled = UserDefaults.standard.object(forKey: "recordingShortcutEnabled") as? Bool ?? true
         if enabled {
             let key = UserDefaults.standard.string(forKey: "recordingShortcutKey") ?? ""
-            let flagsRaw = UserDefaults.standard.integer(forKey: "recordingShortcutFlags")
-            let flags: UIKeyModifierFlags = flagsRaw != 0
-                ? UIKeyModifierFlags(rawValue: flagsRaw)
-                : [.command, .alternate]
-            let cmd = UIKeyCommand(input: key, modifierFlags: flags,
-                                   action: #selector(handleRecordingShortcut))
-            cmd.discoverabilityTitle = "Toggle Recording"
-            commands.append(cmd)
+            if !key.isEmpty {
+                let flagsRaw = UserDefaults.standard.integer(forKey: "recordingShortcutFlags")
+                let flags: UIKeyModifierFlags = flagsRaw != 0
+                    ? UIKeyModifierFlags(rawValue: flagsRaw)
+                    : [.command, .alternate]
+                let cmd = UIKeyCommand(input: key, modifierFlags: flags,
+                                       action: #selector(handleRecordingShortcut))
+                cmd.discoverabilityTitle = "Toggle Recording"
+                commands.append(cmd)
+            }
         }
 
         return commands

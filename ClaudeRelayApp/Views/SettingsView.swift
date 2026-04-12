@@ -98,7 +98,11 @@ struct SettingsView: View {
                     Text("Keyboard Shortcuts")
                 } footer: {
                     if settings.recordingShortcutEnabled && !isCapturing {
-                        Text("Press \(settings.shortcutDisplayString) to toggle speech recording when a hardware keyboard is connected.")
+                        if settings.recordingShortcutKey.isEmpty {
+                            Text("Tap Set and press a modifier + letter key combination (e.g. ⌘⌥R).")
+                        } else {
+                            Text("Press \(settings.shortcutDisplayString) to toggle speech recording when a hardware keyboard is connected.")
+                        }
                     }
                 }
 
