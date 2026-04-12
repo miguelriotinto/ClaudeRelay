@@ -309,11 +309,26 @@ public actor SessionManager {
         return managed.info
     }
 
-    /// List sessions for a specific token.
-    public func listSessionsForToken(tokenId: String) -> [SessionInfo] {
-        return sessions.values
-            .filter { $0.info.tokenId == tokenId }
-            .map { $0.info }
+    /// List sessions for a specific token, enriched with current activity state.
+    public func listSessionsForToken(tokenId: String) async -> [SessionInfo] {
+        var results: [SessionInfo] = []
+        for managed in sessions.values where managed.info.tokenId == tokenId {
+            var info = managed.info
+            if let pty = managed.ptySession {
+                let activity = await pty.getActivityState()
+                info = SessionInfo(
+                    id: info.id,
+                    state: info.state,
+                    tokenId: info.tokenId,
+                    createdAt: info.createdAt,
+                    cols: info.cols,
+                    rows: info.rows,
+                    activity: activity
+                )
+            }
+            results.append(info)
+        }
+        return results
     }
 
     // MARK: - Activity Observers

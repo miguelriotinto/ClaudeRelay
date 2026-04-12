@@ -130,6 +130,13 @@ final class SessionCoordinator: ObservableObject {
             let controller = try await ensureAuthenticated()
             sessions = try await controller.listSessions()
 
+            // Apply activity state from session list (initial sync on connect/reconnect).
+            for session in sessions {
+                if let activity = session.activity {
+                    handleActivityUpdate(sessionId: session.id, activity: activity)
+                }
+            }
+
             // Prune Claude state for sessions that no longer exist on the server.
             let serverIds = Set(sessions.map { $0.id })
             let stale = claudeSessions.subtracting(serverIds)

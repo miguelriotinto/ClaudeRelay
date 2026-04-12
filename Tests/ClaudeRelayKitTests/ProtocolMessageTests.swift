@@ -361,7 +361,7 @@ final class ProtocolMessageTests: XCTestCase {
     func testSessionListResultDecodesAsServer() throws {
         let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
         let json = """
-        {"type":"session_list_result","payload":{"sessions":[{"id":"\(id.uuidString)","state":"active-attached","tokenId":"tok_1","createdAt":1735689600.0,"cols":80,"rows":24}]}}
+        {"type":"session_list_result","payload":{"sessions":[{"id":"\(id.uuidString)","state":"active-attached","tokenId":"tok_1","createdAt":1735689600.0,"cols":80,"rows":24,"activity":"claude_active"}]}}
         """
         let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
         guard case .server(.sessionList(let sessions)) = envelope else {
@@ -370,6 +370,7 @@ final class ProtocolMessageTests: XCTestCase {
         }
         XCTAssertEqual(sessions.count, 1)
         XCTAssertEqual(sessions[0].id, id)
+        XCTAssertEqual(sessions[0].activity, .claudeActive)
     }
 
     // MARK: - sessionActivity

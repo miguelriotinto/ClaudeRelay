@@ -8,6 +8,7 @@ public struct SessionInfo: Codable, Equatable, Sendable {
     public let createdAt: Date
     public let cols: UInt16
     public let rows: UInt16
+    public let activity: ActivityState?
 
     public init(
         id: UUID,
@@ -15,7 +16,8 @@ public struct SessionInfo: Codable, Equatable, Sendable {
         tokenId: String,
         createdAt: Date,
         cols: UInt16,
-        rows: UInt16
+        rows: UInt16,
+        activity: ActivityState? = nil
     ) {
         self.id = id
         self.state = state
@@ -23,5 +25,6 @@ public struct SessionInfo: Codable, Equatable, Sendable {
         self.createdAt = createdAt
         self.cols = cols
         self.rows = rows
+        self.activity = activity
     }
 }
