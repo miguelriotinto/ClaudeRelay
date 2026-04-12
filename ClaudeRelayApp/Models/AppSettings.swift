@@ -12,41 +12,36 @@ final class AppSettings: ObservableObject {
     @AppStorage("hapticFeedbackEnabled") var hapticFeedbackEnabled = true
     @AppStorage("sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
     @AppStorage("recordingShortcutEnabled") var recordingShortcutEnabled = true
-    @AppStorage("recordingShortcutModifier") var recordingShortcutModifier: ShortcutModifier = .commandShift
-    @AppStorage("recordingShortcutKey") var recordingShortcutKey = "r"
+    @AppStorage("recordingShortcutFlags") var recordingShortcutFlags: Int = Int(UIKeyModifierFlags([.command, .alternate]).rawValue)
+    @AppStorage("recordingShortcutKey") var recordingShortcutKey = ""
 }
 
-// MARK: - Keyboard Shortcut Modifier
+// MARK: - Keyboard Shortcut Helpers
 
-enum ShortcutModifier: String, CaseIterable, Identifiable {
-    case commandShift
-    case commandOption
-    case commandControl
+extension UIKeyModifierFlags {
+    /// Human-readable symbol string, e.g. "⌃⌥⇧⌘"
+    /// Order follows Apple HIG: Control, Option, Shift, Command
+    var symbolString: String {
+        var parts: [String] = []
+        if contains(.control) { parts.append("⌃") }
+        if contains(.alternate) { parts.append("⌥") }
+        if contains(.shift) { parts.append("⇧") }
+        if contains(.command) { parts.append("⌘") }
+        return parts.joined()
+    }
+}
 
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .commandShift: return "⌘⇧ Cmd + Shift"
-        case .commandOption: return "⌘⌥ Cmd + Option"
-        case .commandControl: return "⌘⌃ Cmd + Control"
-        }
+extension AppSettings {
+    var shortcutModifierFlags: UIKeyModifierFlags {
+        get { UIKeyModifierFlags(rawValue: Int(recordingShortcutFlags)) }
+        set { recordingShortcutFlags = Int(newValue.rawValue) }
     }
 
-    var symbol: String {
-        switch self {
-        case .commandShift: return "⌘⇧"
-        case .commandOption: return "⌘⌥"
-        case .commandControl: return "⌘⌃"
-        }
-    }
-
-    var flags: UIKeyModifierFlags {
-        switch self {
-        case .commandShift: return [.command, .shift]
-        case .commandOption: return [.command, .alternate]
-        case .commandControl: return [.command, .control]
-        }
+    /// Display string for the current shortcut, e.g. "⌘⌥" or "⌘⌥R"
+    var shortcutDisplayString: String {
+        let mods = shortcutModifierFlags.symbolString
+        let key = recordingShortcutKey.uppercased()
+        return mods + key
     }
 }
 
