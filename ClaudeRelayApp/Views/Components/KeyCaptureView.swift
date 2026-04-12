@@ -83,8 +83,8 @@ final class KeyCaptureUIView: UIView {
                 handled = true
             }
             let chars = uiKey.charactersIgnoringModifiers
-            if let ch = chars, !ch.isEmpty, !isModifierOnlyKey(uiKey) {
-                heldKey = ch.lowercased()
+            if !chars.isEmpty, !isModifierOnlyKey(uiKey) {
+                heldKey = chars.lowercased()
                 handled = true
             }
         }
