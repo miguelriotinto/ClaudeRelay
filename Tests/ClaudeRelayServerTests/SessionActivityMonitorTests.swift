@@ -149,6 +149,36 @@ final class SessionActivityMonitorTests: XCTestCase {
         XCTAssertFalse(SessionActivityMonitor.looksLikeShellPrompt("hello world"))
     }
 
+    // MARK: - Escape-Only Output (TUI Noise)
+
+    /// Regression: escape-only output (cursor moves, screen redraws) must not
+    /// break the claudeIdle state. Before the fix, such noise would transition
+    /// to claudeActive without resetting the silence timer, permanently killing
+    /// the idle signal.
+    func testEscapeOnlyOutputDoesNotBreakClaudeIdle() async {
+        let idleExpectation = XCTestExpectation(description: "claudeIdle")
+        var states: [ActivityState] = []
+        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { state in
+            states.append(state)
+            if state == .claudeIdle { idleExpectation.fulfill() }
+        }
+
+        // Enter Claude and produce visible output
+        monitor.processOutput(titleSequence("claude"))
+        monitor.processOutput(output("thinking..."))
+
+        // Wait for idle
+        await fulfillment(of: [idleExpectation], timeout: 1.0)
+        XCTAssertEqual(monitor.state, .claudeIdle)
+
+        // Send escape-only output (cursor move) — should NOT break idle
+        let escapeOnly = Data([0x1B, 0x5B, 0x48]) // ESC [ H (cursor home)
+        states.removeAll()
+        monitor.processOutput(escapeOnly)
+        XCTAssertEqual(monitor.state, .claudeIdle, "Escape-only output must not break claudeIdle")
+        XCTAssertTrue(states.isEmpty, "No state transition expected for escape-only noise")
+    }
+
     // MARK: - Cleanup
 
     func testCancelStopsSilenceTimer() async {

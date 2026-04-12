@@ -223,9 +223,6 @@ private struct SessionTab: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var flashOn = false
 
-    private static let orangeA = SwiftUI.Color.orange
-    private static let orangeB = SwiftUI.Color(red: 1.0, green: 0.6, blue: 0.0)
-
     var body: some View {
         Text("\(number)")
             .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .monospaced))
@@ -235,9 +232,9 @@ private struct SessionTab: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
-                    .stroke(selectionBorderColor, lineWidth: isSelected && !isClaude ? 2 : 0)
+                    .strokeBorder(selectionBorderColor, lineWidth: isSelected ? 2 : 0)
             )
-            .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
+            .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
                 guard needsAttention else { return }
                 withAnimation(.easeInOut(duration: 0.4)) {
                     flashOn.toggle()
@@ -253,12 +250,12 @@ private struct SessionTab: View {
     }
 
     private var selectionBorderColor: SwiftUI.Color {
-        colorScheme == .dark ? .black : .white
+        colorScheme == .dark ? .white : .black
     }
 
     private var tabBackground: SwiftUI.Color {
         if needsAttention {
-            return flashOn ? Self.orangeA : Self.orangeB
+            return flashOn ? SwiftUI.Color.orange : SwiftUI.Color(.systemGray5)
         }
         if isClaude {
             return SwiftUI.Color.orange

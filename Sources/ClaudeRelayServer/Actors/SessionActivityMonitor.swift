@@ -65,15 +65,30 @@ public final class SessionActivityMonitor: @unchecked Sendable {
         detectTitleChange(in: data)
 
         // 3. Strip ANSI and analyze clean text for shell prompt (Claude exit).
+        var hasVisibleContent = true
         if let raw = String(data: data, encoding: .utf8) {
             let clean = raw.replacing(Self.ansiEscapePattern, with: "")
             analyzeCleanOutput(clean)
+
+            // When Claude is running, only count output with visible content as activity.
+            // TUI frameworks (ink/React) send periodic escape sequences (cursor moves,
+            // screen redraws) that don't represent meaningful output change — these
+            // should not reset the silence timer.
+            if isClaudeRunning {
+                hasVisibleContent = !clean.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
         }
 
-        // 4. Mark as active (output flowing) and reset silence timer.
-        let activeState: ActivityState = isClaudeRunning ? .claudeActive : .active
-        transition(to: activeState)
-        resetSilenceTimer()
+        // 4. Only transition to active state and reset the silence timer for
+        // meaningful visible content. Escape-sequence-only output (TUI cursor
+        // moves, screen redraws) must NOT break idle detection — otherwise the
+        // state bounces to .claudeActive on every noise chunk but the silence
+        // timer is never reset, permanently destroying the idle signal.
+        if hasVisibleContent {
+            let activeState: ActivityState = isClaudeRunning ? .claudeActive : .active
+            transition(to: activeState)
+            resetSilenceTimer()
+        }
     }
 
     /// Called when the client sends input to this session.
@@ -126,6 +141,8 @@ public final class SessionActivityMonitor: @unchecked Sendable {
         if title.localizedCaseInsensitiveContains("claude") {
             if !isClaudeRunning {
                 isClaudeRunning = true
+                transition(to: .claudeActive)
+                resetSilenceTimer()
             }
         }
     }
@@ -143,6 +160,7 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     private func exitClaude() {
         isClaudeRunning = false
         transition(to: .active)
+        resetSilenceTimer()
     }
 
     /// Heuristic: does this ANSI-stripped line look like a shell prompt?
@@ -172,7 +190,9 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     private func transition(to newState: ActivityState) {
         guard newState != state else { return }
+        let oldState = state
         state = newState
+        RelayLogger.log(.debug, category: "activity", "State: \(oldState.rawValue) → \(newState.rawValue)")
         onChange(newState)
     }
 }

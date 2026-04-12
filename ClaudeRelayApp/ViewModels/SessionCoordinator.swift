@@ -300,9 +300,6 @@ final class SessionCoordinator: ObservableObject {
             .filter { !$0.isEmpty }
 
         if claudeSessions.contains(sessionId) {
-            // Claude exit detection: if any shell prompt pattern appears, Claude has exited.
-            // Uses the general heuristic (line ending in $/%/#) rather than an exact match,
-            // because the working directory — and thus the full prompt — may differ after exit.
             if let lastLine = lines.last, Self.looksLikeShellPrompt(lastLine) {
                 markClaudeExited(sessionId)
             }
@@ -431,16 +428,9 @@ final class SessionCoordinator: ObservableObject {
             guard let self, claudeSessions.contains(sessionId) else { return }
             markClaudeExited(sessionId)
         }
-        // Track input-awaiting state for tab flashing.
-        // Only flash when Claude is running — normal shell idle doesn't flash.
-        terminalViewModels[sessionId]?.onAwaitingInputChanged = { [weak self] awaiting in
-            guard let self else { return }
-            if awaiting && claudeSessions.contains(sessionId) {
-                sessionsAwaitingInput.insert(sessionId)
-            } else {
-                sessionsAwaitingInput.remove(sessionId)
-            }
-        }
+        // Note: awaiting-input state is driven by the server's sessionActivity
+        // messages (handleActivityUpdate). Client-side silence detection is no
+        // longer wired here to avoid races with the authoritative server state.
     }
 
     private func presentError(_ message: String) {
