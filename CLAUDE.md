@@ -75,6 +75,10 @@ The WebSocket server uses default `JSONEncoder` (Double timestamps). The Admin H
 - **Foreground recovery** — On `scenePhase` `.active`: pings WebSocket, reconnects if dead, re-authenticates, resumes session
 - **SpeechRecognizer** — Live speech-to-text using SFSpeechRecognizer, streams diff-based text to terminal
 
+### Server-Side Activity Monitoring
+
+The server monitors all PTY output continuously (even for detached sessions) via `SessionActivityMonitor`. It detects Claude entry/exit and output silence, maintaining an `ActivityState` per session. State changes are pushed to clients via `sessionActivity` WebSocket messages. This ensures background tabs in the iOS app correctly reflect Claude running/idle state even when the client is attached to a different session.
+
 ### Key Pattern: sendAndWaitForResponse
 
 `SessionController.sendAndWaitForResponse()` installs a response handler **before** sending the message (not after) to avoid a race condition where the server response arrives before the handler is in place.
