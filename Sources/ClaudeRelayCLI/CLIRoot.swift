@@ -5,7 +5,7 @@ struct ClaudeRelay: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "claude-relay",
         abstract: "Manage the ClaudeRelay service",
-        version: "0.1.6",
+        version: "0.1.7",
         subcommands: [
             LoadCommand.self,
             UnloadCommand.self,
