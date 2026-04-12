@@ -505,10 +505,12 @@ private class RelayTerminalView: TerminalView {
 
         let enabled = UserDefaults.standard.object(forKey: "recordingShortcutEnabled") as? Bool ?? true
         if enabled {
-            let key = UserDefaults.standard.string(forKey: "recordingShortcutKey") ?? "r"
-            let modRaw = UserDefaults.standard.string(forKey: "recordingShortcutModifier") ?? ShortcutModifier.commandShift.rawValue
-            let modifier = ShortcutModifier(rawValue: modRaw) ?? .commandShift
-            let cmd = UIKeyCommand(input: key, modifierFlags: modifier.flags,
+            let key = UserDefaults.standard.string(forKey: "recordingShortcutKey") ?? ""
+            let flagsRaw = UserDefaults.standard.integer(forKey: "recordingShortcutFlags")
+            let flags: UIKeyModifierFlags = flagsRaw != 0
+                ? UIKeyModifierFlags(rawValue: flagsRaw)
+                : [.command, .alternate]
+            let cmd = UIKeyCommand(input: key, modifierFlags: flags,
                                    action: #selector(handleRecordingShortcut))
             cmd.discoverabilityTitle = "Toggle Recording"
             commands.append(cmd)
