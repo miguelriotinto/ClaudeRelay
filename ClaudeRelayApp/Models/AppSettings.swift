@@ -5,6 +5,29 @@ import UIKit
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
+    private init() {
+        migrateShortcutIfNeeded()
+    }
+
+    private func migrateShortcutIfNeeded() {
+        let defaults = UserDefaults.standard
+        // Only migrate if old format exists and new format hasn't been set
+        guard defaults.string(forKey: "recordingShortcutModifier") != nil,
+              defaults.object(forKey: "recordingShortcutFlags") == nil else { return }
+
+        let oldRaw = defaults.string(forKey: "recordingShortcutModifier") ?? "commandShift"
+        let flags: UIKeyModifierFlags
+        switch oldRaw {
+        case "commandShift": flags = [.command, .shift]
+        case "commandOption": flags = [.command, .alternate]
+        case "commandControl": flags = [.command, .control]
+        default: flags = [.command, .shift]
+        }
+
+        recordingShortcutFlags = Int(flags.rawValue)
+        defaults.removeObject(forKey: "recordingShortcutModifier")
+    }
+
     @AppStorage("smartCleanupEnabled") var smartCleanupEnabled = true
     @AppStorage("promptEnhancementEnabled") var promptEnhancementEnabled = false
     @AppStorage("bedrockBearerToken") var bedrockBearerToken = ""
