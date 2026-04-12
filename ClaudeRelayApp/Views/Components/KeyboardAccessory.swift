@@ -9,10 +9,14 @@ struct KeyboardAccessory: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 // Special keys
-                keyButton("RET", icon: "return") { send(0x0D) }
-                keyButton("ESC", icon: "escape") { send(0x1B) }
-                keyButton("TAB", icon: "arrow.right.to.line") { send(0x09) }
-                keyButton("CLR", icon: "delete.backward") { clearToPrompt() }
+                keyButton(nil, icon: "return") { send(0x0D) }
+                textKeyButton("ESC") { send(0x1B) }
+                keyButton(nil, icon: "arrow.right.to.line") { send(0x09) }
+                keyButton(nil, icon: "delete.backward") { clearToPrompt() }
+
+                charButton("1")
+                charButton("2")
+                charButton("3")
 
                 // Arrow keys
                 keyButton(nil, icon: "arrow.up") { send(0x1B, 0x5B, 0x41) }
@@ -52,6 +56,19 @@ struct KeyboardAccessory: View {
         if AppSettings.shared.hapticFeedbackEnabled {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
+    }
+
+    private func textKeyButton(_ label: String, action: @escaping () -> Void) -> some View {
+        Button { haptic(); action() } label: {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color(.tertiarySystemBackground))
+                .cornerRadius(5)
+        }
+        .buttonStyle(.plain)
     }
 
     private func keyButton(_ label: String?, icon: String, action: @escaping () -> Void) -> some View {
