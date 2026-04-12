@@ -246,20 +246,13 @@ final class SessionCoordinator: ObservableObject {
     }
 
     /// Called by the SwiftTerm delegate when the terminal title changes.
-    /// Only handles Claude **entry** detection (title contains "claude").
-    /// Exit detection relies on stronger signals: alternate screen buffer exit
-    /// and shell prompt appearance — not title changes, because Claude Code
-    /// dynamically sets the title during tool execution (e.g. to the CWD or
-    /// running command), which would cause false exit triggers.
+    /// Persists the title so it survives TerminalViewModel destruction on tab switch.
+    /// Claude entry/exit detection is handled exclusively by server-side
+    /// SessionActivityMonitor via sessionActivity messages — client-side title
+    /// detection was removed because scrollback replay re-fires stale OSC titles,
+    /// causing false Claude-active state on tab switch.
     func updateTerminalTitle(_ title: String, for sessionId: UUID) {
         terminalTitles[sessionId] = title
-
-        if title.localizedCaseInsensitiveContains("claude") {
-            if !claudeSessions.contains(sessionId) {
-                claudeSessions.insert(sessionId)
-                terminalViewModels[sessionId]?.isClaudeActive = true
-            }
-        }
     }
 
     /// Centralized Claude exit handler — clears all related state.
