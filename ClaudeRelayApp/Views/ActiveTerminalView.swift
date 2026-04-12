@@ -220,21 +220,26 @@ private struct SessionTab: View {
     let isClaude: Bool
     let needsAttention: Bool
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var flashOn = false
 
-    private static let claudeBackground = Color(red: 0.91, green: 0.86, blue: 0.76)
+    private static let orangeA = SwiftUI.Color.orange
+    private static let orangeB = SwiftUI.Color(red: 1.0, green: 0.6, blue: 0.0)
 
     var body: some View {
         Text("\(number)")
             .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .monospaced))
-            .foregroundStyle(tabForeground)
+            .foregroundStyle(SwiftUI.Color(.label))
             .frame(minWidth: 26, minHeight: 22)
             .background(tabBackground)
             .clipShape(RoundedRectangle(cornerRadius: 6))
-            .opacity(needsAttention && !flashOn ? 0.4 : 1.0)
-            .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(selectionBorderColor, lineWidth: isSelected && !isClaude ? 2 : 0)
+            )
+            .onReceive(Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()) { _ in
                 guard needsAttention else { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(.easeInOut(duration: 0.4)) {
                     flashOn.toggle()
                 }
             }
@@ -247,29 +252,18 @@ private struct SessionTab: View {
             }
     }
 
-    /// Dark foreground for fixed light backgrounds (beige Claude, orange attention);
-    /// adaptive foreground for system-adaptive backgrounds.
-    private var tabForeground: SwiftUI.Color {
-        if needsAttention && flashOn {
-            return .black
-        }
-        if isClaude {
-            return .black
-        }
-        return isSelected ? SwiftUI.Color(.label) : SwiftUI.Color(.secondaryLabel)
+    private var selectionBorderColor: SwiftUI.Color {
+        colorScheme == .dark ? .black : .white
     }
 
     private var tabBackground: SwiftUI.Color {
-        if needsAttention && flashOn {
-            return Color.orange.opacity(0.5)
+        if needsAttention {
+            return flashOn ? Self.orangeA : Self.orangeB
         }
         if isClaude {
-            return Self.claudeBackground
+            return SwiftUI.Color.orange
         }
-        if isSelected {
-            return Color.secondary.opacity(0.2)
-        }
-        return Color.secondary.opacity(0.12)
+        return SwiftUI.Color(.systemGray5)
     }
 }
 
