@@ -145,8 +145,7 @@ final class SessionCoordinator: ObservableObject {
                 sessionsAwaitingInput.subtract(stale)
             }
         } catch {
-            // Session list refresh is non-critical — log but don't alert the user.
-            print("[SessionCoordinator] fetchSessions failed: \(error.localizedDescription)")
+            // Session list refresh is non-critical — don't alert the user.
         }
     }
 
@@ -328,8 +327,6 @@ final class SessionCoordinator: ObservableObject {
         let alive = await connection.isAlive()
         if alive { return }
 
-        print("[SessionCoordinator] Connection dead after foreground — reconnecting")
-
         isRecovering = true
         defer { isRecovering = false }
 
@@ -352,8 +349,6 @@ final class SessionCoordinator: ObservableObject {
     /// Called when RelayConnection's exponential-backoff auto-reconnect succeeds.
     /// The transport is up but the server doesn't know us — re-auth + resume.
     private func handleAutoReconnect() async {
-        print("[SessionCoordinator] Auto-reconnect succeeded — re-authenticating")
-
         isRecovering = true
         defer { isRecovering = false }
 
@@ -373,7 +368,6 @@ final class SessionCoordinator: ObservableObject {
                 wireTerminalOutput(to: activeId)
             }
         } catch is CancellationError {
-            print("[SessionCoordinator] Restore cancelled (lifecycle), will retry on next foreground")
             return
         } catch {
             guard !isTornDown else { return }

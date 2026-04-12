@@ -4,30 +4,22 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; the iOS app uses X.Y.Z.
 
-## [Unreleased] (Server/CLI)
-
-### Added
-- TLS support for WebSocket server via NIO-SSL (`tlsCert`/`tlsKey` config)
-- Server-side config validation (port ranges, scrollback size, log levels)
-- `UnsafeTransfer` helper for NIO ↔ Swift concurrency bridging
-- `ConfigValue.infer(from:)` for CLI config type coercion
-- `ConfigValidationTests` — 11 tests exercising `AdminRoutes.applyConfigValue`
-- TLS server tests (cert/key loading, plain fallback)
-
-### Changed
-- `WebSocketServer` now accepts `RelayConfig` instead of just a port
-- `PTYSession.startReading()` separated from `init` for Swift 6 actor isolation
-- `RelayMessageHandler` and `AdminHTTPHandler` use `[weak self]` + `UnsafeTransfer` pattern
-- `var` → `let` fixes for NIO buffer bindings (`frameData`, `data`)
+## [0.1.7] - 2026-04-12
 
 ### Fixed
-- Trailing comma lint issue in `ActiveTerminalView.swift`
-- SwiftLint line length violation in TLS test skip message
+- Idle detection: escape-only TUI output no longer breaks `claudeIdle` state
+- Tab flash visibility in iOS app when Claude awaits input
 
-### Removed
-- `AGENTS.md` (stale Codex-branded duplicate of CLAUDE.md)
-- `REVIEW.md` (findings tracked, no longer needed)
-- Duplicate `UnsafeTransfer` definitions (consolidated to single file)
+## [0.1.6] - 2026-04-11
+
+### Added
+- Server-side session activity monitoring via `SessionActivityMonitor`
+- Push-based `sessionActivity` WebSocket messages broadcast to all connected clients
+- Initial activity sync on client attach
+- Activity observer registry in `SessionManager`
+
+### Changed
+- Claude running/idle detection moved from iOS client to server (monitors PTY output continuously, even for detached sessions)
 
 ## [1.3.0] - 2026-04-11 (iOS)
 
@@ -38,6 +30,7 @@ The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; t
 - Clear-line special key
 - Haptic feedback with settings toggle
 - Scrollable tab zone in status bar
+- Consumes server-pushed activity state for background tab updates
 
 ### Changed
 - Single-line compact status bar (replaced two-line layout)
@@ -47,6 +40,7 @@ The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; t
 
 ### Fixed
 - Backspace key repeat behavior
+- Idle detection tab flash not visible due to state timing
 
 ## [1.2.0] - 2026-04-10 (iOS)
 
@@ -88,13 +82,31 @@ The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; t
 
 ## [0.1.5] - 2026-03-29
 
+### Added
+- TLS support for WebSocket server via NIO-SSL (`tlsCert`/`tlsKey` config)
+- Server-side config validation (port ranges, scrollback size, log levels)
+- `UnsafeTransfer` helper for NIO ↔ Swift concurrency bridging
+- `ConfigValue.infer(from:)` for CLI config type coercion
+- `ConfigValidationTests` — 11 tests exercising `AdminRoutes.applyConfigValue`
+- TLS server tests (cert/key loading, plain fallback)
+
+### Changed
+- `WebSocketServer` now accepts `RelayConfig` instead of just a port
+- `PTYSession.startReading()` separated from `init` for Swift 6 actor isolation
+- `RelayMessageHandler` and `AdminHTTPHandler` use `[weak self]` + `UnsafeTransfer` pattern
+- Refactored connection flow: removed intermediate detail view
+- Updated stale markdown documentation
+
 ### Fixed
 - Reduced spurious timeout alerts during active terminal sessions
 - Flattened connection flow — tap server to connect directly
+- NIO buffer binding mutability (`var` → `let` for `frameData`, `data`)
+- Trailing comma lint issue in `ActiveTerminalView.swift`
 
-### Changed
-- Refactored connection flow: removed intermediate detail view
-- Updated stale markdown documentation
+### Removed
+- `AGENTS.md` (stale Codex-branded duplicate of CLAUDE.md)
+- `REVIEW.md` (findings tracked, no longer needed)
+- Duplicate `UnsafeTransfer` definitions (consolidated to single file)
 
 ## [0.1.4] - 2026-03-26
 
