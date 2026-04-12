@@ -1,9 +1,13 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
     @State private var showTokenRequired = false
+    @State private var isCapturing = false
+    @State private var capturedFlags: UIKeyModifierFlags = []
+    @State private var capturedKey: String = ""
 
     var body: some View {
         NavigationStack {
@@ -45,22 +49,56 @@ struct SettingsView: View {
                 Section {
                     Toggle("Recording Shortcut", isOn: $settings.recordingShortcutEnabled)
                     if settings.recordingShortcutEnabled {
-                        Picker("Modifier", selection: $settings.recordingShortcutModifier) {
-                            ForEach(ShortcutModifier.allCases) { mod in
-                                Text(mod.displayName).tag(mod)
+                        if isCapturing {
+                            VStack(spacing: 8) {
+                                Text("Press your shortcut...")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Text(capturedFlags.isEmpty && capturedKey.isEmpty
+                                     ? "Waiting..."
+                                     : capturedFlags.symbolString + capturedKey.uppercased())
+                                    .font(.system(.title, design: .rounded, weight: .medium))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 10))
+                                KeyCaptureView(
+                                    capturedFlags: $capturedFlags,
+                                    capturedKey: $capturedKey,
+                                    isCapturing: $isCapturing,
+                                    onCommit: { flags, key in
+                                        settings.shortcutModifierFlags = flags
+                                        settings.recordingShortcutKey = key
+                                    }
+                                )
+                                .frame(width: 0, height: 0)
+                                Button("Cancel") {
+                                    isCapturing = false
+                                }
+                                .font(.subheadline)
                             }
-                        }
-                        Picker("Key", selection: $settings.recordingShortcutKey) {
-                            ForEach(Array("abcdefghijklmnopqrstuvwxyz"), id: \.self) { ch in
-                                Text(String(ch).uppercased()).tag(String(ch))
+                            .padding(.vertical, 4)
+                        } else {
+                            HStack {
+                                Text("Key Combination")
+                                Spacer()
+                                Text(settings.shortcutDisplayString)
+                                    .foregroundStyle(.secondary)
+                                    .font(.system(.body, design: .rounded))
+                                Button("Set") {
+                                    capturedFlags = []
+                                    capturedKey = ""
+                                    isCapturing = true
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                         }
                     }
                 } header: {
                     Text("Keyboard Shortcuts")
                 } footer: {
-                    if settings.recordingShortcutEnabled {
-                        Text("Press \(settings.recordingShortcutModifier.symbol)\(settings.recordingShortcutKey.uppercased()) to toggle speech recording when a hardware keyboard is connected.")
+                    if settings.recordingShortcutEnabled && !isCapturing {
+                        Text("Press \(settings.shortcutDisplayString) to toggle speech recording when a hardware keyboard is connected.")
                     }
                 }
 
