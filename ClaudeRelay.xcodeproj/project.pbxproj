@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
+		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
 		31E3C54B6BC227D5C5A03BD9 /* SpeechEngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */; };
@@ -59,6 +60,7 @@
 		2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
 		338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
 		36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListView.swift; sourceTree = "<group>"; };
+		477B528B65A3A1F49D31B173 /* Claude Relay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Claude Relay"; path = .; sourceTree = SOURCE_ROOT; };
 		5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		55B2AF59490A10B933D223D7 /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
 		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
@@ -67,7 +69,6 @@
 		7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		7CDE7061F16DD811CA184B2B /* ClaudeRelay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ClaudeRelay; path = .; sourceTree = SOURCE_ROOT; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -82,6 +83,7 @@
 		C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSpeechComponents.swift; sourceTree = "<group>"; };
 		C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleanerStaticTests.swift; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureView.swift; sourceTree = "<group>"; };
 		D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -158,7 +160,7 @@
 		7D4E3B0EAF3D5DCAC3E10215 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				7CDE7061F16DD811CA184B2B /* ClaudeRelay */,
+				477B528B65A3A1F49D31B173 /* Claude Relay */,
 				19AE62421B4B1F4DB8E4E2FA /* LLM.swift */,
 			);
 			name = Packages;
@@ -182,6 +184,7 @@
 			isa = PBXGroup;
 			children = (
 				03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */,
+				CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -327,6 +330,7 @@
 				ECB70A1E160B86A34825974D /* AudioCaptureSession.swift in Sources */,
 				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
 				C859391329AB328F111CDC24 /* CloudPromptEnhancer.swift in Sources */,
+				160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
 				B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */,
 				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
@@ -497,7 +501,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 54;
+				CURRENT_PROJECT_VERSION = 55;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
@@ -528,7 +532,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 54;
+				CURRENT_PROJECT_VERSION = 55;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
