@@ -125,21 +125,23 @@ struct ActiveTerminalView: View {
                 if let id = coordinator.activeSessionId {
                     Text(coordinator.name(for: id))
                         .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                         .lineLimit(1)
                         .frame(maxWidth: 100)
                         .padding(.horizontal, 8)
                         .frame(minHeight: 22)
-                        .background(Color.secondary.opacity(0.12))
+                        .background(Color.white.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .layoutPriority(1)
                 }
             }
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .background(Color(.systemBackground))
+            .background(.black)
         }
+        .background(.black)
         .ignoresSafeArea(.container, edges: .horizontal)
+        .preferredColorScheme(.dark)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: coordinator.activeSessionId) { _, _ in
             speechEngine.cancel()
@@ -202,9 +204,9 @@ private struct ToolbarIconButton: View {
         } label: {
             Image(systemName: icon)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isActive ? SwiftUI.Color(.systemBackground) : SwiftUI.Color.secondary)
+                .foregroundStyle(isActive ? .black : SwiftUI.Color.white.opacity(0.7))
                 .frame(minWidth: 26, minHeight: 22)
-                .background(isActive ? Color.primary : Color.secondary.opacity(0.12))
+                .background(isActive ? Color.white : Color.white.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -220,13 +222,12 @@ private struct SessionTab: View {
     let isClaude: Bool
     let needsAttention: Bool
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var flashOn = false
 
     var body: some View {
         Text("\(number)")
             .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .monospaced))
-            .foregroundStyle(SwiftUI.Color(.label))
+            .foregroundStyle(.white)
             .frame(minWidth: 26, minHeight: 22)
             .background(tabBackground)
             .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -250,17 +251,17 @@ private struct SessionTab: View {
     }
 
     private var selectionBorderColor: SwiftUI.Color {
-        colorScheme == .dark ? .white : .black
+        .white
     }
 
     private var tabBackground: SwiftUI.Color {
         if needsAttention {
-            return flashOn ? SwiftUI.Color.orange : SwiftUI.Color(.systemGray5)
+            return flashOn ? SwiftUI.Color.orange : SwiftUI.Color.white.opacity(0.15)
         }
         if isClaude {
             return SwiftUI.Color.orange
         }
-        return SwiftUI.Color(.systemGray5)
+        return SwiftUI.Color.white.opacity(0.15)
     }
 }
 
@@ -540,6 +541,7 @@ struct SwiftTermView: UIViewRepresentable {
         terminal.terminalDelegate = context.coordinator
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
+        terminal.changeScrollback(10_000)
 
         viewModel.onTerminalOutput = { data in
             let bytes = ArraySlice([UInt8](data))
@@ -670,7 +672,7 @@ private struct SessionUptimeView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             Text(formatUptime(from: since, to: context.date))
                 .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SwiftUI.Color.white.opacity(0.5))
         }
     }
 
