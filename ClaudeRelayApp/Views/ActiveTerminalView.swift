@@ -8,7 +8,7 @@ struct ActiveTerminalView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @Binding var columnVisibility: NavigationSplitViewVisibility
     var onDisconnect: () -> Void
-    @State private var showKeyBar = false
+    @State private var showKeyBar = true
     @State private var isKeyboardVisible = false
     @State private var hasHardwareKeyboard = GCKeyboard.coalesced != nil
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
