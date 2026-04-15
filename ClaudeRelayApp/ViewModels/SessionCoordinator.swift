@@ -287,7 +287,13 @@ final class SessionCoordinator: ObservableObject {
         guard !isRecovering, !isTornDown else { return }
 
         let alive = await connection.isAlive()
-        if alive { return }
+        if alive {
+            // Connection survived suspension — refresh activity state from the
+            // server since push messages may have been lost while iOS had the
+            // app suspended.
+            await fetchSessions()
+            return
+        }
 
         isRecovering = true
         defer { isRecovering = false }
