@@ -81,6 +81,21 @@ public final class SessionController: ObservableObject {
         }
     }
 
+    /// Attaches to a session that may still be active on another connection.
+    /// Unlike resume, this does not require the session to be detached first.
+    public func attachSession(id: UUID) async throws {
+        let response = try await sendAndWaitForResponse(.sessionAttach(sessionId: id))
+
+        switch response {
+        case .sessionAttached(let attachedId, _):
+            sessionId = attachedId
+        case .error(_, let message):
+            throw SessionError.unexpectedResponse(message)
+        default:
+            throw SessionError.unexpectedResponse(response.typeString)
+        }
+    }
+
     /// Resumes an existing session by its identifier.
     public func resumeSession(id: UUID) async throws {
         let response = try await sendAndWaitForResponse(.sessionResume(sessionId: id))

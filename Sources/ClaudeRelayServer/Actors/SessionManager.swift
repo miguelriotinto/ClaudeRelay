@@ -22,6 +22,8 @@ public actor SessionManager {
     private var detachTimers: [UUID: Task<Void, Never>] = [:]
     public typealias ActivityObserver = @Sendable (UUID, ActivityState) -> Void
     private var activityObservers: [UUID: (tokenId: String, callback: ActivityObserver)] = [:]
+    public typealias StealObserver = @Sendable (UUID) -> Void
+    private var stealObservers: [UUID: (tokenId: String, callback: StealObserver)] = [:]
 
     struct ManagedSession {
         var info: SessionInfo
@@ -99,9 +101,12 @@ public actor SessionManager {
     }
 
     /// Attach to a session (wire up I/O).
+    /// - Parameter excludeObserver: Observer ID to exclude from steal notifications
+    ///   (the connection doing the attach should not receive its own stolen push).
     public func attachSession(
         id: UUID,
-        tokenId: String
+        tokenId: String,
+        excludeObserver: UUID? = nil
     ) throws -> (SessionInfo, any PTYSessionProtocol) {
         guard var managed = sessions[id] else {
             throw SessionError.notFound(id)
@@ -118,8 +123,14 @@ public actor SessionManager {
         let currentState = managed.info.state
 
         // If already attached, allow re-attach (replace stale connection)
-        guard currentState == .activeAttached || currentState.canTransition(to: newState) else {
+        let isReattach = currentState == .activeAttached
+        guard isReattach || currentState.canTransition(to: newState) else {
             throw SessionError.invalidTransition(currentState, newState)
+        }
+
+        // Notify other connections that this session is being stolen.
+        if isReattach {
+            reportSessionStolen(sessionId: id, tokenId: tokenId, excludeObserver: excludeObserver)
         }
 
         let newInfo = SessionInfo(
@@ -352,6 +363,30 @@ public actor SessionManager {
         let tokenId = managed.info.tokenId
         for (_, observer) in activityObservers where observer.tokenId == tokenId {
             observer.callback(sessionId, activity)
+        }
+    }
+
+    // MARK: - Steal Observers
+
+    @discardableResult
+    public func addStealObserver(
+        tokenId: String,
+        callback: @escaping StealObserver
+    ) -> UUID {
+        let observerId = UUID()
+        stealObservers[observerId] = (tokenId: tokenId, callback: callback)
+        return observerId
+    }
+
+    public func removeStealObserver(id: UUID) {
+        stealObservers.removeValue(forKey: id)
+    }
+
+    private func reportSessionStolen(sessionId: UUID, tokenId: String, excludeObserver: UUID?) {
+        for (observerId, observer) in stealObservers where observer.tokenId == tokenId {
+            if observerId != excludeObserver {
+                observer.callback(sessionId)
+            }
         }
     }
 

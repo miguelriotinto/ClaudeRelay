@@ -19,6 +19,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private var authTimeout: Scheduled<Void>?
     private var authAttempts = 0
     private var activityObserverId: UUID?
+    private var stealObserverId: UUID?
     private static let maxAuthAttempts = 3
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
@@ -188,8 +189,22 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                                 )
                             }
                         }
+                        // Subscribe to steal notifications so this connection learns
+                        // when another device attaches to one of its sessions.
+                        let stealId = await manager.addStealObserver(tokenId: info.id) { [weak self] sessionId in
+                            observerCtx.value.eventLoop.execute {
+                                guard let self = self else { return }
+                                // Only notify if this connection is the one that lost the session.
+                                if self.attachedSessionId == sessionId {
+                                    self.attachedSessionId = nil
+                                    self.attachedPTY = nil
+                                    self.sendServerMessage(.sessionStolen(sessionId: sessionId), context: observerCtx.value)
+                                }
+                            }
+                        }
                         observerCtx.value.eventLoop.execute {
                             self?.activityObserverId = observerId
+                            self?.stealObserverId = stealId
                         }
                     }
                 } else {
@@ -242,10 +257,11 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
         let ctx = UnsafeTransfer(context)
+        let myStealId = self.stealObserverId
         Task { [weak self] in
             do {
                 await self?.autoDetachIfNeeded()
-                let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
+                let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId, excludeObserver: myStealId)
                 RelayLogger.log(category: "session", "Session attached: \(sessionId)")
                 ctx.value.eventLoop.execute {
                     guard let self = self else { return }
@@ -415,6 +431,13 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             activityObserverId = nil
             Task {
                 await manager.removeActivityObserver(id: observerId)
+            }
+        }
+        if let observerId = stealObserverId {
+            let manager = sessionManager
+            stealObserverId = nil
+            Task {
+                await manager.removeStealObserver(id: observerId)
             }
         }
 

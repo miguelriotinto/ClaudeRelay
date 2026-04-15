@@ -12,6 +12,7 @@ public enum ServerMessage: Equatable, Sendable {
     case sessionExpired(sessionId: UUID)
     case sessionState(sessionId: UUID, state: String)
     case sessionActivity(sessionId: UUID, activity: ActivityState)
+    case sessionStolen(sessionId: UUID)
     case sessionList(sessions: [SessionInfo])
     case resizeAck(cols: UInt16, rows: UInt16)
     case pong
@@ -31,6 +32,7 @@ public enum ServerMessage: Equatable, Sendable {
         case .sessionExpired:      return "session_expired"
         case .sessionState:        return "session_state"
         case .sessionActivity:     return "session_activity"
+        case .sessionStolen:       return "session_stolen"
         case .sessionList:         return "session_list_result"
         case .resizeAck:           return "resize_ack"
         case .pong:                return "pong"
@@ -43,7 +45,7 @@ public enum ServerMessage: Equatable, Sendable {
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure", "session_created", "session_attached",
         "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "session_activity", "session_list_result", "resize_ack", "pong", "error"
+        "session_expired", "session_state", "session_activity", "session_stolen", "session_list_result", "resize_ack", "pong", "error"
     ]
 }
 
@@ -83,6 +85,8 @@ extension ServerMessage: Codable {
         case .sessionActivity(let sessionId, let activity):
             try container.encode(sessionId, forKey: .sessionId)
             try container.encode(activity, forKey: .activity)
+        case .sessionStolen(let sessionId):
+            try container.encode(sessionId, forKey: .sessionId)
         case .sessionList(let sessions):
             try container.encode(sessions, forKey: .sessions)
         case .resizeAck(let cols, let rows):
@@ -133,6 +137,9 @@ extension ServerMessage: Codable {
             let sessionId = try container.decode(UUID.self, forKey: .sessionId)
             let activity = try container.decode(ActivityState.self, forKey: .activity)
             return .sessionActivity(sessionId: sessionId, activity: activity)
+        case "session_stolen":
+            let sessionId = try container.decode(UUID.self, forKey: .sessionId)
+            return .sessionStolen(sessionId: sessionId)
         case "session_list_result":
             let sessions = try container.decode([SessionInfo].self, forKey: .sessions)
             return .sessionList(sessions: sessions)

@@ -103,5 +103,13 @@ struct WorkspaceView: View {
         } message: {
             Text(coordinator.errorMessage ?? "Unknown error")
         }
+        .alert("Session Moved", isPresented: $coordinator.showSessionStolen) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let name = coordinator.stolenSessionName,
+               let shortId = coordinator.stolenSessionShortId {
+                Text("\(name) (\(shortId)) was attached from another device.")
+            }
+        }
     }
 }

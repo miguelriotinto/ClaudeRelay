@@ -248,4 +248,73 @@ final class SessionManagerTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(callCount, 1, "Should not receive callbacks after removal")
     }
+
+    // MARK: - Steal Observer
+
+    func testStealObserverFiresOnReattach() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+
+        let expectation = XCTestExpectation(description: "steal callback")
+        let observerId = await manager.addStealObserver(tokenId: tokenInfo.id) { sessionId in
+            XCTAssertEqual(sessionId, session.id)
+            expectation.fulfill()
+        }
+
+        // Session is already activeAttached from createSession.
+        // Re-attaching should fire the steal observer.
+        _ = try await manager.attachSession(id: session.id, tokenId: tokenInfo.id)
+
+        await fulfillment(of: [expectation], timeout: 1.0)
+        await manager.removeStealObserver(id: observerId)
+    }
+
+    func testStealObserverExcludesSelf() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+
+        var callCount = 0
+        let observerId = await manager.addStealObserver(tokenId: tokenInfo.id) { _ in
+            callCount += 1
+        }
+
+        // Exclude our own observer — should NOT fire.
+        _ = try await manager.attachSession(id: session.id, tokenId: tokenInfo.id, excludeObserver: observerId)
+
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(callCount, 0, "Excluded observer should not fire")
+        await manager.removeStealObserver(id: observerId)
+    }
+
+    func testStealObserverDoesNotFireOnResume() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+
+        // Detach first, then resume (not a re-attach from activeAttached)
+        try await manager.detachSession(id: session.id)
+
+        var callCount = 0
+        let observerId = await manager.addStealObserver(tokenId: tokenInfo.id) { _ in
+            callCount += 1
+        }
+
+        // Resume from detached state — this is not a steal.
+        _ = try await manager.resumeSession(id: session.id, tokenId: tokenInfo.id)
+
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(callCount, 0, "Steal should not fire for resume from detached state")
+        await manager.removeStealObserver(id: observerId)
+    }
 }

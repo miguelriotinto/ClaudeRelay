@@ -23,6 +23,10 @@ final class SessionCoordinator: ObservableObject {
     @Published var errorMessage: String?
     @Published var showError = false
     @Published var connectionTimedOut = false
+    /// Set when another device steals the active session — triggers an alert.
+    @Published var stolenSessionName: String?
+    @Published var stolenSessionShortId: String?
+    @Published var showSessionStolen = false
 
     /// Active (non-terminal) sessions, cached to avoid recomputing on every SwiftUI redraw.
     var activeSessions: [SessionInfo] {
@@ -55,6 +59,12 @@ final class SessionCoordinator: ObservableObject {
         connection.onSessionActivity = { [weak self] sessionId, activity in
             Task { @MainActor [weak self] in
                 self?.handleActivityUpdate(sessionId: sessionId, activity: activity)
+            }
+        }
+
+        connection.onSessionStolen = { [weak self] sessionId in
+            Task { @MainActor [weak self] in
+                self?.handleSessionStolen(sessionId: sessionId)
             }
         }
     }
@@ -208,6 +218,53 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Attach from Another Device
+
+    /// Fetches sessions that can be attached from this device (running on the server
+    /// but not actively viewed here). Returns non-terminal sessions excluding the
+    /// currently active one on this device.
+    func fetchAttachableSessions() async -> [SessionInfo] {
+        do {
+            let controller = try await ensureAuthenticated()
+            let all = try await controller.listSessions()
+            return all.filter { session in
+                !session.state.isTerminal && session.id != activeSessionId
+            }
+        } catch {
+            return []
+        }
+    }
+
+    /// Attaches to a session that may be active on another device.
+    func attachRemoteSession(id: UUID) async {
+        guard !isRecovering else { return }
+        do {
+            let controller = try await ensureAuthenticated()
+
+            if let currentId = activeSessionId {
+                try? await controller.detach()
+                terminalViewModels[currentId]?.prepareForSwitch()
+                terminalViewModels[currentId] = nil
+            }
+
+            try await controller.attachSession(id: id)
+
+            if sessionNames[id] == nil {
+                assignDefaultName(for: id)
+            }
+
+            let vm = TerminalViewModel(sessionId: id, connection: connection)
+            terminalViewModels[id] = vm
+
+            wireTerminalOutput(to: id)
+            activeSessionId = id
+
+            await fetchSessions()
+        } catch {
+            presentError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Terminate
 
     func terminateSession(id: UUID) async {
@@ -276,6 +333,26 @@ final class SessionCoordinator: ObservableObject {
         } else {
             sessionsAwaitingInput.remove(sessionId)
         }
+    }
+
+    /// Handle server notification that another device attached to our active session.
+    private func handleSessionStolen(sessionId: UUID) {
+        let sessionName = name(for: sessionId)
+        let shortId = String(sessionId.uuidString.prefix(8))
+
+        // Clean up the stolen session from this device.
+        if activeSessionId == sessionId {
+            terminalViewModels[sessionId] = nil
+            activeSessionId = nil
+        }
+        claudeSessions.remove(sessionId)
+        sessionsAwaitingInput.remove(sessionId)
+
+        stolenSessionName = sessionName
+        stolenSessionShortId = shortId
+        showSessionStolen = true
+
+        Task { await fetchSessions() }
     }
 
     // MARK: - Connection Recovery

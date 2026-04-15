@@ -281,6 +281,7 @@ final class ProtocolMessageTests: XCTestCase {
             .sessionExpired(sessionId: id),
             .sessionState(sessionId: id, state: "idle"),
             .sessionActivity(sessionId: id, activity: .claudeIdle),
+            .sessionStolen(sessionId: id),
             .resizeAck(cols: 120, rows: 40),
             .pong,
             .error(code: 500, message: "internal")
@@ -412,6 +413,30 @@ final class ProtocolMessageTests: XCTestCase {
             }
             XCTAssertEqual(original, roundTripped, "Round-trip failed for activity \(state)")
         }
+    }
+
+    // MARK: - sessionStolen
+
+    func testSessionStolenEncoding() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let msg = ServerMessage.sessionStolen(sessionId: id)
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        XCTAssertEqual(obj["type"] as? String, "session_stolen")
+        let payload = obj["payload"] as? [String: Any]
+        XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
+    }
+
+    func testSessionStolenFieldVerification() throws {
+        let id = "12345678-1234-1234-1234-123456789ABC"
+        let json = #"{"type":"session_stolen","payload":{"sessionId":"\#(id)"}}"#
+        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
+        guard case .server(.sessionStolen(let sessionId)) = envelope else {
+            XCTFail("Expected sessionStolen"); return
+        }
+        XCTAssertEqual(sessionId.uuidString, id)
     }
 
     // MARK: - Equatable
