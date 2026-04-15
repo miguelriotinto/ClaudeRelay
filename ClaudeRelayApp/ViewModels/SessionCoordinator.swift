@@ -28,9 +28,10 @@ final class SessionCoordinator: ObservableObject {
     @Published var stolenSessionShortId: String?
     @Published var showSessionStolen = false
 
-    /// Active (non-terminal) sessions, cached to avoid recomputing on every SwiftUI redraw.
+    /// Sessions owned by this device (non-terminal, with a local name).
+    /// Sessions created on other devices won't appear here until explicitly attached.
     var activeSessions: [SessionInfo] {
-        sessions.filter { !$0.state.isTerminal }
+        sessions.filter { !$0.state.isTerminal && sessionNames[$0.id] != nil }
     }
 
     // MARK: - Dependencies
@@ -220,15 +221,14 @@ final class SessionCoordinator: ObservableObject {
 
     // MARK: - Attach from Another Device
 
-    /// Fetches sessions that can be attached from this device (running on the server
-    /// but not actively viewed here). Returns non-terminal sessions excluding the
-    /// currently active one on this device.
+    /// Fetches sessions running on the server that this device has not claimed.
+    /// These are sessions created by other devices (no local name assigned).
     func fetchAttachableSessions() async -> [SessionInfo] {
         do {
             let controller = try await ensureAuthenticated()
             let all = try await controller.listSessions()
             return all.filter { session in
-                !session.state.isTerminal && session.id != activeSessionId
+                !session.state.isTerminal && sessionNames[session.id] == nil
             }
         } catch {
             return []
