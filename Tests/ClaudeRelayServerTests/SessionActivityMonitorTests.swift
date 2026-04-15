@@ -64,16 +64,6 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     // MARK: - Claude Exit Detection
 
-    func testDetectsClaudeExitFromShellPrompt() {
-        var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.processOutput(titleSequence("claude"))
-        XCTAssertEqual(monitor.state, .claudeActive)
-        monitor.processOutput(output("user@host ~/projects $"))
-        XCTAssertEqual(monitor.state, .active)
-        XCTAssertEqual(states, [.claudeActive, .active])
-    }
-
     func testDetectsClaudeExitFromAltScreenExit() {
         var states: [ActivityState] = []
         let monitor = makeMonitor { states.append($0) }
@@ -82,6 +72,24 @@ final class SessionActivityMonitorTests: XCTestCase {
         monitor.processOutput(leaveAltScreen)
         XCTAssertEqual(monitor.state, .active)
         XCTAssertEqual(states, [.claudeActive, .active])
+    }
+
+    func testDetectsClaudeExitFromNonClaudeTitle() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.processOutput(titleSequence("claude"))
+        XCTAssertEqual(monitor.state, .claudeActive)
+        monitor.processOutput(titleSequence("zsh"))
+        XCTAssertEqual(monitor.state, .active)
+        XCTAssertEqual(states, [.claudeActive, .active])
+    }
+
+    func testShellPromptDoesNotExitClaude() {
+        let monitor = makeMonitor()
+        monitor.processOutput(titleSequence("claude"))
+        XCTAssertEqual(monitor.state, .claudeActive)
+        monitor.processOutput(output("user@host ~/projects $"))
+        XCTAssertEqual(monitor.state, .claudeActive, "Shell prompt should not exit Claude")
     }
 
     func testShellPromptDoesNotExitWhenNotInClaude() {

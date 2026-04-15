@@ -144,17 +144,20 @@ public final class SessionActivityMonitor: @unchecked Sendable {
                 transition(to: .claudeActive)
                 resetSilenceTimer()
             }
+        } else if isClaudeRunning {
+            // A non-Claude title means the shell/another program took over.
+            exitClaude()
         }
     }
 
+    /// Shell prompt detection is intentionally omitted here. It produced false
+    /// positives (e.g. dollar amounts, code snippets ending with `$`) that caused
+    /// the monitor to lose Claude state while Claude was still running. Claude exit
+    /// is now detected only via strong signals: alternate screen buffer exit or a
+    /// new non-Claude OSC title change.
     private func analyzeCleanOutput(_ text: String) {
-        guard isClaudeRunning else { return }
-        let lines = text.components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        if let lastLine = lines.last, Self.looksLikeShellPrompt(lastLine) {
-            exitClaude()
-        }
+        // No-op — kept for clarity. Claude exit is handled by handleTitle and
+        // leaveAlternateScreen detection in processOutput.
     }
 
     private func exitClaude() {

@@ -50,7 +50,7 @@ final class SessionCoordinator: ObservableObject {
         self.token = token
         sessionNames = Self.loadNames()
         ownedSessionIds = Self.loadOwned()
-        claudeSessions = []
+        claudeSessions = Self.loadClaudeSessions()
 
         connection.onReconnected = { [weak self] in
             Task { @MainActor [weak self] in
@@ -111,6 +111,20 @@ final class SessionCoordinator: ObservableObject {
         if let data = try? JSONEncoder().encode(dict) {
             UserDefaults.standard.set(data, forKey: namesKey)
         }
+    }
+
+    // MARK: - Claude Session Persistence
+
+    private static let claudeSessionsKey = "com.clauderelay.claudeSessions"
+
+    private static func loadClaudeSessions() -> Set<UUID> {
+        guard let arr = UserDefaults.standard.stringArray(forKey: claudeSessionsKey) else { return [] }
+        return Set(arr.compactMap { UUID(uuidString: $0) })
+    }
+
+    private func saveClaudeSessions() {
+        let arr = claudeSessions.map { $0.uuidString }
+        UserDefaults.standard.set(arr, forKey: Self.claudeSessionsKey)
     }
 
     // MARK: - Device-Local Ownership
@@ -187,6 +201,7 @@ final class SessionCoordinator: ObservableObject {
             if !staleActivity.isEmpty {
                 claudeSessions.subtract(staleActivity)
                 sessionsAwaitingInput.subtract(staleActivity)
+                saveClaudeSessions()
             }
             let staleOwned = ownedSessionIds.subtracting(serverIds)
             if !staleOwned.isEmpty {
@@ -356,17 +371,21 @@ final class SessionCoordinator: ObservableObject {
     /// Handle server-pushed activity state changes for any session (including background ones).
     private func handleActivityUpdate(sessionId: UUID, activity: ActivityState) {
         // Update Claude running state
+        var claudeChanged = false
         if activity.isClaudeRunning {
             if !claudeSessions.contains(sessionId) {
                 claudeSessions.insert(sessionId)
                 terminalViewModels[sessionId]?.isClaudeActive = true
+                claudeChanged = true
             }
         } else {
             if claudeSessions.contains(sessionId) {
                 claudeSessions.remove(sessionId)
                 terminalViewModels[sessionId]?.isClaudeActive = false
+                claudeChanged = true
             }
         }
+        if claudeChanged { saveClaudeSessions() }
 
         // Update awaiting-input state (only flash for Claude sessions)
         if activity.isAwaitingInput && activity.isClaudeRunning {
