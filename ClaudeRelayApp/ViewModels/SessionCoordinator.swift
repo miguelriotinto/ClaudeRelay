@@ -28,10 +28,10 @@ final class SessionCoordinator: ObservableObject {
     @Published var stolenSessionShortId: String?
     @Published var showSessionStolen = false
 
-    /// Sessions owned by this device (non-terminal, with a local name).
+    /// Sessions owned by this device (non-terminal, claimed via create or attach).
     /// Sessions created on other devices won't appear here until explicitly attached.
     var activeSessions: [SessionInfo] {
-        sessions.filter { !$0.state.isTerminal && sessionNames[$0.id] != nil }
+        sessions.filter { !$0.state.isTerminal && ownedSessionIds.contains($0.id) }
     }
 
     // MARK: - Dependencies
@@ -49,6 +49,7 @@ final class SessionCoordinator: ObservableObject {
         self.connection = connection
         self.token = token
         sessionNames = Self.loadNames()
+        ownedSessionIds = Self.loadOwned()
         claudeSessions = []
 
         connection.onReconnected = { [weak self] in
@@ -112,6 +113,38 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Device-Local Ownership
+
+    /// Session IDs this device has created or attached.
+    /// Keyed per device so iCloud UserDefaults sync doesn't merge ownership across devices.
+    private(set) var ownedSessionIds: Set<UUID> = []
+
+    private static var ownedKey: String {
+        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        return "com.clauderelay.ownedSessions.\(deviceId)"
+    }
+
+    private static func loadOwned() -> Set<UUID> {
+        guard let arr = UserDefaults.standard.stringArray(forKey: ownedKey) else { return [] }
+        return Set(arr.compactMap { UUID(uuidString: $0) })
+    }
+
+    private func saveOwned() {
+        let arr = ownedSessionIds.map { $0.uuidString }
+        UserDefaults.standard.set(arr, forKey: Self.ownedKey)
+    }
+
+    private func claimSession(_ id: UUID) {
+        guard !ownedSessionIds.contains(id) else { return }
+        ownedSessionIds.insert(id)
+        saveOwned()
+    }
+
+    private func unclaimSession(_ id: UUID) {
+        ownedSessionIds.remove(id)
+        saveOwned()
+    }
+
     // MARK: - Authentication
 
     private func ensureAuthenticated() async throws -> SessionController {
@@ -148,12 +181,17 @@ final class SessionCoordinator: ObservableObject {
                 }
             }
 
-            // Prune Claude state for sessions that no longer exist on the server.
+            // Prune state for sessions that no longer exist on the server.
             let serverIds = Set(sessions.map { $0.id })
-            let stale = claudeSessions.subtracting(serverIds)
-            if !stale.isEmpty {
-                claudeSessions.subtract(stale)
-                sessionsAwaitingInput.subtract(stale)
+            let staleActivity = claudeSessions.subtracting(serverIds)
+            if !staleActivity.isEmpty {
+                claudeSessions.subtract(staleActivity)
+                sessionsAwaitingInput.subtract(staleActivity)
+            }
+            let staleOwned = ownedSessionIds.subtracting(serverIds)
+            if !staleOwned.isEmpty {
+                ownedSessionIds.subtract(staleOwned)
+                saveOwned()
             }
         } catch {
             // Session list refresh is non-critical — don't alert the user.
@@ -174,6 +212,7 @@ final class SessionCoordinator: ObservableObject {
             }
 
             let sessionId = try await controller.createSession()
+            claimSession(sessionId)
             assignDefaultName(for: sessionId)
 
             let vm = TerminalViewModel(sessionId: sessionId, connection: connection)
@@ -222,13 +261,13 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Attach from Another Device
 
     /// Fetches sessions running on the server that this device has not claimed.
-    /// These are sessions created by other devices (no local name assigned).
+    /// These are sessions created or attached by other devices.
     func fetchAttachableSessions() async -> [SessionInfo] {
         do {
             let controller = try await ensureAuthenticated()
             let all = try await controller.listSessions()
             return all.filter { session in
-                !session.state.isTerminal && sessionNames[session.id] == nil
+                !session.state.isTerminal && !ownedSessionIds.contains(session.id)
             }
         } catch {
             return []
@@ -248,6 +287,7 @@ final class SessionCoordinator: ObservableObject {
             }
 
             try await controller.attachSession(id: id)
+            claimSession(id)
 
             if sessionNames[id] == nil {
                 assignDefaultName(for: id)
@@ -277,6 +317,7 @@ final class SessionCoordinator: ObservableObject {
                 terminalViewModels[id] = nil
             }
             claudeSessions.remove(id)
+            unclaimSession(id)
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
             sessionsAwaitingInput.remove(id)
