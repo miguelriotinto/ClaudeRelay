@@ -276,11 +276,11 @@ final class SessionCoordinator: ObservableObject {
     // MARK: - Attach from Another Device
 
     /// Fetches sessions running on the server that this device has not claimed.
-    /// These are sessions created or attached by other devices.
+    /// Uses cross-token listing so sessions from other devices (different tokens) are visible.
     func fetchAttachableSessions() async -> [SessionInfo] {
         do {
             let controller = try await ensureAuthenticated()
-            let all = try await controller.listSessions()
+            let all = try await controller.listAllSessions()
             return all.filter { session in
                 !session.state.isTerminal && !ownedSessionIds.contains(session.id)
             }

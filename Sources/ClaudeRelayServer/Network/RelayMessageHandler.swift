@@ -137,6 +137,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             handleSessionTerminate(sessionId: sessionId, context: context)
         case .sessionList:
             handleSessionList(context: context)
+        case .sessionListAll:
+            handleSessionListAll(context: context)
         case .resize(let cols, let rows):
             handleResize(cols: cols, rows: rows, context: context)
         case .ping:
@@ -375,6 +377,18 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             let sessions = await sessionManager.listSessionsForToken(tokenId: tokenId)
             ctx.value.eventLoop.execute {
                 self?.sendServerMessage(.sessionList(sessions: sessions), context: ctx.value)
+            }
+        }
+    }
+
+    private func handleSessionListAll(context: ChannelHandlerContext) {
+        guard isAuthenticated else { return }
+        let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
+        Task { [weak self] in
+            let sessions = await sessionManager.listAllSessions()
+            ctx.value.eventLoop.execute {
+                self?.sendServerMessage(.sessionListAll(sessions: sessions), context: ctx.value)
             }
         }
     }

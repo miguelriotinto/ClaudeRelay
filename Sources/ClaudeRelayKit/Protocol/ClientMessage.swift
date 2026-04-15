@@ -9,6 +9,7 @@ public enum ClientMessage: Equatable, Sendable {
     case sessionDetach
     case sessionTerminate(sessionId: UUID)
     case sessionList
+    case sessionListAll
     case resize(cols: UInt16, rows: UInt16)
     case ping
 
@@ -23,6 +24,7 @@ public enum ClientMessage: Equatable, Sendable {
         case .sessionDetach:     return "session_detach"
         case .sessionTerminate:  return "session_terminate"
         case .sessionList:       return "session_list"
+        case .sessionListAll:    return "session_list_all"
         case .resize:         return "resize"
         case .ping:           return "ping"
         }
@@ -32,7 +34,7 @@ public enum ClientMessage: Equatable, Sendable {
 
     static let allTypeStrings: Set<String> = [
         "auth_request", "session_create", "session_attach",
-        "session_resume", "session_detach", "session_terminate", "session_list", "resize", "ping"
+        "session_resume", "session_detach", "session_terminate", "session_list", "session_list_all", "resize", "ping"
     ]
 }
 
@@ -59,6 +61,8 @@ extension ClientMessage: Codable {
         case .sessionTerminate(let sessionId):
             try container.encode(sessionId, forKey: .sessionId)
         case .sessionList:
+            break
+        case .sessionListAll:
             break
         case .resize(let cols, let rows):
             try container.encode(cols, forKey: .cols)
@@ -89,6 +93,8 @@ extension ClientMessage: Codable {
             return .sessionTerminate(sessionId: sessionId)
         case "session_list":
             return .sessionList
+        case "session_list_all":
+            return .sessionListAll
         case "resize":
             let cols = try container.decode(UInt16.self, forKey: .cols)
             let rows = try container.decode(UInt16.self, forKey: .rows)

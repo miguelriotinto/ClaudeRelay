@@ -14,6 +14,7 @@ public enum ServerMessage: Equatable, Sendable {
     case sessionActivity(sessionId: UUID, activity: ActivityState)
     case sessionStolen(sessionId: UUID)
     case sessionList(sessions: [SessionInfo])
+    case sessionListAll(sessions: [SessionInfo])
     case resizeAck(cols: UInt16, rows: UInt16)
     case pong
     case error(code: Int, message: String)
@@ -34,6 +35,7 @@ public enum ServerMessage: Equatable, Sendable {
         case .sessionActivity:     return "session_activity"
         case .sessionStolen:       return "session_stolen"
         case .sessionList:         return "session_list_result"
+        case .sessionListAll:      return "session_list_all_result"
         case .resizeAck:           return "resize_ack"
         case .pong:                return "pong"
         case .error:               return "error"
@@ -45,7 +47,7 @@ public enum ServerMessage: Equatable, Sendable {
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure", "session_created", "session_attached",
         "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "session_activity", "session_stolen", "session_list_result", "resize_ack", "pong", "error"
+        "session_expired", "session_state", "session_activity", "session_stolen", "session_list_result", "session_list_all_result", "resize_ack", "pong", "error"
     ]
 }
 
@@ -88,6 +90,8 @@ extension ServerMessage: Codable {
         case .sessionStolen(let sessionId):
             try container.encode(sessionId, forKey: .sessionId)
         case .sessionList(let sessions):
+            try container.encode(sessions, forKey: .sessions)
+        case .sessionListAll(let sessions):
             try container.encode(sessions, forKey: .sessions)
         case .resizeAck(let cols, let rows):
             try container.encode(cols, forKey: .cols)
@@ -143,6 +147,9 @@ extension ServerMessage: Codable {
         case "session_list_result":
             let sessions = try container.decode([SessionInfo].self, forKey: .sessions)
             return .sessionList(sessions: sessions)
+        case "session_list_all_result":
+            let sessions = try container.decode([SessionInfo].self, forKey: .sessions)
+            return .sessionListAll(sessions: sessions)
         case "resize_ack":
             let cols = try container.decode(UInt16.self, forKey: .cols)
             let rows = try container.decode(UInt16.self, forKey: .rows)

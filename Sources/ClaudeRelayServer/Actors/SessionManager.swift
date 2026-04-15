@@ -103,6 +103,8 @@ public actor SessionManager {
     /// Attach to a session (wire up I/O).
     /// - Parameter excludeObserver: Observer ID to exclude from steal notifications
     ///   (the connection doing the attach should not receive its own stolen push).
+    /// Supports cross-token attach: if the session belongs to a different token,
+    /// ownership is transferred and the old token's observers are notified.
     public func attachSession(
         id: UUID,
         tokenId: String,
@@ -110,9 +112,6 @@ public actor SessionManager {
     ) throws -> (SessionInfo, any PTYSessionProtocol) {
         guard var managed = sessions[id] else {
             throw SessionError.notFound(id)
-        }
-        guard managed.info.tokenId == tokenId else {
-            throw SessionError.ownershipViolation
         }
         guard let pty = managed.ptySession else {
             throw SessionError.notFound(id)
@@ -128,15 +127,18 @@ public actor SessionManager {
             throw SessionError.invalidTransition(currentState, newState)
         }
 
-        // Notify other connections that this session is being stolen.
+        let oldTokenId = managed.info.tokenId
+
+        // Notify the old token's observers that this session is being stolen.
         if isReattach {
-            reportSessionStolen(sessionId: id, tokenId: tokenId, excludeObserver: excludeObserver)
+            reportSessionStolen(sessionId: id, tokenId: oldTokenId, excludeObserver: excludeObserver)
         }
 
+        // Transfer ownership to the attaching token (enables cross-device attach).
         let newInfo = SessionInfo(
             id: managed.info.id,
             state: newState,
-            tokenId: managed.info.tokenId,
+            tokenId: tokenId,
             createdAt: managed.info.createdAt,
             cols: managed.info.cols,
             rows: managed.info.rows
@@ -324,6 +326,29 @@ public actor SessionManager {
     public func listSessionsForToken(tokenId: String) async -> [SessionInfo] {
         var results: [SessionInfo] = []
         for managed in sessions.values where managed.info.tokenId == tokenId {
+            var info = managed.info
+            if let pty = managed.ptySession {
+                let activity = await pty.getActivityState()
+                info = SessionInfo(
+                    id: info.id,
+                    state: info.state,
+                    tokenId: info.tokenId,
+                    createdAt: info.createdAt,
+                    cols: info.cols,
+                    rows: info.rows,
+                    activity: activity
+                )
+            }
+            results.append(info)
+        }
+        return results
+    }
+
+    /// List all sessions across all tokens, enriched with current activity state.
+    /// Used for cross-device attach — lets a device see sessions from other tokens.
+    public func listAllSessions() async -> [SessionInfo] {
+        var results: [SessionInfo] = []
+        for managed in sessions.values {
             var info = managed.info
             if let pty = managed.ptySession {
                 let activity = await pty.getActivityState()

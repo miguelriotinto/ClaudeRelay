@@ -124,6 +124,20 @@ public final class SessionController: ObservableObject {
         }
     }
 
+    /// Lists all sessions across all tokens. Used for cross-device attach.
+    public func listAllSessions() async throws -> [SessionInfo] {
+        let response = try await sendAndWaitForResponse(.sessionListAll)
+
+        switch response {
+        case .sessionListAll(let sessions):
+            return sessions
+        case .error(_, let message):
+            throw SessionError.unexpectedResponse(message)
+        default:
+            throw SessionError.unexpectedResponse(response.typeString)
+        }
+    }
+
     /// Detaches from the current session without terminating it.
     public func detach() async throws {
         let response = try await sendAndWaitForResponse(.sessionDetach)
@@ -144,7 +158,7 @@ public final class SessionController: ObservableObject {
     private static let responseTypes: Set<String> = [
         "auth_success", "auth_failure",
         "session_created", "session_attached", "session_resumed", "session_detached",
-        "session_list_result",
+        "session_list_result", "session_list_all_result",
         "error"
     ]
 
