@@ -47,7 +47,7 @@ struct KeyboardAccessory: View {
             .padding(.horizontal, 8)
         }
         .frame(height: 40)
-        .background(Color(.secondarySystemBackground))
+        .background(.black)
     }
 
     // MARK: - Button builders
