@@ -55,6 +55,9 @@ public final class RelayConnection: ObservableObject {
     /// Called when the server notifies that another device attached to one of our sessions.
     public var onSessionStolen: ((UUID) -> Void)?
 
+    /// Push callback: server renamed a session (another device renamed it).
+    public var onSessionRenamed: ((UUID, String) -> Void)?
+
     /// Called after a successful auto-reconnect (exponential backoff).
     /// Use this to re-authenticate and resume the active session.
     /// NOTE: Callers should capture [weak coordinator] in the closure to avoid retain cycles.
@@ -226,6 +229,8 @@ public final class RelayConnection: ObservableObject {
                         onSessionActivity?(sessionId, activity)
                     case .sessionStolen(let sessionId):
                         onSessionStolen?(sessionId)
+                    case .sessionRenamed(let sessionId, let name):
+                        onSessionRenamed?(sessionId, name)
                     default:
                         break
                     }

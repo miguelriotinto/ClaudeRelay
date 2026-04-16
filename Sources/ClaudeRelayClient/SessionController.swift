@@ -67,8 +67,8 @@ public final class SessionController: ObservableObject {
 
     /// Creates a new terminal session on the server. Returns the session UUID.
     @discardableResult
-    public func createSession() async throws -> UUID {
-        let response = try await sendAndWaitForResponse(.sessionCreate())
+    public func createSession(name: String? = nil) async throws -> UUID {
+        let response = try await sendAndWaitForResponse(.sessionCreate(name: name))
 
         switch response {
         case .sessionCreated(let id, _, _):
@@ -136,6 +136,12 @@ public final class SessionController: ObservableObject {
         default:
             throw SessionError.unexpectedResponse(response.typeString)
         }
+    }
+
+    /// Renames a session. Fire-and-forget — the server broadcasts the rename
+    /// to all connections via `sessionRenamed`. No response expected.
+    public func renameSession(id: UUID, name: String) async throws {
+        try await connection.send(.sessionRename(sessionId: id, name: name))
     }
 
     /// Detaches from the current session without terminating it.
