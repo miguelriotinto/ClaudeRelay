@@ -153,6 +153,7 @@ struct ActiveTerminalView: View {
         .preferredColorScheme(.dark)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: coordinator.activeSessionId) { _, _ in
+            showQROverlay = false
             speechEngine.cancel()
         }
         .onChange(of: scenePhase) { _, newPhase in
