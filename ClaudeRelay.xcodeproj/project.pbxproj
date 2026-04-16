@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
+		A9C3D4E5F67890AB12CD34EF /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D7E3A9C82F1B605DA31E7F2 /* QRScannerView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
 		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
@@ -69,6 +70,7 @@
 		7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D7E3A9C82F1B605DA31E7F2 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -138,6 +140,7 @@
 				0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */,
 				55B2AF59490A10B933D223D7 /* AddEditServerView.swift */,
 				36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */,
+				4D7E3A9C82F1B605DA31E7F2 /* QRScannerView.swift */,
 				8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */,
 				91B48FD6DC9E458119F76B8E /* SettingsView.swift */,
 				79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */,
@@ -333,6 +336,7 @@
 				160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
 				B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */,
+				A9C3D4E5F67890AB12CD34EF /* QRScannerView.swift in Sources */,
 				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
 				BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */,
