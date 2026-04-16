@@ -6,7 +6,8 @@ public enum ClaudeRelayKit {
     public static let protocolVersion = 1
 
     /// Oldest protocol version this build can communicate with.
-    public static let minProtocolVersion = 1
+    /// Keep at 0 until a breaking wire-protocol change forces older clients out.
+    public static let minProtocolVersion = 0
 }
 
 /// Features that require coordinated iOS app + server updates.
