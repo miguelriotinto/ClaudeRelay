@@ -710,6 +710,8 @@ private struct SessionUptimeView: View {
 // MARK: - QR Code Generation
 
 struct QRCodeGenerator {
+    private static let context = CIContext()
+
     static func generate(from string: String, size: CGFloat = 200) -> UIImage? {
         guard let data = string.data(using: .utf8),
               let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
@@ -719,7 +721,9 @@ struct QRCodeGenerator {
         guard let ciImage = filter.outputImage else { return nil }
         let scale = size / ciImage.extent.size.width
         let scaled = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        return UIImage(ciImage: scaled)
+
+        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 }
 
