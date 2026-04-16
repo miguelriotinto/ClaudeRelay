@@ -163,47 +163,62 @@ private struct AttachSessionSheet: View {
     let sessions: [SessionInfo]
     let coordinator: SessionCoordinator
     @Binding var isPresented: Bool
+    @State private var showScanner = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                if sessions.isEmpty {
-                    ContentUnavailableView(
-                        "No Sessions Available",
-                        systemImage: "terminal",
-                        description: Text("There are no other sessions running on the server.")
-                    )
-                } else {
-                    List(sessions, id: \.id) { session in
-                        Button {
-                            isPresented = false
-                            Task { await coordinator.attachRemoteSession(id: session.id) }
-                        } label: {
-                            HStack(spacing: 10) {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(coordinator.name(for: session.id))
-                                        .font(.system(.subheadline, design: .rounded, weight: .medium))
-                                        .lineLimit(1)
+            VStack(spacing: 0) {
+                Group {
+                    if sessions.isEmpty {
+                        ContentUnavailableView(
+                            "No Sessions Available",
+                            systemImage: "terminal",
+                            description: Text("There are no other sessions running on the server.")
+                        )
+                    } else {
+                        List(sessions, id: \.id) { session in
+                            Button {
+                                isPresented = false
+                                Task { await coordinator.attachRemoteSession(id: session.id) }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(session.name ?? coordinator.name(for: session.id))
+                                            .font(.system(.subheadline, design: .rounded, weight: .medium))
+                                            .lineLimit(1)
 
-                                    Text(String(session.id.uuidString.prefix(8)))
-                                        .font(.system(.caption2, design: .monospaced))
-                                        .foregroundStyle(.tertiary)
+                                        Text(String(session.id.uuidString.prefix(8)))
+                                            .font(.system(.caption2, design: .monospaced))
+                                            .foregroundStyle(.tertiary)
+                                    }
+
+                                    Spacer()
+
+                                    Text(session.state.rawValue)
+                                        .font(.caption2)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(attachBadgeColor(session.state).opacity(0.15))
+                                        .foregroundStyle(attachBadgeColor(session.state))
+                                        .clipShape(Capsule())
                                 }
-
-                                Spacer()
-
-                                Text(session.state.rawValue)
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(attachBadgeColor(session.state).opacity(0.15))
-                                    .foregroundStyle(attachBadgeColor(session.state))
-                                    .clipShape(Capsule())
                             }
+                            .tint(.primary)
                         }
-                        .tint(.primary)
                     }
                 }
+
+                Divider()
+
+                Button {
+                    showScanner = true
+                } label: {
+                    Label("Scan QR Code", systemImage: "qrcode.viewfinder")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
             }
             .navigationTitle("Attach Session")
             .navigationBarTitleDisplayMode(.inline)
@@ -211,6 +226,9 @@ private struct AttachSessionSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { isPresented = false }
                 }
+            }
+            .sheet(isPresented: $showScanner) {
+                QRScannerSheet(coordinator: coordinator, isAttachSheetPresented: $isPresented, isScannerPresented: $showScanner)
             }
         }
         .presentationDetents([.medium])
@@ -222,5 +240,43 @@ private struct AttachSessionSheet: View {
         case .created, .starting, .resuming: return .yellow
         case .exited, .failed, .terminated, .expired: return .red
         }
+    }
+}
+
+// MARK: - QR Scanner Sheet
+
+private struct QRScannerSheet: View {
+    let coordinator: SessionCoordinator
+    @Binding var isAttachSheetPresented: Bool
+    @Binding var isScannerPresented: Bool
+
+    var body: some View {
+        NavigationStack {
+            QRScannerView { scannedValue in
+                handleScannedCode(scannedValue)
+            }
+            .ignoresSafeArea()
+            .navigationTitle("Scan QR Code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") { isScannerPresented = false }
+                }
+            }
+        }
+    }
+
+    private func handleScannedCode(_ value: String) {
+        guard let url = URL(string: value),
+              url.scheme == "clauderelay",
+              url.host == "session",
+              let uuidString = url.pathComponents.dropFirst().first,
+              let sessionId = UUID(uuidString: uuidString) else {
+            return  // Invalid QR code — silently ignore, keep scanning
+        }
+
+        isScannerPresented = false
+        isAttachSheetPresented = false
+        Task { await coordinator.attachRemoteSession(id: sessionId) }
     }
 }
