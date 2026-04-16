@@ -4,6 +4,63 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; the iOS app uses X.Y.Z.
 
+## [0.2.0] - 2026-04-16
+
+### Added
+- Protocol version negotiation — client and server exchange `protocolVersion` during auth handshake
+- Image paste support (`paste_image` client message, `paste_image_result` server response)
+- Server version displayed in `claude-relay status` output
+
+### Changed
+- `minProtocolVersion` set to 0 for backward compatibility with older iOS clients
+
+## [0.1.9] - 2026-04-15
+
+### Added
+- Server-side session name storage with `renameSession` and broadcast to all connected clients
+- `sessionCreate(name:)` — clients can now assign a name when creating sessions
+- `sessionRename` client message and `sessionRenamed` server broadcast
+- `name` field on `SessionInfo` model
+- `session_list_all` / `session_list_all_result` wire messages for cross-token session listing
+- GitNexus code intelligence config and skills
+
+## [0.1.8] - 2026-04-13
+
+### Added
+- Cross-device session attach with `sessionStolen` notification when another device takes a session
+- `sessionListAll` message to list sessions across all tokens (enables cross-device attach)
+
+### Fixed
+- Robust Claude detection — removed false exit triggers, persisted activity state across detach/reattach
+- Cross-device attach — sessions now listed across all tokens instead of only the current token's sessions
+
+## [1.3.1] - 2026-04-16 (iOS)
+
+### Added
+- QR code overlay on terminal view for session sharing
+- QR code scanner via AVFoundation camera for session attach
+- "Scan QR Code" button in attach session sheet
+- Deep link handler for `clauderelay://` URL scheme
+- Session name sync with server (renames broadcast to all clients)
+- Configurable keyboard shortcut for speech recording
+- Live key capture UI (replaced shortcut pickers with `KeyCaptureView`)
+- 10,000-line scrollback buffer (up from default)
+- Black terminal chrome and keyboard accessory bar
+
+### Changed
+- Migrated `ShortcutModifier` enum to raw modifier flags
+- LLM.swift switched from local path to remote Git dependency
+
+### Fixed
+- Restore tab activity state after returning from background
+- False Claude detection on tab switch caused by scrollback replay
+- QR code rendering via CIContext for SwiftUI compatibility
+- QR overlay dismisses on session change
+- Push activity state on session attach
+- Swift 6 Sendable warnings in speech layer silenced
+- Guard against empty key string in UIKeyCommand registration
+- NSCameraUsageDescription added to Info.plist
+
 ## [0.1.7] - 2026-04-12
 
 ### Fixed

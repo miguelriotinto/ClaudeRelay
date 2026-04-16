@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 swift build                        # Build all SPM targets
-swift test                         # Run all tests (149 tests)
+swift test                         # Run all tests (172 tests)
 swift test --filter ClaudeRelayKitTests        # Run a single test suite
 swift test --filter testTokenGeneration        # Run a single test by name
 ```
@@ -30,19 +30,22 @@ Note: Service commands are top-level (`claude-relay stop`), while token/session/
 
 ## Architecture
 
-Four SPM targets + one iOS app (XcodeGen-managed via `project.yml`):
+Five SPM targets + one iOS app (XcodeGen-managed via `project.yml`):
 
+- **CPTYShim** — C shim for `forkpty` used by PTYSession.
 - **ClaudeRelayKit** — Shared library: protocol models (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), `SessionInfo`, `TokenInfo`, `RelayConfig`, `ConfigManager`. Used by all other targets.
 - **ClaudeRelayServer** — NIO-based server: `WebSocketServer` (port 9200, optional TLS via NIO-SSL) + `AdminHTTPServer` (port 9100, localhost-only). Uses actors: `SessionManager`, `TokenStore`, `PTYSession`. Rate-limited via `RateLimiter` actor.
 - **ClaudeRelayCLI** — ArgumentParser CLI (`claude-relay`): token/session/config/service/log management. Talks to admin HTTP API.
 - **ClaudeRelayClient** — URLSessionWebSocketTask client: `RelayConnection` (WebSocket transport), `SessionController` (session lifecycle), `AuthManager` (auth flow).
-- **ClaudeRelayApp/** — iOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + SwiftTerm.
+- **ClaudeRelayApp/** — iOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + SwiftTerm + WhisperKit + LLM.swift.
 
 ### Wire Protocol
 
 All WebSocket messages use `MessageEnvelope`: `{"type":"<type_string>","payload":{...}}`. The envelope decoder checks `ClientMessage.allTypeStrings` first, then `ServerMessage.allTypeStrings`. **Type strings must be unique across both sets** — the server's session list response uses `"session_list_result"` (not `"session_list"`) to avoid collision with the client's `"session_list"` request.
 
-`ClientMessage` and `ServerMessage` cannot be decoded standalone — they must go through `MessageEnvelope`.
+`ClientMessage` and `ServerMessage` cannot be decoded standalone — they must go through `MessageEnvelope`. Terminal I/O (`input`/`output`) uses raw binary WebSocket frames, not the envelope protocol.
+
+**Protocol versioning**: Client sends `protocolVersion` in `auth_request`; server responds with `protocolVersion` in `auth_success`. `minProtocolVersion` is 0 for backward compatibility with older clients.
 
 ### Date Encoding Caveat
 
@@ -73,7 +76,7 @@ The WebSocket server uses default `JSONEncoder` (Double timestamps). The Admin H
 - **WorkspaceView** — NavigationSplitView: sidebar (sessions) + detail (terminal), presented as fullScreenCover
 - **SessionCoordinator** — Manages auth, session lifecycle, caches TerminalViewModels, routes I/O
 - **Foreground recovery** — On `scenePhase` `.active`: pings WebSocket, reconnects if dead, re-authenticates, resumes session
-- **SpeechRecognizer** — Live speech-to-text using SFSpeechRecognizer, streams diff-based text to terminal
+- **OnDeviceSpeechEngine** — Offline speech-to-text via WhisperKit (CoreML/ANE), with LLM-based text cleanup and optional cloud prompt enhancement via Anthropic Haiku
 
 ### Server-Side Activity Monitoring
 

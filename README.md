@@ -82,7 +82,7 @@ claude-relay health
 
 ```bash
 claude-relay logs show
-claude-relay logs follow
+claude-relay logs tail
 ```
 
 ## CLI Commands
@@ -102,21 +102,23 @@ claude-relay health        # Health check
 ```bash
 claude-relay token create --label "device-name"     # Create new token
 claude-relay token list                              # List all tokens
-claude-relay token revoke <token-id>                 # Revoke a token
+claude-relay token delete <token-id>                 # Delete a token
+claude-relay token rotate <token-id>                 # Rotate (regenerate) a token
+claude-relay token rename <token-id> --label "new"   # Rename a token
+claude-relay token inspect <token-id>                # Show token details
 ```
 
 ### Session Management
 ```bash
 claude-relay session list                            # List active sessions
-claude-relay session attach <session-id>             # Attach to session
-claude-relay session close <session-id>              # Close session
+claude-relay session inspect <session-id>            # Show session details
+claude-relay session terminate <session-id>          # Terminate a session
 ```
 
 ### Logs
 ```bash
 claude-relay logs show                               # Show recent logs
-claude-relay logs follow                             # Tail logs
-claude-relay logs clear                              # Clear logs
+claude-relay logs tail                               # Follow log output
 ```
 
 ### Configuration
@@ -247,21 +249,39 @@ All WebSocket messages use `MessageEnvelope` with JSON encoding:
 ```
 
 **Client Messages:**
-- `auth` - Authenticate with token
-- `session_create` - Create new session
-- `session_list` - List sessions
+- `auth_request` - Authenticate with token (includes optional `protocolVersion`)
+- `session_create` - Create new session (optional `name`)
 - `session_attach` - Attach to session
+- `session_resume` - Resume detached session with scrollback replay
 - `session_detach` - Detach from session
-- `session_close` - Close session
-- `input` - Send terminal input
+- `session_terminate` - Terminate a session
+- `session_list` - List own sessions
+- `session_list_all` - List sessions across all tokens (for cross-device attach)
+- `session_rename` - Rename a session
+- `resize` - Resize terminal
+- `paste_image` - Paste image data (base64)
+- `ping` - Keep-alive ping
 
 **Server Messages:**
-- `auth_success` / `auth_failed` - Authentication result
+- `auth_success` / `auth_failure` - Authentication result (includes optional `protocolVersion`)
 - `session_created` - Session creation result
-- `session_list_result` - List of sessions
 - `session_attached` - Attachment confirmation
-- `output` - Terminal output
+- `session_resumed` - Resume confirmation
+- `session_detached` - Detach confirmation
+- `session_terminated` - Session terminated notification
+- `session_expired` - Session expired notification
+- `session_state` - Session state change
+- `session_activity` - Claude running/idle activity push
+- `session_stolen` - Another device attached to your session
+- `session_renamed` - Session name changed
+- `session_list_result` - List of own sessions
+- `session_list_all_result` - List of all sessions
+- `resize_ack` - Terminal resize acknowledged
+- `paste_image_result` - Image paste success/failure
+- `pong` - Keep-alive response
 - `error` - Error message
+
+**Note:** Terminal I/O (`input`/`output`) is sent as raw binary WebSocket frames, not through the `MessageEnvelope` JSON protocol.
 
 ## Admin API
 
