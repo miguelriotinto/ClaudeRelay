@@ -151,7 +151,7 @@ final class SpeechModelStore: ObservableObject {
 
 // MARK: - Download Progress Delegate
 
-private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, Sendable {
+private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     private let progressHandler: @MainActor (Double) -> Void
 
     init(progressHandler: @MainActor @escaping (Double) -> Void) {
