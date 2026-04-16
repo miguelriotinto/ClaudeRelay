@@ -68,7 +68,7 @@ public final class SessionController: ObservableObject {
     /// Creates a new terminal session on the server. Returns the session UUID.
     @discardableResult
     public func createSession() async throws -> UUID {
-        let response = try await sendAndWaitForResponse(.sessionCreate)
+        let response = try await sendAndWaitForResponse(.sessionCreate())
 
         switch response {
         case .sessionCreated(let id, _, _):

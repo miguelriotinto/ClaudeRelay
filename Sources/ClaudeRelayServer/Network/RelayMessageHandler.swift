@@ -125,8 +125,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         switch message {
         case .authRequest:
             sendServerMessage(.error(code: 400, message: "Already authenticated"), context: context)
-        case .sessionCreate:
-            handleSessionCreate(context: context)
+        case .sessionCreate(let name):
+            handleSessionCreate(name: name, context: context)
         case .sessionAttach(let sessionId):
             handleSessionAttach(sessionId: sessionId, context: context)
         case .sessionResume(let sessionId):
@@ -139,6 +139,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             handleSessionList(context: context)
         case .sessionListAll:
             handleSessionListAll(context: context)
+        case .sessionRename(let sessionId, let name):
+            handleSessionRename(sessionId: sessionId, name: name, context: context)
         case .resize(let cols, let rows):
             handleResize(cols: cols, rows: rows, context: context)
         case .ping:
@@ -225,18 +227,19 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     // MARK: - Session Create
 
-    private func handleSessionCreate(context: ChannelHandlerContext) {
+    private func handleSessionCreate(name: String?, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
         let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
                 await self?.autoDetachIfNeeded()
+                // TODO: Task 4 - Pass name to createSession when SessionManager supports it
                 let info = try await sessionManager.createSession(tokenId: tokenId)
                 let sessionId = info.id
                 // Attach immediately
                 let (_, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
-                RelayLogger.log(category: "session", "Session created: \(sessionId)")
+                RelayLogger.log(category: "session", "Session created: \(sessionId) (name: \(name ?? "nil"))")
                 ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
@@ -251,6 +254,11 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                 }
             }
         }
+    }
+
+    private func handleSessionRename(sessionId: UUID, name: String, context: ChannelHandlerContext) {
+        // TODO: Task 5 - Implement session rename
+        sendServerMessage(.error(code: 501, message: "Session rename not yet implemented"), context: context)
     }
 
     // MARK: - Session Attach

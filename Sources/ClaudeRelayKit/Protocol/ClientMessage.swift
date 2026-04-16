@@ -3,13 +3,14 @@ import Foundation
 /// Messages sent from the client to the server.
 public enum ClientMessage: Equatable, Sendable {
     case authRequest(token: String)
-    case sessionCreate
+    case sessionCreate(name: String? = nil)
     case sessionAttach(sessionId: UUID)
     case sessionResume(sessionId: UUID)
     case sessionDetach
     case sessionTerminate(sessionId: UUID)
     case sessionList
     case sessionListAll
+    case sessionRename(sessionId: UUID, name: String)
     case resize(cols: UInt16, rows: UInt16)
     case ping
 
@@ -25,6 +26,7 @@ public enum ClientMessage: Equatable, Sendable {
         case .sessionTerminate:  return "session_terminate"
         case .sessionList:       return "session_list"
         case .sessionListAll:    return "session_list_all"
+        case .sessionRename:     return "session_rename"
         case .resize:         return "resize"
         case .ping:           return "ping"
         }
@@ -34,7 +36,7 @@ public enum ClientMessage: Equatable, Sendable {
 
     static let allTypeStrings: Set<String> = [
         "auth_request", "session_create", "session_attach",
-        "session_resume", "session_detach", "session_terminate", "session_list", "session_list_all", "resize", "ping"
+        "session_resume", "session_detach", "session_terminate", "session_list", "session_list_all", "session_rename", "resize", "ping"
     ]
 }
 
@@ -42,7 +44,7 @@ public enum ClientMessage: Equatable, Sendable {
 
 extension ClientMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case token, sessionId, cols, rows
+        case token, sessionId, cols, rows, name
     }
 
     public func encodePayload(to encoder: Encoder) throws {
@@ -50,8 +52,8 @@ extension ClientMessage: Codable {
         switch self {
         case .authRequest(let token):
             try container.encode(token, forKey: .token)
-        case .sessionCreate:
-            break
+        case .sessionCreate(let name):
+            try container.encodeIfPresent(name, forKey: .name)
         case .sessionAttach(let sessionId):
             try container.encode(sessionId, forKey: .sessionId)
         case .sessionResume(let sessionId):
@@ -64,6 +66,9 @@ extension ClientMessage: Codable {
             break
         case .sessionListAll:
             break
+        case .sessionRename(let sessionId, let name):
+            try container.encode(sessionId, forKey: .sessionId)
+            try container.encode(name, forKey: .name)
         case .resize(let cols, let rows):
             try container.encode(cols, forKey: .cols)
             try container.encode(rows, forKey: .rows)
@@ -79,7 +84,8 @@ extension ClientMessage: Codable {
             let token = try container.decode(String.self, forKey: .token)
             return .authRequest(token: token)
         case "session_create":
-            return .sessionCreate
+            let name = try container.decodeIfPresent(String.self, forKey: .name)
+            return .sessionCreate(name: name)
         case "session_attach":
             let sessionId = try container.decode(UUID.self, forKey: .sessionId)
             return .sessionAttach(sessionId: sessionId)
@@ -95,6 +101,10 @@ extension ClientMessage: Codable {
             return .sessionList
         case "session_list_all":
             return .sessionListAll
+        case "session_rename":
+            let sessionId = try container.decode(UUID.self, forKey: .sessionId)
+            let name = try container.decode(String.self, forKey: .name)
+            return .sessionRename(sessionId: sessionId, name: name)
         case "resize":
             let cols = try container.decode(UInt16.self, forKey: .cols)
             let rows = try container.decode(UInt16.self, forKey: .rows)
