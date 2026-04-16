@@ -101,7 +101,7 @@ final class ProtocolMessageTests: XCTestCase {
     // MARK: - ServerMessage Encoding Structure
 
     func testAuthSuccessEncoding() throws {
-        let msg = ServerMessage.authSuccess
+        let msg = ServerMessage.authSuccess()
         let envelope = MessageEnvelope.server(msg)
         let data = try encoder.encode(envelope)
         let obj = try jsonObject(data)
@@ -271,7 +271,7 @@ final class ProtocolMessageTests: XCTestCase {
     func testServerMessageRoundTrips() throws {
         let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
         let messages: [ServerMessage] = [
-            .authSuccess,
+            .authSuccess(),
             .authFailure(reason: "bad creds"),
             .sessionCreated(sessionId: id, cols: 80, rows: 24),
             .sessionAttached(sessionId: id, state: "running"),
@@ -306,10 +306,11 @@ final class ProtocolMessageTests: XCTestCase {
     func testAuthRequestFieldVerification() throws {
         let json = #"{"type":"auth_request","payload":{"token":"secret-token-123"}}"#
         let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
-        guard case .client(.authRequest(let token)) = envelope else {
+        guard case .client(.authRequest(let token, let protocolVersion)) = envelope else {
             XCTFail("Expected authRequest"); return
         }
         XCTAssertEqual(token, "secret-token-123")
+        XCTAssertNil(protocolVersion)
     }
 
     func testSessionCreatedFieldVerification() throws {
@@ -575,7 +576,7 @@ final class ProtocolMessageTests: XCTestCase {
     func testServerMessageEquatable() {
         let id = UUID()
         XCTAssertEqual(ServerMessage.pong, ServerMessage.pong)
-        XCTAssertEqual(ServerMessage.authSuccess, ServerMessage.authSuccess)
+        XCTAssertEqual(ServerMessage.authSuccess(), ServerMessage.authSuccess())
         XCTAssertEqual(ServerMessage.error(code: 1, message: "a"), ServerMessage.error(code: 1, message: "a"))
         XCTAssertNotEqual(ServerMessage.error(code: 1, message: "a"), ServerMessage.error(code: 2, message: "a"))
         XCTAssertEqual(ServerMessage.sessionCreated(sessionId: id, cols: 80, rows: 24),

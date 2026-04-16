@@ -562,20 +562,20 @@ private class RelayTerminalView: TerminalView {
         NotificationCenter.default.post(name: .toggleSpeechRecording, object: nil)
     }
 
-    /// Called when the user pastes an image (no text on clipboard).
     var onPasteImage: ((Data) -> Void)?
 
     override func paste(_ sender: Any?) {
-        if UIPasteboard.general.hasStrings {
-            super.paste(sender)
+        // Check images first — many clipboard entries carry both text and an image
+        // (e.g. a photo copied from Safari also has a URL string). Prioritise the
+        // image so it actually reaches Claude Code via the relay's clipboard path.
+        if UIPasteboard.general.hasImages,
+           let image = UIPasteboard.general.image,
+           let pngData = image.pngData() {
+            onPasteImage?(pngData)
             return
         }
-        // No text — check for image data and send it through the relay.
-        if let imageData = UIPasteboard.general.data(forPasteboardType: "public.png")
-            ?? UIPasteboard.general.data(forPasteboardType: "public.jpeg")
-            ?? UIPasteboard.general.data(forPasteboardType: "public.image") {
-            onPasteImage?(imageData)
-        }
+        // Plain text — let SwiftTerm handle it normally.
+        super.paste(sender)
     }
 
     @objc private func handleCut(_ sender: Any?) {

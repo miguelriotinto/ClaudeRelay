@@ -2,7 +2,7 @@ import Foundation
 
 /// Messages sent from the server to the client.
 public enum ServerMessage: Equatable, Sendable {
-    case authSuccess
+    case authSuccess(protocolVersion: Int? = nil)
     case authFailure(reason: String)
     case sessionCreated(sessionId: UUID, cols: UInt16, rows: UInt16)
     case sessionAttached(sessionId: UUID, state: String)
@@ -59,14 +59,14 @@ public enum ServerMessage: Equatable, Sendable {
 
 extension ServerMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case reason, sessionId, cols, rows, state, code, message, sessions, activity, name, success
+        case reason, sessionId, cols, rows, state, code, message, sessions, activity, name, success, protocolVersion
     }
 
     public func encodePayload(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: PayloadCodingKeys.self)
         switch self {
-        case .authSuccess:
-            break
+        case .authSuccess(let protocolVersion):
+            try container.encodeIfPresent(protocolVersion, forKey: .protocolVersion)
         case .authFailure(let reason):
             try container.encode(reason, forKey: .reason)
         case .sessionCreated(let sessionId, let cols, let rows):
@@ -117,7 +117,8 @@ extension ServerMessage: Codable {
         let container = try decoder.container(keyedBy: PayloadCodingKeys.self)
         switch typeString {
         case "auth_success":
-            return .authSuccess
+            let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion)
+            return .authSuccess(protocolVersion: protocolVersion)
         case "auth_failure":
             let reason = try container.decode(String.self, forKey: .reason)
             return .authFailure(reason: reason)

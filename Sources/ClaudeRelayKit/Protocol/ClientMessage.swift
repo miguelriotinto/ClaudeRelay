@@ -2,7 +2,7 @@ import Foundation
 
 /// Messages sent from the client to the server.
 public enum ClientMessage: Equatable, Sendable {
-    case authRequest(token: String)
+    case authRequest(token: String, protocolVersion: Int? = nil)
     case sessionCreate(name: String? = nil)
     case sessionAttach(sessionId: UUID)
     case sessionResume(sessionId: UUID)
@@ -19,7 +19,7 @@ public enum ClientMessage: Equatable, Sendable {
 
     public var typeString: String {
         switch self {
-        case .authRequest:    return "auth_request"
+        case .authRequest:       return "auth_request"
         case .sessionCreate:  return "session_create"
         case .sessionAttach:  return "session_attach"
         case .sessionResume:  return "session_resume"
@@ -46,14 +46,15 @@ public enum ClientMessage: Equatable, Sendable {
 
 extension ClientMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case token, sessionId, cols, rows, name, data
+        case token, sessionId, cols, rows, name, data, protocolVersion
     }
 
     public func encodePayload(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: PayloadCodingKeys.self)
         switch self {
-        case .authRequest(let token):
+        case .authRequest(let token, let protocolVersion):
             try container.encode(token, forKey: .token)
+            try container.encodeIfPresent(protocolVersion, forKey: .protocolVersion)
         case .sessionCreate(let name):
             try container.encodeIfPresent(name, forKey: .name)
         case .sessionAttach(let sessionId):
@@ -86,7 +87,8 @@ extension ClientMessage: Codable {
         switch typeString {
         case "auth_request":
             let token = try container.decode(String.self, forKey: .token)
-            return .authRequest(token: token)
+            let protocolVersion = try container.decodeIfPresent(Int.self, forKey: .protocolVersion)
+            return .authRequest(token: token, protocolVersion: protocolVersion)
         case "session_create":
             let name = try container.decodeIfPresent(String.self, forKey: .name)
             return .sessionCreate(name: name)

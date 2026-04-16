@@ -68,6 +68,7 @@ enum AdminRoutes {
         let info: [String: Any] = [
             "status": "running",
             "version": ClaudeRelayKit.version,
+            "protocolVersion": ClaudeRelayKit.protocolVersion,
             "pid": ProcessInfo.processInfo.processIdentifier,
             "uptime_seconds": Int(uptime),
             "session_count": sessions.count

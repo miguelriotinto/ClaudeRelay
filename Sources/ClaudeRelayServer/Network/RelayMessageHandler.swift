@@ -114,8 +114,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private func handleUnauthenticatedMessage(_ message: ClientMessage, context: ChannelHandlerContext) {
         switch message {
-        case .authRequest(let token):
-            handleAuth(token: token, context: context)
+        case .authRequest(let token, let protocolVersion):
+            handleAuth(token: token, clientProtocolVersion: protocolVersion, context: context)
         case .ping:
             sendServerMessage(.pong, context: context)
         default:
@@ -170,7 +170,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     // MARK: - Auth
 
-    private func handleAuth(token: String, context: ChannelHandlerContext) {
+    private func handleAuth(token: String, clientProtocolVersion: Int?, context: ChannelHandlerContext) {
         let tokenStore = self.tokenStore
         let ctx = UnsafeTransfer(context)
         Task { [weak self] in
@@ -178,12 +178,27 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             ctx.value.eventLoop.execute {
                 guard let self = self else { return }
                 if let info = tokenInfo {
+                    // Check protocol compatibility (after auth, so unauthenticated
+                    // clients cannot probe the server version).
+                    let clientVersion = clientProtocolVersion ?? 0
+                    if clientVersion < ClaudeRelayKit.minProtocolVersion {
+                        let remote = ctx.value.remoteAddress?.description ?? "unknown"
+                        RelayLogger.log(.error, category: "auth",
+                            "Version mismatch from \(remote): client protocol v\(clientVersion), server requires >= v\(ClaudeRelayKit.minProtocolVersion)")
+                        self.sendServerMessage(.authFailure(
+                            reason: "This iOS app is not compatible with the server version running on the backend. "
+                                + "Client protocol: v\(clientVersion), server requires: v\(ClaudeRelayKit.minProtocolVersion)+."
+                        ), context: ctx.value)
+                        ctx.value.close(promise: nil)
+                        return
+                    }
+
                     self.isAuthenticated = true
                     self.authenticatedTokenId = info.id
                     self.authTimeout?.cancel()
                     self.authTimeout = nil
-                    RelayLogger.log(category: "auth", "Auth success for token \(info.id)")
-                    self.sendServerMessage(.authSuccess, context: ctx.value)
+                    RelayLogger.log(category: "auth", "Auth success for token \(info.id) (protocol v\(clientVersion))")
+                    self.sendServerMessage(.authSuccess(protocolVersion: ClaudeRelayKit.protocolVersion), context: ctx.value)
 
                     // Subscribe to activity updates for all sessions owned by this token.
                     let manager = self.sessionManager
@@ -526,34 +541,18 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         pasteboard.clearContents()
         pasteboard.setData(imageData, forType: .png)
 
-        // Send Cmd+V to the PTY. Terminal emulators encode Cmd+V as the
-        // bracketed paste sequence, but the shell/Claude Code actually reads
-        // the clipboard directly when it detects a paste. We just need to
-        // trigger the paste action — sending the standard "paste" escape
-        // that terminals use: the raw Ctrl+V (0x16) character.
-        // However, Claude Code is a TUI that reads the clipboard on paste
-        // events. The simplest reliable trigger is typing Cmd+V which in
-        // a macOS terminal sends nothing special — the terminal emulator
-        // itself handles it by reading the clipboard and sending bracketed
-        // paste. Since we're writing directly to the PTY (not a terminal
-        // emulator), we simulate what the terminal emulator does:
-        // send the clipboard content as a bracketed paste.
-        //
-        // But for images, Claude Code doesn't receive text — it receives
-        // a paste event and then checks NSPasteboard for image data.
-        // On macOS, the Terminal.app / iTerm sends "\u{16}" (Ctrl+V)
-        // for Cmd+V when bracketed paste mode is off. Claude Code's
-        // input handler detects this and checks the pasteboard.
-        //
-        // We send a single newline inside a bracketed paste to signal
-        // "something was pasted" while the actual image is on the clipboard.
+        // Trigger Claude Code to read the clipboard. Terminal emulators
+        // (iTerm2, Terminal.app) send an empty bracketed paste when the
+        // clipboard contains only image data — the empty text body tells
+        // the TUI "a paste happened" and it then inspects NSPasteboard
+        // for image content. Sending non-empty text (e.g. "\n") causes
+        // Claude Code to process that text instead of checking the clipboard.
         let bracketedPasteStart = Data([0x1B, 0x5B, 0x32, 0x30, 0x30, 0x7E]) // ESC[200~
         let bracketedPasteEnd = Data([0x1B, 0x5B, 0x32, 0x30, 0x31, 0x7E])   // ESC[201~
-        let pasteContent = Data("\n".utf8)
 
         let ctx = UnsafeTransfer(context)
         Task {
-            await pty.write(bracketedPasteStart + pasteContent + bracketedPasteEnd)
+            await pty.write(bracketedPasteStart + bracketedPasteEnd)
             ctx.value.eventLoop.execute { [weak self] in
                 self?.sendServerMessage(.pasteImageResult(success: true), context: ctx.value)
             }

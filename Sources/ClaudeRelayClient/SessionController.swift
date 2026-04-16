@@ -9,6 +9,7 @@ public final class SessionController: ObservableObject {
 
     public enum SessionError: Error, LocalizedError {
         case authenticationFailed(reason: String)
+        case versionIncompatible(clientVersion: Int, serverVersion: Int)
         case unexpectedResponse(String)
         case timeout
 
@@ -16,6 +17,8 @@ public final class SessionController: ObservableObject {
             switch self {
             case .authenticationFailed(let reason):
                 return "Authentication failed: \(reason)"
+            case .versionIncompatible:
+                return "This iOS app is not compatible with the server version running on the backend."
             case .unexpectedResponse(let detail):
                 return "Unexpected server response: \(detail)"
             case .timeout:
@@ -49,11 +52,22 @@ public final class SessionController: ObservableObject {
     }
 
     /// Sends an authentication request and waits for the server response.
+    /// Includes the client's protocol version; checks the server's version on success.
     public func authenticate(token: String) async throws {
-        let response = try await sendAndWaitForResponse(.authRequest(token: token))
+        let response = try await sendAndWaitForResponse(
+            .authRequest(token: token, protocolVersion: ClaudeRelayKit.protocolVersion)
+        )
 
         switch response {
-        case .authSuccess:
+        case .authSuccess(let serverProtocolVersion):
+            let serverVersion = serverProtocolVersion ?? 0
+            if serverVersion < ClaudeRelayKit.minProtocolVersion {
+                isAuthenticated = false
+                throw SessionError.versionIncompatible(
+                    clientVersion: ClaudeRelayKit.protocolVersion,
+                    serverVersion: serverVersion
+                )
+            }
             isAuthenticated = true
         case .authFailure(let reason):
             isAuthenticated = false
