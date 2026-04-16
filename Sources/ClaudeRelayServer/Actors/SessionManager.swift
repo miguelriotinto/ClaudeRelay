@@ -24,6 +24,8 @@ public actor SessionManager {
     private var activityObservers: [UUID: (tokenId: String, callback: ActivityObserver)] = [:]
     public typealias StealObserver = @Sendable (UUID) -> Void
     private var stealObservers: [UUID: (tokenId: String, callback: StealObserver)] = [:]
+    public typealias RenameObserver = @Sendable (UUID, String) -> Void
+    private var renameObservers: [UUID: (tokenId: String, callback: RenameObserver)] = [:]
 
     struct ManagedSession {
         var info: SessionInfo
@@ -47,7 +49,8 @@ public actor SessionManager {
     public func createSession(
         tokenId: String,
         cols: UInt16 = 80,
-        rows: UInt16 = 24
+        rows: UInt16 = 24,
+        name: String? = nil
     ) async throws -> SessionInfo {
         let id = UUID()
         let now = Date()
@@ -55,6 +58,7 @@ public actor SessionManager {
         // Create initial info in .starting state (created -> starting)
         let startingInfo = SessionInfo(
             id: id,
+            name: name,
             state: .starting,
             tokenId: tokenId,
             createdAt: now,
@@ -69,6 +73,7 @@ public actor SessionManager {
         // Transition starting -> activeAttached
         let activeInfo = SessionInfo(
             id: id,
+            name: name,
             state: .activeAttached,
             tokenId: tokenId,
             createdAt: now,
@@ -137,6 +142,7 @@ public actor SessionManager {
         // Transfer ownership to the attaching token (enables cross-device attach).
         let newInfo = SessionInfo(
             id: managed.info.id,
+            name: managed.info.name,
             state: newState,
             tokenId: tokenId,
             createdAt: managed.info.createdAt,
@@ -163,6 +169,7 @@ public actor SessionManager {
 
         let newInfo = SessionInfo(
             id: managed.info.id,
+            name: managed.info.name,
             state: newState,
             tokenId: managed.info.tokenId,
             createdAt: managed.info.createdAt,
@@ -214,7 +221,7 @@ public actor SessionManager {
         // If still attached (client didn't detach cleanly), detach first.
         if currentState == .activeAttached {
             managed.info = SessionInfo(
-                id: managed.info.id, state: .activeDetached,
+                id: managed.info.id, name: managed.info.name, state: .activeDetached,
                 tokenId: managed.info.tokenId, createdAt: managed.info.createdAt,
                 cols: managed.info.cols, rows: managed.info.rows
             )
@@ -229,6 +236,7 @@ public actor SessionManager {
         // First: activeDetached -> resuming
         let resumingInfo = SessionInfo(
             id: managed.info.id,
+            name: managed.info.name,
             state: .resuming,
             tokenId: managed.info.tokenId,
             createdAt: managed.info.createdAt,
@@ -240,6 +248,7 @@ public actor SessionManager {
         // Then: resuming -> activeAttached
         let attachedInfo = SessionInfo(
             id: managed.info.id,
+            name: managed.info.name,
             state: .activeAttached,
             tokenId: managed.info.tokenId,
             createdAt: managed.info.createdAt,
@@ -285,6 +294,7 @@ public actor SessionManager {
 
         let newInfo = SessionInfo(
             id: managed.info.id,
+            name: managed.info.name,
             state: newState,
             tokenId: managed.info.tokenId,
             createdAt: managed.info.createdAt,
@@ -309,6 +319,34 @@ public actor SessionManager {
         purgeTerminalSessions()
     }
 
+    /// Rename a session. Validates ownership and broadcasts to observers.
+    public func renameSession(id: UUID, tokenId: String, name: String) throws {
+        guard var managed = sessions[id] else {
+            throw SessionError.notFound(id)
+        }
+        guard managed.info.tokenId == tokenId else {
+            throw SessionError.ownershipViolation
+        }
+
+        let info = managed.info
+        managed.info = SessionInfo(
+            id: info.id,
+            name: name,
+            state: info.state,
+            tokenId: info.tokenId,
+            createdAt: info.createdAt,
+            cols: info.cols,
+            rows: info.rows,
+            activity: info.activity
+        )
+        sessions[id] = managed
+
+        // Broadcast rename to all observers for this token
+        for (_, observer) in renameObservers where observer.tokenId == tokenId {
+            observer.callback(id, name)
+        }
+    }
+
     /// List all sessions.
     public func listSessions() -> [SessionInfo] {
         return sessions.values.map { $0.info }
@@ -331,6 +369,7 @@ public actor SessionManager {
                 let activity = await pty.getActivityState()
                 info = SessionInfo(
                     id: info.id,
+                    name: info.name,
                     state: info.state,
                     tokenId: info.tokenId,
                     createdAt: info.createdAt,
@@ -354,6 +393,7 @@ public actor SessionManager {
                 let activity = await pty.getActivityState()
                 info = SessionInfo(
                     id: info.id,
+                    name: info.name,
                     state: info.state,
                     tokenId: info.tokenId,
                     createdAt: info.createdAt,
@@ -415,6 +455,22 @@ public actor SessionManager {
         }
     }
 
+    // MARK: - Rename Observers
+
+    @discardableResult
+    public func addRenameObserver(
+        tokenId: String,
+        callback: @escaping RenameObserver
+    ) -> UUID {
+        let observerId = UUID()
+        renameObservers[observerId] = (tokenId: tokenId, callback: callback)
+        return observerId
+    }
+
+    public func removeRenameObserver(id: UUID) {
+        renameObservers.removeValue(forKey: id)
+    }
+
     // MARK: - Shutdown
 
     /// Terminates all active sessions. Called during graceful server shutdown.
@@ -428,6 +484,7 @@ public actor SessionManager {
             var updated = managed
             updated.info = SessionInfo(
                 id: managed.info.id,
+                name: managed.info.name,
                 state: .terminated,
                 tokenId: managed.info.tokenId,
                 createdAt: managed.info.createdAt,
@@ -479,6 +536,7 @@ public actor SessionManager {
 
         let newInfo = SessionInfo(
             id: managed.info.id,
+            name: managed.info.name,
             state: .exited,
             tokenId: managed.info.tokenId,
             createdAt: managed.info.createdAt,
@@ -511,6 +569,7 @@ public actor SessionManager {
 
         let newInfo = SessionInfo(
             id: managed.info.id,
+            name: managed.info.name,
             state: .expired,
             tokenId: managed.info.tokenId,
             createdAt: managed.info.createdAt,

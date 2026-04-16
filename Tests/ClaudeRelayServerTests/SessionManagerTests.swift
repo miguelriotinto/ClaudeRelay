@@ -317,4 +317,117 @@ final class SessionManagerTests: XCTestCase {
         XCTAssertEqual(callCount, 0, "Steal should not fire for resume from detached state")
         await manager.removeStealObserver(id: observerId)
     }
+
+    // MARK: - Session Names
+
+    func testCreateSessionWithName() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id, name: "Rhaegar")
+
+        XCTAssertEqual(session.name, "Rhaegar")
+        let inspected = try await manager.inspectSession(id: session.id)
+        XCTAssertEqual(inspected.name, "Rhaegar")
+    }
+
+    func testCreateSessionWithoutName() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+
+        XCTAssertNil(session.name)
+    }
+
+    func testRenameSession() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id, name: "Tyrion")
+        try await manager.renameSession(id: session.id, tokenId: tokenInfo.id, name: "Jaime")
+
+        let inspected = try await manager.inspectSession(id: session.id)
+        XCTAssertEqual(inspected.name, "Jaime")
+    }
+
+    func testRenameSessionOwnershipViolation() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "other")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id, name: "Tyrion")
+
+        do {
+            try await manager.renameSession(id: session.id, tokenId: tokenB.id, name: "Stolen")
+            XCTFail("Expected ownership violation")
+        } catch let error as SessionError {
+            if case .ownershipViolation = error {
+                // expected
+            } else {
+                XCTFail("Expected ownershipViolation, got \(error)")
+            }
+        }
+    }
+
+    func testRenameSessionBroadcastsToObservers() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id, name: "Old")
+
+        let expectation = XCTestExpectation(description: "rename callback")
+        var receivedName: String?
+        var receivedSessionId: UUID?
+        let observerId = await manager.addRenameObserver(tokenId: tokenInfo.id) { sessionId, name in
+            receivedSessionId = sessionId
+            receivedName = name
+            expectation.fulfill()
+        }
+
+        try await manager.renameSession(id: session.id, tokenId: tokenInfo.id, name: "New")
+
+        await fulfillment(of: [expectation], timeout: 1.0)
+        XCTAssertEqual(receivedSessionId, session.id)
+        XCTAssertEqual(receivedName, "New")
+        await manager.removeRenameObserver(id: observerId)
+    }
+
+    func testListSessionsIncludesName() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        _ = try await manager.createSession(tokenId: tokenInfo.id, name: "Named")
+        _ = try await manager.createSession(tokenId: tokenInfo.id)
+
+        let list = await manager.listSessionsForToken(tokenId: tokenInfo.id)
+        let names = list.map { $0.name }
+        XCTAssertTrue(names.contains("Named"))
+        XCTAssertTrue(names.contains(nil))
+    }
+
+    func testAttachSessionPreservesName() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "other")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id, name: "Rhaegar")
+        let (attachedInfo, _) = try await manager.attachSession(id: session.id, tokenId: tokenB.id)
+
+        XCTAssertEqual(attachedInfo.name, "Rhaegar")
+    }
 }
