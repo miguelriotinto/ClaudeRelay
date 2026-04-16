@@ -55,7 +55,6 @@
 /* Begin PBXFileReference section */
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
-		19AE62421B4B1F4DB8E4E2FA /* LLM.swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LLM.swift; path = ../LLM.swift; sourceTree = SOURCE_ROOT; };
 		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
 		2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
@@ -164,7 +163,6 @@
 			isa = PBXGroup;
 			children = (
 				477B528B65A3A1F49D31B173 /* Claude Relay */,
-				19AE62421B4B1F4DB8E4E2FA /* LLM.swift */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -287,7 +285,7 @@
 				E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 				1D1FB04D702329ACA8C21C83 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 				F4988706144E6DE2A73185C6 /* XCLocalSwiftPackageReference "." */,
-				56F432A11391D64B0B0ED665 /* XCLocalSwiftPackageReference "../LLM.swift" */,
+				56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3AA098A37E7D398E1EC025E4 /* Products */;
@@ -613,10 +611,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		56F432A11391D64B0B0ED665 /* XCLocalSwiftPackageReference "../LLM.swift" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../LLM.swift;
-		};
 		F4988706144E6DE2A73185C6 /* XCLocalSwiftPackageReference "." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = .;
@@ -624,6 +618,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/obra/LLM.swift.git";
+			requirement = {
+				kind = branch;
+				branch = main;
+			};
+		};
 		1D1FB04D702329ACA8C21C83 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
@@ -650,6 +652,7 @@
 		};
 		51931B74F9245F0A1F0344F4 /* LLM */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */;
 			productName = LLM;
 		};
 		79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */ = {

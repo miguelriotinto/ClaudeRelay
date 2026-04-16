@@ -16,7 +16,8 @@ packages:
     url: https://github.com/argmaxinc/WhisperKit.git
     minorVersion: 0.18.0
   LLMSwift:
-    path: ../LLM.swift
+    url: https://github.com/obra/LLM.swift.git
+    branch: main
 
 targets:
   ClaudeRelayApp:
