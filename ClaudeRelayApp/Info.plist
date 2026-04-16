@@ -7,5 +7,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Claude Relay uses the camera to scan QR codes for session sharing.</string>
 </dict>
 </plist>
