@@ -13,6 +13,7 @@ public enum ServerMessage: Equatable, Sendable {
     case sessionState(sessionId: UUID, state: String)
     case sessionActivity(sessionId: UUID, activity: ActivityState)
     case sessionStolen(sessionId: UUID)
+    case sessionRenamed(sessionId: UUID, name: String)
     case sessionList(sessions: [SessionInfo])
     case sessionListAll(sessions: [SessionInfo])
     case resizeAck(cols: UInt16, rows: UInt16)
@@ -34,6 +35,7 @@ public enum ServerMessage: Equatable, Sendable {
         case .sessionState:        return "session_state"
         case .sessionActivity:     return "session_activity"
         case .sessionStolen:       return "session_stolen"
+        case .sessionRenamed:      return "session_renamed"
         case .sessionList:         return "session_list_result"
         case .sessionListAll:      return "session_list_all_result"
         case .resizeAck:           return "resize_ack"
@@ -47,7 +49,7 @@ public enum ServerMessage: Equatable, Sendable {
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure", "session_created", "session_attached",
         "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "session_activity", "session_stolen", "session_list_result", "session_list_all_result", "resize_ack", "pong", "error"
+        "session_expired", "session_state", "session_activity", "session_stolen", "session_renamed", "session_list_result", "session_list_all_result", "resize_ack", "pong", "error"
     ]
 }
 
@@ -55,7 +57,7 @@ public enum ServerMessage: Equatable, Sendable {
 
 extension ServerMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case reason, sessionId, cols, rows, state, code, message, sessions, activity
+        case reason, sessionId, cols, rows, state, code, message, sessions, activity, name
     }
 
     public func encodePayload(to encoder: Encoder) throws {
@@ -89,6 +91,9 @@ extension ServerMessage: Codable {
             try container.encode(activity, forKey: .activity)
         case .sessionStolen(let sessionId):
             try container.encode(sessionId, forKey: .sessionId)
+        case .sessionRenamed(let sessionId, let name):
+            try container.encode(sessionId, forKey: .sessionId)
+            try container.encode(name, forKey: .name)
         case .sessionList(let sessions):
             try container.encode(sessions, forKey: .sessions)
         case .sessionListAll(let sessions):
@@ -144,6 +149,10 @@ extension ServerMessage: Codable {
         case "session_stolen":
             let sessionId = try container.decode(UUID.self, forKey: .sessionId)
             return .sessionStolen(sessionId: sessionId)
+        case "session_renamed":
+            let sessionId = try container.decode(UUID.self, forKey: .sessionId)
+            let name = try container.decode(String.self, forKey: .name)
+            return .sessionRenamed(sessionId: sessionId, name: name)
         case "session_list_result":
             let sessions = try container.decode([SessionInfo].self, forKey: .sessions)
             return .sessionList(sessions: sessions)

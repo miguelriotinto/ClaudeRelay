@@ -282,6 +282,7 @@ final class ProtocolMessageTests: XCTestCase {
             .sessionState(sessionId: id, state: "idle"),
             .sessionActivity(sessionId: id, activity: .claudeIdle),
             .sessionStolen(sessionId: id),
+            .sessionRenamed(sessionId: id, name: "Varys"),
             .resizeAck(cols: 120, rows: 40),
             .pong,
             .error(code: 500, message: "internal")
@@ -519,6 +520,44 @@ final class ProtocolMessageTests: XCTestCase {
         }
         XCTAssertEqual(sessionId.uuidString, id)
         XCTAssertEqual(name, "Arya")
+    }
+
+    // MARK: - sessionRenamed
+
+    func testSessionRenamedEncoding() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let msg = ServerMessage.sessionRenamed(sessionId: id, name: "Cersei")
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        XCTAssertEqual(obj["type"] as? String, "session_renamed")
+        let payload = obj["payload"] as? [String: Any]
+        XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
+        XCTAssertEqual(payload?["name"] as? String, "Cersei")
+    }
+
+    func testSessionRenamedRoundTrip() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let original = ServerMessage.sessionRenamed(sessionId: id, name: "Jon Snow")
+        let envelope = MessageEnvelope.server(original)
+        let data = try encoder.encode(envelope)
+        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
+        guard case .server(let roundTripped) = decoded else {
+            XCTFail("Expected .server envelope"); return
+        }
+        XCTAssertEqual(original, roundTripped)
+    }
+
+    func testSessionRenamedFieldVerification() throws {
+        let id = "12345678-1234-1234-1234-123456789ABC"
+        let json = #"{"type":"session_renamed","payload":{"sessionId":"\#(id)","name":"Bran"}}"#
+        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
+        guard case .server(.sessionRenamed(let sessionId, let name)) = envelope else {
+            XCTFail("Expected sessionRenamed"); return
+        }
+        XCTAssertEqual(sessionId.uuidString, id)
+        XCTAssertEqual(name, "Bran")
     }
 
     // MARK: - Equatable
