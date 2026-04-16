@@ -12,6 +12,7 @@ public enum ClientMessage: Equatable, Sendable {
     case sessionListAll
     case sessionRename(sessionId: UUID, name: String)
     case resize(cols: UInt16, rows: UInt16)
+    case pasteImage(data: String)
     case ping
 
     // MARK: - Wire type strings
@@ -28,6 +29,7 @@ public enum ClientMessage: Equatable, Sendable {
         case .sessionListAll:    return "session_list_all"
         case .sessionRename:     return "session_rename"
         case .resize:         return "resize"
+        case .pasteImage:     return "paste_image"
         case .ping:           return "ping"
         }
     }
@@ -36,7 +38,7 @@ public enum ClientMessage: Equatable, Sendable {
 
     static let allTypeStrings: Set<String> = [
         "auth_request", "session_create", "session_attach",
-        "session_resume", "session_detach", "session_terminate", "session_list", "session_list_all", "session_rename", "resize", "ping"
+        "session_resume", "session_detach", "session_terminate", "session_list", "session_list_all", "session_rename", "resize", "paste_image", "ping"
     ]
 }
 
@@ -44,7 +46,7 @@ public enum ClientMessage: Equatable, Sendable {
 
 extension ClientMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case token, sessionId, cols, rows, name
+        case token, sessionId, cols, rows, name, data
     }
 
     public func encodePayload(to encoder: Encoder) throws {
@@ -72,6 +74,8 @@ extension ClientMessage: Codable {
         case .resize(let cols, let rows):
             try container.encode(cols, forKey: .cols)
             try container.encode(rows, forKey: .rows)
+        case .pasteImage(let data):
+            try container.encode(data, forKey: .data)
         case .ping:
             break
         }
@@ -109,6 +113,9 @@ extension ClientMessage: Codable {
             let cols = try container.decode(UInt16.self, forKey: .cols)
             let rows = try container.decode(UInt16.self, forKey: .rows)
             return .resize(cols: cols, rows: rows)
+        case "paste_image":
+            let data = try container.decode(String.self, forKey: .data)
+            return .pasteImage(data: data)
         case "ping":
             return .ping
         default:

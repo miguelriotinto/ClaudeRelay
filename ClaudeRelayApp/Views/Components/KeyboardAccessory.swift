@@ -65,7 +65,7 @@ struct KeyboardAccessory: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
-                .background(Color(.tertiarySystemBackground))
+                .background(Color(.secondarySystemBackground))
                 .cornerRadius(5)
         }
         .buttonStyle(.plain)
@@ -114,7 +114,7 @@ struct KeyboardAccessory: View {
                 .foregroundStyle(.primary)
                 .frame(minWidth: 28)
                 .padding(.vertical, 5)
-                .background(Color(.tertiarySystemBackground))
+                .background(Color(.secondarySystemBackground))
                 .cornerRadius(5)
         }
         .buttonStyle(.plain)

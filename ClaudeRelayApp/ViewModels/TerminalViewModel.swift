@@ -112,6 +112,13 @@ final class TerminalViewModel: ObservableObject {
         sendInput(data)
     }
 
+    func sendPasteImage(_ imageData: Data) {
+        let base64 = imageData.base64EncodedString()
+        Task {
+            try? await connection.sendPasteImage(base64Data: base64)
+        }
+    }
+
     func sendResize(cols: UInt16, rows: UInt16) {
         Task {
             try? await connection.sendResize(cols: cols, rows: rows)

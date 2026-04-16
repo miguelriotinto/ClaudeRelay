@@ -191,6 +191,11 @@ public final class RelayConnection: ObservableObject {
         try await send(.resize(cols: cols, rows: rows))
     }
 
+    /// Sends base64-encoded image data to be pasted on the server's clipboard.
+    public func sendPasteImage(base64Data: String) async throws {
+        try await send(.pasteImage(data: base64Data))
+    }
+
     // MARK: - Receive Loop
 
     private func receiveLoop(generation: UInt64) {

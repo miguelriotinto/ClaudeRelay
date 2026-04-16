@@ -3,6 +3,7 @@ import NIOCore
 import NIOWebSocket
 import Foundation
 import ClaudeRelayKit
+import AppKit
 
 // swiftlint:disable:next type_body_length
 final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
@@ -144,6 +145,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             handleSessionRename(sessionId: sessionId, name: name, context: context)
         case .resize(let cols, let rows):
             handleResize(cols: cols, rows: rows, context: context)
+        case .pasteImage(let data):
+            handlePasteImage(base64Data: data, context: context)
         case .ping:
             sendServerMessage(.pong, context: context)
         }
@@ -289,12 +292,14 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             do {
                 await self?.autoDetachIfNeeded()
                 let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId, excludeObserver: myStealId)
+                let activity = await pty.getActivityState()
                 RelayLogger.log(category: "session", "Session attached: \(sessionId)")
                 ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
                     self.attachedPTY = pty
                     self.sendServerMessage(.sessionAttached(sessionId: sessionId, state: info.state.rawValue), context: ctx.value)
+                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity), context: ctx.value)
                     self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
             } catch {
@@ -497,6 +502,61 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                 await pty.clearOutputHandler()
             }
             try? await sessionManager.detachSession(id: sessionId)
+        }
+    }
+
+    // MARK: - Paste Image
+
+    /// Handles an image paste from the iOS client.
+    /// Decodes the base64 PNG, writes it to the macOS pasteboard,
+    /// then sends Cmd+V to the PTY so Claude Code picks it up.
+    private func handlePasteImage(base64Data: String, context: ChannelHandlerContext) {
+        guard let pty = attachedPTY else {
+            sendServerMessage(.error(code: 400, message: "No session attached"), context: context)
+            return
+        }
+
+        guard let imageData = Data(base64Encoded: base64Data) else {
+            sendServerMessage(.pasteImageResult(success: false), context: context)
+            return
+        }
+
+        // Write image to the macOS system clipboard.
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(imageData, forType: .png)
+
+        // Send Cmd+V to the PTY. Terminal emulators encode Cmd+V as the
+        // bracketed paste sequence, but the shell/Claude Code actually reads
+        // the clipboard directly when it detects a paste. We just need to
+        // trigger the paste action — sending the standard "paste" escape
+        // that terminals use: the raw Ctrl+V (0x16) character.
+        // However, Claude Code is a TUI that reads the clipboard on paste
+        // events. The simplest reliable trigger is typing Cmd+V which in
+        // a macOS terminal sends nothing special — the terminal emulator
+        // itself handles it by reading the clipboard and sending bracketed
+        // paste. Since we're writing directly to the PTY (not a terminal
+        // emulator), we simulate what the terminal emulator does:
+        // send the clipboard content as a bracketed paste.
+        //
+        // But for images, Claude Code doesn't receive text — it receives
+        // a paste event and then checks NSPasteboard for image data.
+        // On macOS, the Terminal.app / iTerm sends "\u{16}" (Ctrl+V)
+        // for Cmd+V when bracketed paste mode is off. Claude Code's
+        // input handler detects this and checks the pasteboard.
+        //
+        // We send a single newline inside a bracketed paste to signal
+        // "something was pasted" while the actual image is on the clipboard.
+        let bracketedPasteStart = Data([0x1B, 0x5B, 0x32, 0x30, 0x30, 0x7E]) // ESC[200~
+        let bracketedPasteEnd = Data([0x1B, 0x5B, 0x32, 0x30, 0x31, 0x7E])   // ESC[201~
+        let pasteContent = Data("\n".utf8)
+
+        let ctx = UnsafeTransfer(context)
+        Task {
+            await pty.write(bracketedPasteStart + pasteContent + bracketedPasteEnd)
+            ctx.value.eventLoop.execute { [weak self] in
+                self?.sendServerMessage(.pasteImageResult(success: true), context: ctx.value)
+            }
         }
     }
 

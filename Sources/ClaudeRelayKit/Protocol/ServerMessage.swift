@@ -17,6 +17,7 @@ public enum ServerMessage: Equatable, Sendable {
     case sessionList(sessions: [SessionInfo])
     case sessionListAll(sessions: [SessionInfo])
     case resizeAck(cols: UInt16, rows: UInt16)
+    case pasteImageResult(success: Bool)
     case pong
     case error(code: Int, message: String)
 
@@ -39,6 +40,7 @@ public enum ServerMessage: Equatable, Sendable {
         case .sessionList:         return "session_list_result"
         case .sessionListAll:      return "session_list_all_result"
         case .resizeAck:           return "resize_ack"
+        case .pasteImageResult:    return "paste_image_result"
         case .pong:                return "pong"
         case .error:               return "error"
         }
@@ -49,7 +51,7 @@ public enum ServerMessage: Equatable, Sendable {
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure", "session_created", "session_attached",
         "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "session_activity", "session_stolen", "session_renamed", "session_list_result", "session_list_all_result", "resize_ack", "pong", "error"
+        "session_expired", "session_state", "session_activity", "session_stolen", "session_renamed", "session_list_result", "session_list_all_result", "resize_ack", "paste_image_result", "pong", "error"
     ]
 }
 
@@ -57,7 +59,7 @@ public enum ServerMessage: Equatable, Sendable {
 
 extension ServerMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case reason, sessionId, cols, rows, state, code, message, sessions, activity, name
+        case reason, sessionId, cols, rows, state, code, message, sessions, activity, name, success
     }
 
     public func encodePayload(to encoder: Encoder) throws {
@@ -101,6 +103,8 @@ extension ServerMessage: Codable {
         case .resizeAck(let cols, let rows):
             try container.encode(cols, forKey: .cols)
             try container.encode(rows, forKey: .rows)
+        case .pasteImageResult(let success):
+            try container.encode(success, forKey: .success)
         case .pong:
             break
         case .error(let code, let message):
@@ -163,6 +167,9 @@ extension ServerMessage: Codable {
             let cols = try container.decode(UInt16.self, forKey: .cols)
             let rows = try container.decode(UInt16.self, forKey: .rows)
             return .resizeAck(cols: cols, rows: rows)
+        case "paste_image_result":
+            let success = try container.decode(Bool.self, forKey: .success)
+            return .pasteImageResult(success: success)
         case "pong":
             return .pong
         case "error":

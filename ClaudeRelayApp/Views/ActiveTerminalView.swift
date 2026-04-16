@@ -506,6 +506,23 @@ private class RelayTerminalView: TerminalView {
             // "v16@0:8" = returns void, total frame 16, self at 0, _cmd at 8
             class_replaceMethod(RelayTerminalView.self, delSel, delImp, "v16@0:8")
         }
+
+        // 3. Override canPerformAction to hide Paste when clipboard has no text.
+        //    SwiftTerm declares this as `public` (not `open`), so we use the runtime.
+        let canSel = #selector(UIResponder.canPerformAction(_:withSender:))
+        if let origCanMethod = class_getInstanceMethod(TerminalView.self, canSel) {
+            let origCanImp = method_getImplementation(origCanMethod)
+            typealias CanFn = @convention(c) (AnyObject, Selector, Selector, AnyObject?) -> Bool
+            let canImp = imp_implementationWithBlock({ (self_: AnyObject, action: Selector, sender: AnyObject?) -> Bool in
+                if action == #selector(UIResponderStandardEditActions.paste(_:)) {
+                    return UIPasteboard.general.hasStrings || UIPasteboard.general.hasImages
+                }
+                let fn = unsafeBitCast(origCanImp, to: CanFn.self)
+                return fn(self_, canSel, action, sender)
+            } as @convention(block) (AnyObject, Selector, AnyObject?) -> Bool)
+            // "B32@0:8:16@24" = returns Bool, self at 0, _cmd at 8, SEL at 16, id at 24
+            class_replaceMethod(RelayTerminalView.self, canSel, canImp, "B32@0:8:16@24")
+        }
     }
 
     override func didMoveToWindow() {
@@ -545,6 +562,22 @@ private class RelayTerminalView: TerminalView {
         NotificationCenter.default.post(name: .toggleSpeechRecording, object: nil)
     }
 
+    /// Called when the user pastes an image (no text on clipboard).
+    var onPasteImage: ((Data) -> Void)?
+
+    override func paste(_ sender: Any?) {
+        if UIPasteboard.general.hasStrings {
+            super.paste(sender)
+            return
+        }
+        // No text — check for image data and send it through the relay.
+        if let imageData = UIPasteboard.general.data(forPasteboardType: "public.png")
+            ?? UIPasteboard.general.data(forPasteboardType: "public.jpeg")
+            ?? UIPasteboard.general.data(forPasteboardType: "public.image") {
+            onPasteImage?(imageData)
+        }
+    }
+
     @objc private func handleCut(_ sender: Any?) {
         // Terminal output isn't editable — cut behaves like copy.
         copy(sender)
@@ -582,6 +615,10 @@ struct SwiftTermView: UIViewRepresentable {
                     terminal.contentOffset.y = expectedOffsetY
                 }
             }
+        }
+
+        terminal.onPasteImage = { [weak viewModel] imageData in
+            viewModel?.sendPasteImage(imageData)
         }
 
         // Hide SwiftTerm's built-in inputAccessoryView — we use a floating button instead.
