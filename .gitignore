@@ -8,3 +8,4 @@ build/
 DerivedData/
 *.xcarchive
 .DS_Store
+.gitnexus
