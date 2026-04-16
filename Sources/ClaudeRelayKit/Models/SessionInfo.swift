@@ -3,6 +3,7 @@ import Foundation
 /// Contains metadata about a ClaudeRelay session.
 public struct SessionInfo: Codable, Equatable, Sendable {
     public let id: UUID
+    public let name: String?
     public let state: SessionState
     public let tokenId: String
     public let createdAt: Date
@@ -12,6 +13,7 @@ public struct SessionInfo: Codable, Equatable, Sendable {
 
     public init(
         id: UUID,
+        name: String? = nil,
         state: SessionState,
         tokenId: String,
         createdAt: Date,
@@ -20,6 +22,7 @@ public struct SessionInfo: Codable, Equatable, Sendable {
         activity: ActivityState? = nil
     ) {
         self.id = id
+        self.name = name
         self.state = state
         self.tokenId = tokenId
         self.createdAt = createdAt
