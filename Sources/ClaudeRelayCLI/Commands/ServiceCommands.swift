@@ -237,6 +237,7 @@ struct StatusCommand: AsyncParsableCommand {
             } else {
                 print(OutputFormatter.formatStatus(
                     running: response.running,
+                    version: response.version,
                     pid: response.pid,
                     uptime: response.uptime,
                     sessions: response.sessions
@@ -286,12 +287,14 @@ struct HealthCommand: AsyncParsableCommand {
 
 struct StatusResponse: Codable {
     let status: String
+    let version: String?
     let pid: Int?
     let uptimeSeconds: Int?
     let sessionCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case status
+        case version
         case pid
         case uptimeSeconds = "uptime_seconds"
         case sessionCount = "session_count"

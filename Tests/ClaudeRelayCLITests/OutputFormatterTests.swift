@@ -25,11 +25,13 @@ final class OutputFormatterTests: XCTestCase {
     func testHumanStatusRunning() {
         let output = OutputFormatter.formatStatus(
             running: true,
+            version: "0.1.9",
             pid: 12345,
             uptime: 3661,
             sessions: 3
         )
         XCTAssertTrue(output.contains("Running"), "Should indicate Running")
+        XCTAssertTrue(output.contains("0.1.9"), "Should contain the version")
         XCTAssertTrue(output.contains("12345"), "Should contain the PID")
         XCTAssertTrue(output.contains("3"), "Should contain session count")
     }
@@ -37,11 +39,13 @@ final class OutputFormatterTests: XCTestCase {
     func testHumanStatusStopped() {
         let output = OutputFormatter.formatStatus(
             running: false,
+            version: nil,
             pid: nil,
             uptime: nil,
             sessions: 0
         )
         XCTAssertTrue(output.contains("Stopped"), "Should indicate Stopped")
+        XCTAssertFalse(output.contains("Version"), "Should not show version when nil")
     }
 
     // MARK: - Table Format
@@ -83,28 +87,28 @@ final class OutputFormatterTests: XCTestCase {
 
     func testUptimeSeconds() {
         let output = OutputFormatter.formatStatus(
-            running: true, pid: 1, uptime: 45, sessions: 0
+            running: true, version: nil, pid: 1, uptime: 45, sessions: 0
         )
         XCTAssertTrue(output.contains("45s"))
     }
 
     func testUptimeMinutes() {
         let output = OutputFormatter.formatStatus(
-            running: true, pid: 1, uptime: 125, sessions: 0
+            running: true, version: nil, pid: 1, uptime: 125, sessions: 0
         )
         XCTAssertTrue(output.contains("2m 5s"))
     }
 
     func testUptimeHours() {
         let output = OutputFormatter.formatStatus(
-            running: true, pid: 1, uptime: 7265, sessions: 0
+            running: true, version: nil, pid: 1, uptime: 7265, sessions: 0
         )
         XCTAssertTrue(output.contains("2h 1m 5s"))
     }
 
     func testStatusWithNilUptime() {
         let output = OutputFormatter.formatStatus(
-            running: true, pid: 999, uptime: nil, sessions: 2
+            running: true, version: nil, pid: 999, uptime: nil, sessions: 2
         )
         XCTAssertFalse(output.contains("Uptime"), "Should not show uptime when nil")
         XCTAssertTrue(output.contains("999"))

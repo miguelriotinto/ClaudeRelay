@@ -1,11 +1,12 @@
 import ArgumentParser
+import ClaudeRelayKit
 
 @main
 struct ClaudeRelay: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "claude-relay",
         abstract: "Manage the ClaudeRelay service",
-        version: "0.1.7",
+        version: ClaudeRelayKit.version,
         subcommands: [
             LoadCommand.self,
             UnloadCommand.self,

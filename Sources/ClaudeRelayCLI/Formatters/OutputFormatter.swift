@@ -20,6 +20,7 @@ public enum OutputFormatter {
     /// Format service status for human reading.
     public static func formatStatus(
         running: Bool,
+        version: String?,
         pid: Int?,
         uptime: Int?,
         sessions: Int
@@ -28,6 +29,10 @@ public enum OutputFormatter {
 
         let statusIcon = running ? "Running" : "Stopped"
         lines.append("Status:     \(statusIcon)")
+
+        if let version = version {
+            lines.append("Version:    \(version)")
+        }
 
         if let pid = pid {
             lines.append("PID:        \(pid)")

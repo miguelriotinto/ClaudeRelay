@@ -67,6 +67,7 @@ enum AdminRoutes {
         let uptime = Date().timeIntervalSince(startTime)
         let info: [String: Any] = [
             "status": "running",
+            "version": ClaudeRelayKit.version,
             "pid": ProcessInfo.processInfo.processIdentifier,
             "uptime_seconds": Int(uptime),
             "session_count": sessions.count
