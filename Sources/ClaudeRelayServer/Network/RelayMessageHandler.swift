@@ -20,6 +20,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private var authAttempts = 0
     private var activityObserverId: UUID?
     private var stealObserverId: UUID?
+    private var renameObserverId: UUID?
     private static let maxAuthAttempts = 3
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
@@ -206,9 +207,15 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                                 }
                             }
                         }
+                        let renameId = await manager.addRenameObserver(tokenId: info.id) { [weak self] sessionId, name in
+                            observerCtx.value.eventLoop.execute {
+                                self?.sendServerMessage(.sessionRenamed(sessionId: sessionId, name: name), context: observerCtx.value)
+                            }
+                        }
                         observerCtx.value.eventLoop.execute {
                             self?.activityObserverId = observerId
                             self?.stealObserverId = stealId
+                            self?.renameObserverId = renameId
                         }
                     }
                 } else {
@@ -234,8 +241,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         Task { [weak self] in
             do {
                 await self?.autoDetachIfNeeded()
-                // TODO: Task 4 - Pass name to createSession when SessionManager supports it
-                let info = try await sessionManager.createSession(tokenId: tokenId)
+                let info = try await sessionManager.createSession(tokenId: tokenId, name: name)
                 let sessionId = info.id
                 // Attach immediately
                 let (_, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
@@ -257,8 +263,19 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     }
 
     private func handleSessionRename(sessionId: UUID, name: String, context: ChannelHandlerContext) {
-        // TODO: Task 5 - Implement session rename
-        sendServerMessage(.error(code: 501, message: "Session rename not yet implemented"), context: context)
+        guard let tokenId = authenticatedTokenId else { return }
+        let sessionManager = self.sessionManager
+        let ctx = UnsafeTransfer(context)
+        Task { [weak self] in
+            do {
+                try await sessionManager.renameSession(id: sessionId, tokenId: tokenId, name: name)
+                RelayLogger.log(category: "session", "Session renamed: \(sessionId) -> \(name)")
+            } catch {
+                ctx.value.eventLoop.execute {
+                    self?.sendServerMessage(.error(code: 404, message: "Rename failed: \(error)"), context: ctx.value)
+                }
+            }
+        }
     }
 
     // MARK: - Session Attach
@@ -460,6 +477,13 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             stealObserverId = nil
             Task {
                 await manager.removeStealObserver(id: observerId)
+            }
+        }
+        if let observerId = renameObserverId {
+            let manager = sessionManager
+            renameObserverId = nil
+            Task {
+                await manager.removeRenameObserver(id: observerId)
             }
         }
 
