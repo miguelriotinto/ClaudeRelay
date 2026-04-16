@@ -69,6 +69,12 @@ final class SessionCoordinator: ObservableObject {
                 self?.handleSessionStolen(sessionId: sessionId)
             }
         }
+
+        connection.onSessionRenamed = { [weak self] sessionId, name in
+            Task { @MainActor [weak self] in
+                self?.handleSessionRenamed(sessionId: sessionId, name: name)
+            }
+        }
     }
 
     // MARK: - Names
@@ -80,15 +86,16 @@ final class SessionCoordinator: ObservableObject {
     func setName(_ name: String, for id: UUID) {
         sessionNames[id] = name
         Self.saveNames(sessionNames)
+        Task {
+            try? await sessionController?.renameSession(id: id, name: name)
+        }
     }
 
-    private func assignDefaultName(for id: UUID) {
+    private func pickDefaultName() -> String {
         let usedNames = Set(sessionNames.values)
         let themeNames = AppSettings.shared.sessionNamingTheme.names
         let available = themeNames.filter { !usedNames.contains($0) }
-        let name = available.randomElement() ?? "Session \(sessionNames.count + 1)"
-        sessionNames[id] = name
-        Self.saveNames(sessionNames)
+        return available.randomElement() ?? "Session \(sessionNames.count + 1)"
     }
 
     // MARK: - Persistence
@@ -188,6 +195,14 @@ final class SessionCoordinator: ObservableObject {
             let controller = try await ensureAuthenticated()
             sessions = try await controller.listSessions()
 
+            // Merge server-side names into local cache (server wins).
+            for session in sessions {
+                if let serverName = session.name {
+                    sessionNames[session.id] = serverName
+                }
+            }
+            Self.saveNames(sessionNames)
+
             // Apply activity state from session list (initial sync on connect/reconnect).
             for session in sessions {
                 if let activity = session.activity {
@@ -226,9 +241,11 @@ final class SessionCoordinator: ObservableObject {
                 terminalViewModels[currentId] = nil
             }
 
-            let sessionId = try await controller.createSession()
+            let name = pickDefaultName()
+            let sessionId = try await controller.createSession(name: name)
             claimSession(sessionId)
-            assignDefaultName(for: sessionId)
+            sessionNames[sessionId] = name
+            Self.saveNames(sessionNames)
 
             let vm = TerminalViewModel(sessionId: sessionId, connection: connection)
             terminalViewModels[sessionId] = vm
@@ -304,8 +321,12 @@ final class SessionCoordinator: ObservableObject {
             try await controller.attachSession(id: id)
             claimSession(id)
 
+            // Prefer the server-side name; fall back to local theme name.
             if sessionNames[id] == nil {
-                assignDefaultName(for: id)
+                let name = pickDefaultName()
+                sessionNames[id] = name
+                Self.saveNames(sessionNames)
+                try? await controller.renameSession(id: id, name: name)
             }
 
             let vm = TerminalViewModel(sessionId: id, connection: connection)
@@ -413,6 +434,12 @@ final class SessionCoordinator: ObservableObject {
         showSessionStolen = true
 
         Task { await fetchSessions() }
+    }
+
+    /// Handle server broadcast: another connection renamed a session.
+    private func handleSessionRenamed(sessionId: UUID, name: String) {
+        sessionNames[sessionId] = name
+        Self.saveNames(sessionNames)
     }
 
     // MARK: - Connection Recovery
