@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftTerm
 import ClaudeRelayClient
 import GameController
+import CoreImage
 
 /// Detail pane: thin toolbar + terminal + optional key bar.
 struct ActiveTerminalView: View {
@@ -11,6 +12,7 @@ struct ActiveTerminalView: View {
     @State private var showKeyBar = true
     @State private var isKeyboardVisible = false
     @State private var hasHardwareKeyboard = GCKeyboard.coalesced != nil
+    @State private var showQROverlay = false
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -121,6 +123,13 @@ struct ActiveTerminalView: View {
                     }
                 }
 
+                // QR code button
+                if coordinator.activeSessionId != nil {
+                    ToolbarIconButton(icon: "qrcode") {
+                        showQROverlay = true
+                    }
+                }
+
                 // Fixed right: session name pill
                 if let id = coordinator.activeSessionId {
                     Text(coordinator.name(for: id))
@@ -173,6 +182,15 @@ struct ActiveTerminalView: View {
         .overlay {
             if let progress = speechEngine.modelLoadProgress {
                 ModelLoadingOverlay(progress: progress)
+            }
+        }
+        .overlay {
+            if showQROverlay, let id = coordinator.activeSessionId {
+                QRCodeOverlay(
+                    sessionId: id,
+                    sessionName: coordinator.name(for: id),
+                    onDismiss: { showQROverlay = false }
+                )
             }
         }
     }
@@ -686,5 +704,54 @@ private struct SessionUptimeView: View {
             return String(format: "%dd %02d:%02d:%02d", days, hours, minutes, seconds)
         }
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+}
+
+// MARK: - QR Code Generation
+
+struct QRCodeGenerator {
+    static func generate(from string: String, size: CGFloat = 200) -> UIImage? {
+        guard let data = string.data(using: .utf8),
+              let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+
+        guard let ciImage = filter.outputImage else { return nil }
+        let scale = size / ciImage.extent.size.width
+        let scaled = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        return UIImage(ciImage: scaled)
+    }
+}
+
+// MARK: - QR Code Overlay
+
+struct QRCodeOverlay: View {
+    let sessionId: UUID
+    let sessionName: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture { onDismiss() }
+
+            VStack(spacing: 16) {
+                if let image = QRCodeGenerator.generate(
+                    from: "clauderelay://session/\(sessionId.uuidString)",
+                    size: 200
+                ) {
+                    Image(uiImage: image)
+                        .interpolation(.none)
+                        .resizable()
+                        .frame(width: 200, height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                Text(sessionName)
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+        }
     }
 }
