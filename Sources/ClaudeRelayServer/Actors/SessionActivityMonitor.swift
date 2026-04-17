@@ -179,10 +179,9 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     private func resetSilenceTimer() {
         silenceTimer?.cancel()
         let threshold = isClaudeRunning ? claudeSilenceThreshold : silenceThreshold
-        let isClaudeRunningCapture = isClaudeRunning
         let item = DispatchWorkItem { [weak self] in
             guard let self, !self.cancelled else { return }
-            let idleState: ActivityState = isClaudeRunningCapture ? .claudeIdle : .idle
+            let idleState: ActivityState = self.isClaudeRunning ? .claudeIdle : .idle
             self.transition(to: idleState)
         }
         silenceTimer = item

@@ -341,6 +341,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                 let buffered = await pty.readBuffer()
                 // Filter out stale escape sequence responses that may have accumulated
                 let filtered = Self.filterEscapeResponses(buffered)
+                let activity = await pty.getActivityState()
                 ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
@@ -350,6 +351,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     if !filtered.isEmpty {
                         self.sendBinaryData(filtered, context: ctx.value)
                     }
+                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity), context: ctx.value)
                     self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
             } catch {

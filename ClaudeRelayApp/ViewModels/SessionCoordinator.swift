@@ -204,10 +204,11 @@ final class SessionCoordinator: ObservableObject {
             Self.saveNames(sessionNames)
 
             // Apply activity state from session list (initial sync on connect/reconnect).
+            // Sessions without an activity field (terminated, no PTY) are treated as
+            // non-Claude to clear any stale persisted state from a previous launch.
             for session in sessions {
-                if let activity = session.activity {
-                    handleActivityUpdate(sessionId: session.id, activity: activity)
-                }
+                let activity = session.activity ?? .idle
+                handleActivityUpdate(sessionId: session.id, activity: activity)
             }
 
             // Prune state for sessions that no longer exist on the server.
