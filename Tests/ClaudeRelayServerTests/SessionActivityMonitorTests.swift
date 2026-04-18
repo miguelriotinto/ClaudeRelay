@@ -187,6 +187,43 @@ final class SessionActivityMonitorTests: XCTestCase {
         XCTAssertTrue(states.isEmpty, "No state transition expected for escape-only noise")
     }
 
+    // MARK: - Foreground Process Detection
+
+    func testForegroundProcessDetectsClaudeEntry() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        XCTAssertEqual(monitor.state, .claudeActive)
+        XCTAssertEqual(states, [.claudeActive])
+    }
+
+    func testForegroundProcessDetectsClaudeExit() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .active)
+        XCTAssertEqual(states, [.claudeActive, .active])
+    }
+
+    func testForegroundProcessNoOpWhenAlreadyInState() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        monitor.updateForegroundProcess(isClaude: true)
+        XCTAssertEqual(states.count, 1, "Duplicate poll should not re-trigger transition")
+    }
+
+    func testForegroundProcessIdleAfterSilence() async {
+        let expectation = XCTestExpectation(description: "claudeIdle via foreground")
+        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { state in
+            if state == .claudeIdle { expectation.fulfill() }
+        }
+        monitor.updateForegroundProcess(isClaude: true)
+        await fulfillment(of: [expectation], timeout: 1.0)
+        XCTAssertEqual(monitor.state, .claudeIdle)
+    }
+
     // MARK: - Cleanup
 
     func testCancelStopsSilenceTimer() async {

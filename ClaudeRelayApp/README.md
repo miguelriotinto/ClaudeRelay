@@ -34,23 +34,34 @@ iOS app in Xcode to pick up changes.
 
 ```
 ClaudeRelayApp/
-  ClaudeRelayApp.swift          -- @main App entry point
+  ClaudeRelayApp.swift              -- @main App entry point
   Models/
-    SavedConnection.swift        -- Persisted server bookmarks (UserDefaults)
+    SavedConnection.swift           -- Persisted server bookmarks (UserDefaults)
+    AppSettings.swift               -- User preferences (@AppStorage)
   ViewModels/
-    ServerListViewModel.swift    -- Server list, status polling, connection
-    AddEditServerViewModel.swift -- Add/edit server form state
-    SessionCoordinator.swift     -- Auth, session lifecycle, I/O routing
-    TerminalViewModel.swift      -- Terminal I/O bridge
-    ServerStatusChecker.swift    -- Periodic server health polling
-    SpeechRecognizer.swift       -- Live speech-to-text via SFSpeechRecognizer
+    ServerListViewModel.swift       -- Server list, status polling, connection
+    AddEditServerViewModel.swift    -- Add/edit server form state
+    SessionCoordinator.swift        -- Auth, session lifecycle, I/O routing
+    TerminalViewModel.swift         -- Terminal I/O bridge
+    ServerStatusChecker.swift       -- Periodic server health polling
   Views/
-    ServerListView.swift         -- Server list (tap to connect, swipe for edit/delete)
-    AddEditServerView.swift      -- Server configuration form (add/edit/delete)
-    SplashScreenView.swift       -- App launch splash
-    WorkspaceView.swift          -- NavigationSplitView: sidebar + terminal
-    SessionSidebarView.swift     -- Session list sidebar
-    ActiveTerminalView.swift     -- Terminal with keyboard accessory + mic
+    ServerListView.swift            -- Server list (tap to connect, swipe for edit/delete)
+    AddEditServerView.swift         -- Server configuration form (add/edit/delete)
+    SplashScreenView.swift          -- App launch splash
+    WorkspaceView.swift             -- NavigationSplitView: sidebar + terminal
+    SessionSidebarView.swift        -- Session list sidebar
+    ActiveTerminalView.swift        -- Terminal with keyboard accessory + mic
+    SettingsView.swift              -- App settings screen
+    QRScannerView.swift             -- QR code scanner for session sharing
     Components/
-      KeyboardAccessory.swift    -- Extra key row above keyboard
+      KeyboardAccessory.swift       -- Extra key row above keyboard
+      KeyCaptureView.swift          -- Live key combination capture
+  Speech/
+    OnDeviceSpeechEngine.swift      -- WhisperKit speech-to-text orchestrator
+    AudioCaptureSession.swift       -- Audio recording via AVAudioEngine
+    WhisperTranscriber.swift        -- WhisperKit CoreML/ANE wrapper
+    CloudPromptEnhancer.swift       -- Optional text cleanup via Anthropic Haiku
+    SpeechEngineState.swift         -- Speech engine state management
+    SpeechModelStore.swift          -- WhisperKit model download and caching
+    TextCleaner.swift               -- Regex-based text normalization
 ```

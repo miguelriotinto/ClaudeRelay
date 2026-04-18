@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 swift build                        # Build all SPM targets
-swift test                         # Run all tests (172 tests)
+swift test                         # Run all tests (175 tests)
 swift test --filter ClaudeRelayKitTests        # Run a single test suite
 swift test --filter testTokenGeneration        # Run a single test by name
 ```

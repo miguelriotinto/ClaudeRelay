@@ -208,7 +208,6 @@ After modifying `ClaudeRelayClient` or `ClaudeRelayKit` sources, rebuild the iOS
 
 **Note for contributors:**
 - `project.yml` contains a hardcoded `DEVELOPMENT_TEAM` — update this to your own Apple Developer Team ID.
-- The `LLMSwift` package uses a local path (`../LLM.swift`). Clone [LLM.swift](https://github.com/obra/LLM.swift) as a sibling directory, or change the path in `project.yml` to a git URL.
 - Run `xcodegen generate` after modifying `project.yml` to regenerate the Xcode project.
 
 ### Project Structure

@@ -299,10 +299,15 @@ final class SessionCoordinator: ObservableObject {
         do {
             let controller = try await ensureAuthenticated()
             let all = try await controller.listAllSessions()
-            return all.filter { session in
+            let filtered = all.filter { session in
                 !session.state.isTerminal && !ownedSessionIds.contains(session.id)
             }
+            if filtered.isEmpty && !all.isEmpty {
+                print("[attach] \(all.count) sessions on server, all filtered out. owned=\(ownedSessionIds.map { $0.uuidString.prefix(8) })")
+            }
+            return filtered
         } catch {
+            print("[attach] listAllSessions failed: \(error)")
             return []
         }
     }

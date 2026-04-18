@@ -52,6 +52,7 @@ public actor PTYSession: PTYSessionProtocol {
     private let activityCallbackBox = ActivityCallbackBox()
     private var activityHandler: (@Sendable (ActivityState) -> Void)?
     private var terminated: Bool = false
+    private var foregroundPollTimer: DispatchSourceTimer?
 
     // MARK: - Initialization
 
@@ -133,6 +134,33 @@ public actor PTYSession: PTYSessionProtocol {
         guard readSource == nil else { return }
         let readSrc = Self.makeReadSource(fd: masterFD, session: self)
         self.readSource = readSrc
+        startForegroundPoll()
+    }
+
+    // MARK: - Foreground Process Polling
+
+    /// Polls tcgetpgrp + proc_pidpath to detect when Claude Code is the foreground process.
+    /// This is the primary detection mechanism — OSC title sequences are unreliable because
+    /// Claude Code (Bun/Ink TUI) doesn't emit them, and the shell's preexec title hook
+    /// depends on user zsh config which PTY-spawned shells may not have.
+    private func startForegroundPoll() {
+        let timer = DispatchSource.makeTimerSource(queue: .global())
+        let fd = masterFD
+        timer.schedule(deadline: .now() + 1.0, repeating: 2.0)
+        timer.setEventHandler { [weak self] in
+            let pgid = relay_get_foreground_pgid(fd)
+            guard pgid > 0 else { return }
+            var nameBuf = [CChar](repeating: 0, count: 256)
+            let result = relay_get_process_name(pgid, &nameBuf, 256)
+            guard result == 0 else { return }
+            let name = String(cString: nameBuf).lowercased()
+            let isClaude = name == "claude" || name.hasPrefix("claude-")
+            Task {
+                await self?.activityMonitor.updateForegroundProcess(isClaude: isClaude)
+            }
+        }
+        timer.resume()
+        foregroundPollTimer = timer
     }
 
     // MARK: - Read Source Setup
@@ -267,6 +295,8 @@ public actor PTYSession: PTYSessionProtocol {
         guard !terminated else { return }
         terminated = true
         activityMonitor.cancel()
+        foregroundPollTimer?.cancel()
+        foregroundPollTimer = nil
 
         // Cancel the read source (this also closes the fd via the cancel handler)
         readSource?.cancel()

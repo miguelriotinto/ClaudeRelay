@@ -106,6 +106,24 @@ public final class SessionActivityMonitor: @unchecked Sendable {
         silenceTimer = nil
     }
 
+    // MARK: - Foreground Process Detection
+
+    /// Called by PTYSession's foreground poll timer when tcgetpgrp + proc_pidpath
+    /// determines whether the foreground process is Claude Code.
+    /// This is the primary detection mechanism — OSC title detection is supplementary.
+    public func updateForegroundProcess(isClaude: Bool) {
+        guard !cancelled else { return }
+        if isClaude && !isClaudeRunning {
+            isClaudeRunning = true
+            transition(to: .claudeActive)
+            resetSilenceTimer()
+        } else if !isClaude && isClaudeRunning {
+            isClaudeRunning = false
+            transition(to: .active)
+            resetSilenceTimer()
+        }
+    }
+
     // MARK: - Detection Logic
 
     /// Scan for OSC title set sequences: ESC ] 0 ; <title> BEL (or ESC ] 2 ; <title> BEL)
