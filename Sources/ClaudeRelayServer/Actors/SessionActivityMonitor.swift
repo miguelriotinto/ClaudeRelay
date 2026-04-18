@@ -34,8 +34,11 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     private let timerQueue = DispatchQueue(label: "com.claude.relay.activity-monitor")
     private var cancelled = false
 
-    /// Exit debounce: counts consecutive non-Claude signals. Must reach threshold
-    /// before declaring Claude exited.
+    /// Exit debounce: counts consecutive non-Claude signals from **any source**
+    /// (foreground-process poll and/or OSC title change). The two inputs share a
+    /// single counter, so exit fires when any two consecutive non-Claude signals
+    /// arrive — e.g. poll+poll, title+title, or poll+title in either order.
+    /// Any Claude-positive signal resets the counter to 0.
     private var consecutiveNonClaudePolls = 0
     private static let exitDebounceThreshold = 2
 
@@ -115,7 +118,8 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     /// detection (including parent chain walk).
     ///
     /// Entry is immediate (single poll confirms). Exit is debounced: requires
-    /// `exitDebounceThreshold` consecutive non-Claude polls to guard against
+    /// `exitDebounceThreshold` consecutive non-Claude signals (counted across
+    /// this poll path and the OSC title path combined) to guard against
     /// momentary process group changes during tool launches.
     public func updateForegroundProcess(isClaude: Bool) {
         guard !cancelled else { return }

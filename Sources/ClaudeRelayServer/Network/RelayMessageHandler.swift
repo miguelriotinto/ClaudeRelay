@@ -22,6 +22,10 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private var activityObserverId: UUID?
     private var stealObserverId: UUID?
     private var renameObserverId: UUID?
+    /// Set to true once `cleanupSession()` has run. Used to detect the race where
+    /// observer registration completes after the channel has already gone inactive,
+    /// so the late-arriving observer IDs can be unregistered instead of leaked.
+    private var isCleanedUp = false
     private static let maxAuthAttempts = 3
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
@@ -231,9 +235,22 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                             }
                         }
                         observerCtx.value.eventLoop.execute {
-                            self?.activityObserverId = observerId
-                            self?.stealObserverId = stealId
-                            self?.renameObserverId = renameId
+                            guard let self = self else { return }
+                            // If the channel went inactive while the observer
+                            // registrations were in flight, `cleanupSession()`
+                            // already ran with nil IDs. Unregister now so the
+                            // observers aren't leaked inside SessionManager.
+                            if self.isCleanedUp {
+                                Task {
+                                    await manager.removeActivityObserver(id: observerId)
+                                    await manager.removeStealObserver(id: stealId)
+                                    await manager.removeRenameObserver(id: renameId)
+                                }
+                                return
+                            }
+                            self.activityObserverId = observerId
+                            self.stealObserverId = stealId
+                            self.renameObserverId = renameId
                         }
                     }
                 } else {
@@ -487,6 +504,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     // MARK: - Cleanup
 
     private func cleanupSession() {
+        isCleanedUp = true
         if let observerId = activityObserverId {
             let manager = sessionManager
             activityObserverId = nil
