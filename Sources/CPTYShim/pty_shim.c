@@ -1,10 +1,9 @@
 #include "pty_shim.h"
 #include <util.h>
 #include <unistd.h>
-#include <sys/sysctl.h>
 #include <string.h>
 #include <stdlib.h>
-#include <libproc.h>
+#include <sys/sysctl.h>
 
 int relay_forkpty(int *master_fd, struct winsize *ws) {
     return forkpty(master_fd, NULL, NULL, ws);
@@ -25,12 +24,19 @@ int relay_get_foreground_pgid(int fd) {
 
 int relay_get_process_name(int pid, char *buf, int bufsize) {
     if (bufsize <= 0) return -1;
-    char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
-    int ret = proc_pidpath(pid, pathbuf, sizeof(pathbuf));
-    if (ret <= 0) return -1;
-    const char *name = strrchr(pathbuf, '/');
-    name = name ? name + 1 : pathbuf;
+    int mib[3] = { CTL_KERN, KERN_PROCARGS2, pid };
+    size_t size = 0;
+    if (sysctl(mib, 3, NULL, &size, NULL, 0) < 0) return -1;
+    char *args = malloc(size);
+    if (!args) return -1;
+    if (sysctl(mib, 3, args, &size, NULL, 0) < 0) { free(args); return -1; }
+    // KERN_PROCARGS2: first 4 bytes = argc, then the executable path as a C string.
+    if (size < sizeof(int) + 2) { free(args); return -1; }
+    const char *path = args + sizeof(int);
+    const char *name = strrchr(path, '/');
+    name = name ? name + 1 : path;
     strncpy(buf, name, bufsize - 1);
     buf[bufsize - 1] = '\0';
+    free(args);
     return 0;
 }

@@ -15,7 +15,7 @@ int relay_set_winsize(int fd, unsigned short rows, unsigned short cols);
 /// Returns the PGID, or -1 on error.
 int relay_get_foreground_pgid(int fd);
 
-/// Get the process name for the given PID via sysctl(KERN_PROCARGS2).
+/// Get the executable name for the given PID via sysctl(KERN_PROCARGS2).
 /// Writes into `buf` (max `bufsize` bytes). Returns 0 on success, -1 on error.
 int relay_get_process_name(int pid, char *buf, int bufsize);
 
