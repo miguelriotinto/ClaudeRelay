@@ -134,7 +134,27 @@ public actor PTYSession: PTYSessionProtocol {
         guard readSource == nil else { return }
         let readSrc = Self.makeReadSource(fd: masterFD, session: self)
         self.readSource = readSrc
+
+        activityMonitor.onSilenceTimeout = { [weak self] in
+            Task {
+                guard let session = self else { return }
+                await session.handleSilenceTimeout()
+            }
+        }
+
         startForegroundPoll()
+    }
+
+    /// Re-enters actor isolation for the silence timer so state mutations are
+    /// serialized with processOutput/updateForegroundProcess.
+    private func handleSilenceTimeout() {
+        activityMonitor.applySilenceTimeout()
+    }
+
+    /// Re-enters actor isolation for the foreground process poll result.
+    private func handleForegroundPollResult(isClaude: Bool) {
+        guard !terminated else { return }
+        activityMonitor.updateForegroundProcess(isClaude: isClaude)
     }
 
     // MARK: - Foreground Process Polling
@@ -159,7 +179,8 @@ public actor PTYSession: PTYSessionProtocol {
 
             let isClaude = Self.isClaudeInProcessChain(startingPid: pgid)
             Task {
-                await self?.activityMonitor.updateForegroundProcess(isClaude: isClaude)
+                guard let session = self else { return }
+                await session.handleForegroundPollResult(isClaude: isClaude)
             }
         }
         timer.resume()
@@ -238,6 +259,9 @@ public actor PTYSession: PTYSessionProtocol {
 
     /// Called from the read source on EOF (child exited).
     private func handleExit() {
+        foregroundPollTimer?.cancel()
+        foregroundPollTimer = nil
+        activityMonitor.forceExit()
         exitHandler?()
     }
 

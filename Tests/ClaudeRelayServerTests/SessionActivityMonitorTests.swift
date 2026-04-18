@@ -260,6 +260,179 @@ final class SessionActivityMonitorTests: XCTestCase {
         XCTAssertEqual(monitor.state, .claudeIdle)
     }
 
+    // MARK: - Force Exit (PTY death)
+
+    func testForceExitClearsClaudeState() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        XCTAssertEqual(monitor.state, .claudeActive)
+        states.removeAll()
+
+        monitor.forceExit()
+        XCTAssertEqual(monitor.state, .idle)
+        XCTAssertEqual(states, [.idle])
+    }
+
+    func testForceExitFromClaudeIdle() async {
+        let idleExpectation = XCTestExpectation(description: "claudeIdle")
+        var states: [ActivityState] = []
+        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { state in
+            states.append(state)
+            if state == .claudeIdle { idleExpectation.fulfill() }
+        }
+        monitor.updateForegroundProcess(isClaude: true)
+        await fulfillment(of: [idleExpectation], timeout: 1.0)
+        XCTAssertEqual(monitor.state, .claudeIdle)
+        states.removeAll()
+
+        monitor.forceExit()
+        XCTAssertEqual(monitor.state, .idle)
+        XCTAssertEqual(states, [.idle])
+    }
+
+    func testForceExitWhenNotRunningClaude() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.processOutput(output("hello"))
+        XCTAssertEqual(monitor.state, .active)
+        states.removeAll()
+
+        monitor.forceExit()
+        XCTAssertEqual(monitor.state, .idle)
+        XCTAssertEqual(states, [.idle])
+    }
+
+    func testForceExitPreventsSubsequentSilenceTimer() async {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        monitor.processOutput(output("working..."))
+        monitor.forceExit()
+        states.removeAll()
+
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(monitor.state, .idle)
+        XCTAssertTrue(states.isEmpty, "No further transitions after forceExit")
+    }
+
+    func testNoStateChangeAfterCancel() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        states.removeAll()
+
+        monitor.cancel()
+        monitor.processOutput(output("late output"))
+        monitor.updateForegroundProcess(isClaude: false)
+        monitor.updateForegroundProcess(isClaude: false)
+        monitor.forceExit()
+        XCTAssertTrue(states.isEmpty, "No transitions after cancel")
+    }
+
+    // MARK: - Rapid Launch/Exit Cycles
+
+    func testRapidClaudeLaunchExitCycle() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+
+        // Launch
+        monitor.updateForegroundProcess(isClaude: true)
+        XCTAssertEqual(monitor.state, .claudeActive)
+
+        // Rapid exit (two consecutive non-Claude)
+        monitor.updateForegroundProcess(isClaude: false)
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .active)
+
+        // Immediate relaunch
+        monitor.updateForegroundProcess(isClaude: true)
+        XCTAssertEqual(monitor.state, .claudeActive)
+
+        // Another exit
+        monitor.updateForegroundProcess(isClaude: false)
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .active)
+
+        XCTAssertEqual(states, [.claudeActive, .active, .claudeActive, .active])
+    }
+
+    func testForceExitResetsDebounceCounter() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        // One non-Claude poll (debounce counter = 1)
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .claudeActive)
+
+        // Force exit resets everything
+        monitor.forceExit()
+        XCTAssertEqual(monitor.state, .idle)
+
+        // New Claude launch should work cleanly
+        monitor.updateForegroundProcess(isClaude: true)
+        XCTAssertEqual(monitor.state, .claudeActive)
+    }
+
+    // MARK: - Silence Timeout via Actor (applySilenceTimeout)
+
+    func testApplySilenceTimeoutWhenClaudeRunning() {
+        let monitor = makeMonitor()
+        monitor.updateForegroundProcess(isClaude: true)
+        monitor.processOutput(output("some output"))
+        XCTAssertEqual(monitor.state, .claudeActive)
+
+        monitor.applySilenceTimeout()
+        XCTAssertEqual(monitor.state, .claudeIdle)
+    }
+
+    func testApplySilenceTimeoutWhenNotClaude() {
+        let monitor = makeMonitor()
+        monitor.processOutput(output("prompt"))
+        XCTAssertEqual(monitor.state, .active)
+
+        monitor.applySilenceTimeout()
+        XCTAssertEqual(monitor.state, .idle)
+    }
+
+    func testApplySilenceTimeoutNoOpAfterCancel() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.processOutput(output("data"))
+        monitor.cancel()
+        states.removeAll()
+
+        monitor.applySilenceTimeout()
+        XCTAssertTrue(states.isEmpty)
+    }
+
+    // MARK: - Mixed Signal Edge Cases
+
+    func testTitleEntryThenPollExitCrossSignal() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        // Enter via title
+        monitor.processOutput(titleSequence("Claude Code - project"))
+        XCTAssertEqual(monitor.state, .claudeActive)
+        // Exit via one title + one poll (cross-source debounce)
+        monitor.processOutput(titleSequence("zsh"))
+        XCTAssertEqual(monitor.state, .claudeActive)
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .active)
+    }
+
+    func testPollEntryThenTitleExitCrossSignal() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        // Enter via poll
+        monitor.updateForegroundProcess(isClaude: true)
+        XCTAssertEqual(monitor.state, .claudeActive)
+        // Exit via two titles
+        monitor.processOutput(titleSequence("bash"))
+        monitor.processOutput(titleSequence("user@host ~ %"))
+        XCTAssertEqual(monitor.state, .active)
+    }
+
     // MARK: - Cleanup
 
     func testCancelStopsSilenceTimer() async {

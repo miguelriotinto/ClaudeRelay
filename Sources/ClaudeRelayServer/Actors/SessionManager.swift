@@ -434,6 +434,7 @@ public actor SessionManager {
 
     public func reportActivityChange(sessionId: UUID, activity: ActivityState) {
         guard let managed = sessions[sessionId] else { return }
+        guard !managed.info.state.isTerminal else { return }
         let tokenId = managed.info.tokenId
         for (_, observer) in activityObservers where observer.tokenId == tokenId {
             observer.callback(sessionId, activity)

@@ -28,6 +28,11 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     private let claudeSilenceThreshold: TimeInterval
     private let onChange: @Sendable (ActivityState) -> Void
 
+    /// Called by the silence timer from `timerQueue`. The owner (PTYSession) sets
+    /// this to a closure that re-enters the actor and calls `applySilenceTimeout()`,
+    /// ensuring all state mutations happen on a single isolation domain.
+    public var onSilenceTimeout: (@Sendable () -> Void)?
+
     // MARK: - Internals
 
     private var silenceTimer: DispatchWorkItem?
@@ -103,6 +108,20 @@ public final class SessionActivityMonitor: @unchecked Sendable {
         let activeState: ActivityState = isClaudeRunning ? .claudeActive : .active
         transition(to: activeState)
         resetSilenceTimer()
+    }
+
+    /// Force Claude exit and transition to idle. Called when the PTY process exits —
+    /// regardless of what the monitor thinks, Claude cannot be running if the shell is dead.
+    /// Emits a final state change so clients see the definitive "not running" state.
+    public func forceExit() {
+        guard !cancelled else { return }
+        silenceTimer?.cancel()
+        silenceTimer = nil
+        if isClaudeRunning {
+            isClaudeRunning = false
+            consecutiveNonClaudePolls = 0
+        }
+        transition(to: .idle)
     }
 
     /// Stop monitoring. Called on session termination.
@@ -204,13 +223,26 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     // MARK: - Silence Timer
 
+    /// Called from the owning actor when the silence timer fires. Computes the
+    /// idle state using the current `isClaudeRunning` flag — safe because the
+    /// actor serializes this call with all other state mutations.
+    public func applySilenceTimeout() {
+        guard !cancelled else { return }
+        let idleState: ActivityState = isClaudeRunning ? .claudeIdle : .idle
+        transition(to: idleState)
+    }
+
     private func resetSilenceTimer() {
         silenceTimer?.cancel()
         let threshold = isClaudeRunning ? claudeSilenceThreshold : silenceThreshold
         let item = DispatchWorkItem { [weak self] in
             guard let self, !self.cancelled else { return }
-            let idleState: ActivityState = self.isClaudeRunning ? .claudeIdle : .idle
-            self.transition(to: idleState)
+            if let callback = self.onSilenceTimeout {
+                callback()
+            } else {
+                let idleState: ActivityState = self.isClaudeRunning ? .claudeIdle : .idle
+                self.transition(to: idleState)
+            }
         }
         silenceTimer = item
         timerQueue.asyncAfter(deadline: .now() + threshold, execute: item)
