@@ -8,7 +8,10 @@ struct SplashScreenView: View {
 
     let onComplete: () -> Void
 
-    private let brandColor = Color(red: 0.79, green: 0.58, blue: 0.42)
+    // Matches the sRGB background of AppIcon/SplashLogo (icon-1024.png pixel
+    // sample: rgb(204, 155, 122)). Keep these three values in sync with the
+    // icon PNG — if the icon ever changes, resample and update here.
+    private let brandColor = Color(red: 204.0 / 255.0, green: 155.0 / 255.0, blue: 122.0 / 255.0)
 
     var body: some View {
         ZStack {
