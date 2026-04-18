@@ -25,8 +25,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private static let maxAuthAttempts = 3
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
-    private static let maxTextFrameSize = 1_000_000   // 1MB
-    private static let maxBinaryFrameSize = 1_000_000 // 1MB
+    private static let maxTextFrameSize = 10_000_000   // 10MB (images are base64 in JSON)
+    private static let maxBinaryFrameSize = 10_000_000 // 10MB
 
     init(sessionManager: SessionManager, tokenStore: TokenStore) {
         self.sessionManager = sessionManager

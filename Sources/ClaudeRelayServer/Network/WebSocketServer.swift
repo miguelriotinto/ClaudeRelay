@@ -58,6 +58,7 @@ public final class WebSocketServer {
         let sslContext: NIOSSLContext? = try createSSLContextIfConfigured()
 
         let upgrader = NIOWebSocketServerUpgrader(
+            maxFrameSize: 10 * 1024 * 1024,
             shouldUpgrade: { channel, _ in
                 channel.eventLoop.makeSucceededFuture(HTTPHeaders())
             },
