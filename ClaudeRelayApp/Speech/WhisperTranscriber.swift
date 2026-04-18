@@ -8,7 +8,13 @@ protocol SpeechTranscribing: Sendable {
 
 /// Wraps WhisperKit to transcribe [Float] audio buffers into text.
 /// Shared singleton so the model stays loaded across session switches.
-final class WhisperTranscriber: SpeechTranscribing, @unchecked Sendable {
+///
+/// Lives on `@MainActor` because every call site is already main-actor-isolated
+/// (`ClaudeRelayApp`, `OnDeviceSpeechEngine`). This lets us hold mutable
+/// `whisperKit` state safely under Swift 6 without the `@unchecked Sendable`
+/// escape hatch.
+@MainActor
+final class WhisperTranscriber: SpeechTranscribing {
 
     static let shared = WhisperTranscriber()
 

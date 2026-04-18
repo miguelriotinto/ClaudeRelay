@@ -112,7 +112,7 @@ final class SpeechModelStore: ObservableObject {
     /// Download a file using a delegate-based URLSession to get progress updates.
     private func downloadWithProgress(
         from url: URL,
-        progressHandler: @MainActor @escaping (Double) -> Void
+        progressHandler: @MainActor @Sendable @escaping (Double) -> Void
     ) async throws -> (URL, URLResponse) {
         let delegate = DownloadProgressDelegate(progressHandler: progressHandler)
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
@@ -152,9 +152,13 @@ final class SpeechModelStore: ObservableObject {
 // MARK: - Download Progress Delegate
 
 private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    private let progressHandler: @MainActor (Double) -> Void
+    // `@MainActor @Sendable`: the closure only captures main-actor-isolated state,
+    // so it's safe to move across isolation domains. Required by Swift 6 because
+    // DownloadProgressDelegate is @unchecked Sendable and URLSession invokes the
+    // delegate callbacks from its own serial queue.
+    private let progressHandler: @MainActor @Sendable (Double) -> Void
 
-    init(progressHandler: @MainActor @escaping (Double) -> Void) {
+    init(progressHandler: @MainActor @Sendable @escaping (Double) -> Void) {
         self.progressHandler = progressHandler
     }
 
