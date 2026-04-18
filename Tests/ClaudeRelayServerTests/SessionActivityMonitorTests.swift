@@ -62,24 +62,41 @@ final class SessionActivityMonitorTests: XCTestCase {
         XCTAssertEqual(monitor.state, .active)
     }
 
-    // MARK: - Claude Exit Detection
+    // MARK: - Claude Exit Detection (Debounced)
 
-    func testDetectsClaudeExitFromAltScreenExit() {
+    func testAltScreenExitDoesNotImmediatelyExitClaude() {
         var states: [ActivityState] = []
         let monitor = makeMonitor { states.append($0) }
         monitor.processOutput(titleSequence("claude"))
         XCTAssertEqual(monitor.state, .claudeActive)
+        // Alt-screen exit alone no longer exits Claude (tools like vim/less use alt screen)
         monitor.processOutput(leaveAltScreen)
+        XCTAssertEqual(monitor.state, .claudeActive, "Alt-screen exit must not immediately exit Claude")
+        XCTAssertEqual(states, [.claudeActive])
+    }
+
+    func testDetectsClaudeExitFromNonClaudeTitleDebounced() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.processOutput(titleSequence("claude"))
+        XCTAssertEqual(monitor.state, .claudeActive)
+        // First non-Claude title: increments debounce counter but doesn't exit yet
+        monitor.processOutput(titleSequence("zsh"))
+        XCTAssertEqual(monitor.state, .claudeActive, "Single non-Claude signal should not exit")
+        // Second non-Claude signal (via process poll): confirms exit
+        monitor.updateForegroundProcess(isClaude: false)
         XCTAssertEqual(monitor.state, .active)
         XCTAssertEqual(states, [.claudeActive, .active])
     }
 
-    func testDetectsClaudeExitFromNonClaudeTitle() {
+    func testTwoNonClaudeTitlesExitClaude() {
         var states: [ActivityState] = []
         let monitor = makeMonitor { states.append($0) }
         monitor.processOutput(titleSequence("claude"))
         XCTAssertEqual(monitor.state, .claudeActive)
+        // Two consecutive non-Claude titles meet the debounce threshold
         monitor.processOutput(titleSequence("zsh"))
+        monitor.processOutput(titleSequence("bash"))
         XCTAssertEqual(monitor.state, .active)
         XCTAssertEqual(states, [.claudeActive, .active])
     }
@@ -197,13 +214,32 @@ final class SessionActivityMonitorTests: XCTestCase {
         XCTAssertEqual(states, [.claudeActive])
     }
 
-    func testForegroundProcessDetectsClaudeExit() {
+    func testForegroundProcessExitRequiresDebounce() {
         var states: [ActivityState] = []
         let monitor = makeMonitor { states.append($0) }
         monitor.updateForegroundProcess(isClaude: true)
+        // Single non-Claude poll should not exit (debounce)
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .claudeActive, "Single non-Claude poll should not exit")
+        // Second consecutive non-Claude poll confirms exit
         monitor.updateForegroundProcess(isClaude: false)
         XCTAssertEqual(monitor.state, .active)
         XCTAssertEqual(states, [.claudeActive, .active])
+    }
+
+    func testForegroundProcessClaudePollResetsDebounce() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        // One non-Claude poll
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .claudeActive)
+        // Claude returns — resets debounce counter
+        monitor.updateForegroundProcess(isClaude: true)
+        // Another single non-Claude poll — should NOT exit (counter was reset)
+        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .claudeActive, "Debounce counter should reset on Claude poll")
+        XCTAssertEqual(states, [.claudeActive])
     }
 
     func testForegroundProcessNoOpWhenAlreadyInState() {

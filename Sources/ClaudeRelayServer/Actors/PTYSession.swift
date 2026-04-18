@@ -139,28 +139,51 @@ public actor PTYSession: PTYSessionProtocol {
 
     // MARK: - Foreground Process Polling
 
-    /// Polls tcgetpgrp + proc_pidpath to detect when Claude Code is the foreground process.
-    /// This is the primary detection mechanism — OSC title sequences are unreliable because
-    /// Claude Code (Bun/Ink TUI) doesn't emit them, and the shell's preexec title hook
-    /// depends on user zsh config which PTY-spawned shells may not have.
+    /// Polls tcgetpgrp + KERN_PROCARGS2 to detect Claude Code as the foreground process
+    /// or as an ancestor (up to 4 levels) of the foreground process.
+    ///
+    /// Parent chain walk is essential: when Claude launches tools (git, npm, node),
+    /// those tools become the foreground process group leader while Claude remains
+    /// their ancestor. Without the walk, every tool execution briefly appears as
+    /// "Claude exited", causing UI flicker.
+    ///
+    /// Poll interval: 1s with 0.5s initial delay for responsive entry detection.
+    /// Exit debouncing in SessionActivityMonitor prevents flicker.
     private func startForegroundPoll() {
         let timer = DispatchSource.makeTimerSource(queue: .global())
         let fd = masterFD
-        timer.schedule(deadline: .now() + 1.0, repeating: 2.0)
+        timer.schedule(deadline: .now() + 0.5, repeating: 1.0)
         timer.setEventHandler { [weak self] in
             let pgid = relay_get_foreground_pgid(fd)
             guard pgid > 0 else { return }
-            var nameBuf = [CChar](repeating: 0, count: 256)
-            let result = relay_get_process_name(pgid, &nameBuf, 256)
-            guard result == 0 else { return }
-            let name = String(cString: nameBuf).lowercased()
-            let isClaude = name == "claude" || name.hasPrefix("claude-")
+
+            let isClaude = Self.isClaudeInProcessChain(startingPid: pgid)
             Task {
                 await self?.activityMonitor.updateForegroundProcess(isClaude: isClaude)
             }
         }
         timer.resume()
         foregroundPollTimer = timer
+    }
+
+    /// Walks the process tree from `startingPid` up through parents (max 5 hops)
+    /// looking for a process named "claude" or "claude-*".
+    private static func isClaudeInProcessChain(startingPid: Int32) -> Bool {
+        var pid = startingPid
+        for _ in 0..<5 {
+            guard pid > 1 else { return false }
+            var nameBuf = [CChar](repeating: 0, count: 256)
+            let result = relay_get_process_name(pid, &nameBuf, 256)
+            guard result == 0 else { return false }
+            let name = String(cString: nameBuf).lowercased()
+            if name == "claude" || name.hasPrefix("claude-") {
+                return true
+            }
+            let ppid = relay_get_parent_pid(pid)
+            if ppid <= 1 || ppid == pid { return false }
+            pid = ppid
+        }
+        return false
     }
 
     // MARK: - Read Source Setup

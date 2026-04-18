@@ -6,10 +6,12 @@ import ClaudeRelayKit
 /// Runs inside the owning `PTYSession` actor's isolation domain — NOT a separate actor.
 /// This avoids async overhead on the hot path (every output chunk goes through here).
 ///
-/// Detection logic (ported from iOS `TerminalViewModel` + `SessionCoordinator`):
-/// - **Claude entry**: OSC title containing "claude" (case-insensitive)
-/// - **Claude exit**: shell prompt appearance or alternate screen buffer exit
-/// - **Silence/idle**: no output for configurable threshold (different for Claude vs shell)
+/// Detection mechanisms (in priority order):
+/// 1. **Foreground process polling**: tcgetpgrp + KERN_PROCARGS2 with parent chain walk
+/// 2. **OSC title sequences**: fallback when shell sets title containing "claude"
+///
+/// Exit is debounced: requires two consecutive non-Claude signals to prevent false
+/// exits during momentary tool-launch process group changes.
 public final class SessionActivityMonitor: @unchecked Sendable {
 
     // MARK: - State
@@ -31,6 +33,11 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     private var silenceTimer: DispatchWorkItem?
     private let timerQueue = DispatchQueue(label: "com.claude.relay.activity-monitor")
     private var cancelled = false
+
+    /// Exit debounce: counts consecutive non-Claude signals. Must reach threshold
+    /// before declaring Claude exited.
+    private var consecutiveNonClaudePolls = 0
+    private static let exitDebounceThreshold = 2
 
     /// ESC [ ? 1049 l — leave alternate screen buffer.
     private static let leaveAlternateScreen = Data([0x1B, 0x5B, 0x3F, 0x31, 0x30, 0x34, 0x39, 0x6C])
@@ -56,34 +63,30 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     public func processOutput(_ data: Data) {
         guard !cancelled else { return }
 
-        // 1. Detect alternate screen buffer exit (strong Claude exit signal).
-        if isClaudeRunning, data.range(of: Self.leaveAlternateScreen) != nil {
-            exitClaude()
-        }
+        // 1. Alt-screen exit is NOT treated as a definitive Claude exit signal.
+        //    Claude spawns tools (vim, less, man) that use alternate screen — when
+        //    those tools exit, this sequence fires but Claude is still running.
+        //    Exit is now handled exclusively by the debounced foreground poll.
 
         // 2. Extract and analyze OSC title sequences for Claude entry.
         detectTitleChange(in: data)
 
-        // 3. Strip ANSI and analyze clean text for shell prompt (Claude exit).
+        // 3. Strip ANSI and determine if there is visible content.
         var hasVisibleContent = true
         if let raw = String(data: data, encoding: .utf8) {
             let clean = raw.replacing(Self.ansiEscapePattern, with: "")
-            analyzeCleanOutput(clean)
 
             // When Claude is running, only count output with visible content as activity.
             // TUI frameworks (ink/React) send periodic escape sequences (cursor moves,
-            // screen redraws) that don't represent meaningful output change — these
-            // should not reset the silence timer.
+            // screen redraws) that don't represent meaningful output change.
             if isClaudeRunning {
                 hasVisibleContent = !clean.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             }
         }
 
         // 4. Only transition to active state and reset the silence timer for
-        // meaningful visible content. Escape-sequence-only output (TUI cursor
-        // moves, screen redraws) must NOT break idle detection — otherwise the
-        // state bounces to .claudeActive on every noise chunk but the silence
-        // timer is never reset, permanently destroying the idle signal.
+        // meaningful visible content. Escape-sequence-only output must NOT
+        // break idle detection.
         if hasVisibleContent {
             let activeState: ActivityState = isClaudeRunning ? .claudeActive : .active
             transition(to: activeState)
@@ -108,19 +111,26 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     // MARK: - Foreground Process Detection
 
-    /// Called by PTYSession's foreground poll timer when tcgetpgrp + proc_pidpath
-    /// determines whether the foreground process is Claude Code.
-    /// This is the primary detection mechanism — OSC title detection is supplementary.
+    /// Called by PTYSession's foreground poll timer with the result of process
+    /// detection (including parent chain walk).
+    ///
+    /// Entry is immediate (single poll confirms). Exit is debounced: requires
+    /// `exitDebounceThreshold` consecutive non-Claude polls to guard against
+    /// momentary process group changes during tool launches.
     public func updateForegroundProcess(isClaude: Bool) {
         guard !cancelled else { return }
-        if isClaude && !isClaudeRunning {
-            isClaudeRunning = true
-            transition(to: .claudeActive)
-            resetSilenceTimer()
-        } else if !isClaude && isClaudeRunning {
-            isClaudeRunning = false
-            transition(to: .active)
-            resetSilenceTimer()
+        if isClaude {
+            consecutiveNonClaudePolls = 0
+            if !isClaudeRunning {
+                isClaudeRunning = true
+                transition(to: .claudeActive)
+                resetSilenceTimer()
+            }
+        } else if isClaudeRunning {
+            consecutiveNonClaudePolls += 1
+            if consecutiveNonClaudePolls >= Self.exitDebounceThreshold {
+                exitClaude()
+            }
         }
     }
 
@@ -157,29 +167,25 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     private func handleTitle(_ title: String) {
         if title.localizedCaseInsensitiveContains("claude") {
+            consecutiveNonClaudePolls = 0
             if !isClaudeRunning {
                 isClaudeRunning = true
                 transition(to: .claudeActive)
                 resetSilenceTimer()
             }
         } else if isClaudeRunning {
-            // A non-Claude title means the shell/another program took over.
-            exitClaude()
+            // Non-Claude title increments the debounce counter. Combined with
+            // process poll, two consecutive non-Claude signals confirm exit.
+            consecutiveNonClaudePolls += 1
+            if consecutiveNonClaudePolls >= Self.exitDebounceThreshold {
+                exitClaude()
+            }
         }
-    }
-
-    /// Shell prompt detection is intentionally omitted here. It produced false
-    /// positives (e.g. dollar amounts, code snippets ending with `$`) that caused
-    /// the monitor to lose Claude state while Claude was still running. Claude exit
-    /// is now detected only via strong signals: alternate screen buffer exit or a
-    /// new non-Claude OSC title change.
-    private func analyzeCleanOutput(_ text: String) {
-        // No-op — kept for clarity. Claude exit is handled by handleTitle and
-        // leaveAlternateScreen detection in processOutput.
     }
 
     private func exitClaude() {
         isClaudeRunning = false
+        consecutiveNonClaudePolls = 0
         transition(to: .active)
         resetSilenceTimer()
     }

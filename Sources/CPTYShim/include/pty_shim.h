@@ -19,4 +19,8 @@ int relay_get_foreground_pgid(int fd);
 /// Writes into `buf` (max `bufsize` bytes). Returns 0 on success, -1 on error.
 int relay_get_process_name(int pid, char *buf, int bufsize);
 
+/// Get the parent PID of the given PID via sysctl(KERN_PROC).
+/// Returns the PPID, or -1 on error.
+int relay_get_parent_pid(int pid);
+
 #endif /* PTY_SHIM_H */

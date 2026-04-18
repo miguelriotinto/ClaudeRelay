@@ -396,6 +396,13 @@ final class SessionCoordinator: ObservableObject {
     }
 
     /// Handle server-pushed activity state changes for any session (including background ones).
+    ///
+    /// This is the single source of truth for Claude detection state on the client.
+    /// Called in these scenarios:
+    /// - Server pushes real-time state change (ongoing monitoring)
+    /// - Server pushes initial state on observer registration (connect/reconnect)
+    /// - Session list fetch provides activity snapshot (fallback sync)
+    /// - Session attach/resume response includes current activity
     private func handleActivityUpdate(sessionId: UUID, activity: ActivityState) {
         // Update Claude running state
         var claudeChanged = false
@@ -414,8 +421,9 @@ final class SessionCoordinator: ObservableObject {
         }
         if claudeChanged { saveClaudeSessions() }
 
-        // Update awaiting-input state (only flash for Claude sessions)
-        if activity.isAwaitingInput && activity.isClaudeRunning {
+        // Update awaiting-input state: only flash when Claude is idle (waiting for input).
+        // .claudeIdle is the only state that should trigger the attention flash.
+        if activity == .claudeIdle {
             sessionsAwaitingInput.insert(sessionId)
         } else {
             sessionsAwaitingInput.remove(sessionId)

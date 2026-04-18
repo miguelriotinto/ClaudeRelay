@@ -413,9 +413,18 @@ public actor SessionManager {
     public func addActivityObserver(
         tokenId: String,
         callback: @escaping ActivityObserver
-    ) -> UUID {
+    ) async -> UUID {
         let observerId = UUID()
         activityObservers[observerId] = (tokenId: tokenId, callback: callback)
+
+        // Push current activity state for all sessions owned by this token so the
+        // client immediately reflects the correct state without waiting for a change.
+        for managed in sessions.values where managed.info.tokenId == tokenId {
+            guard !managed.info.state.isTerminal, let pty = managed.ptySession else { continue }
+            let activity = await pty.getActivityState()
+            callback(managed.info.id, activity)
+        }
+
         return observerId
     }
 

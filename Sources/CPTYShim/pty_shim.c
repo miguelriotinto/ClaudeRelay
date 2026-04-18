@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/sysctl.h>
+#include <sys/proc.h>
 
 int relay_forkpty(int *master_fd, struct winsize *ws) {
     return forkpty(master_fd, NULL, NULL, ws);
@@ -39,4 +40,14 @@ int relay_get_process_name(int pid, char *buf, int bufsize) {
     buf[bufsize - 1] = '\0';
     free(args);
     return 0;
+}
+
+int relay_get_parent_pid(int pid) {
+    struct kinfo_proc info;
+    memset(&info, 0, sizeof(info));
+    size_t size = sizeof(info);
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid };
+    if (sysctl(mib, 4, &info, &size, NULL, 0) < 0) return -1;
+    if (size == 0) return -1;
+    return (int)info.kp_eproc.e_ppid;
 }

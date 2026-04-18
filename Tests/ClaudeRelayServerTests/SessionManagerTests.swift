@@ -191,15 +191,19 @@ final class SessionManagerTests: XCTestCase {
 
         let session = try await manager.createSession(tokenId: tokenInfo.id)
 
+        var received: [ActivityState] = []
         let expectation = XCTestExpectation(description: "activity callback")
+        expectation.expectedFulfillmentCount = 2
         let observerId = await manager.addActivityObserver(tokenId: tokenInfo.id) { sessionId, activity in
             XCTAssertEqual(sessionId, session.id)
-            XCTAssertEqual(activity, .claudeActive)
+            received.append(activity)
             expectation.fulfill()
         }
 
         await manager.reportActivityChange(sessionId: session.id, activity: .claudeActive)
         await fulfillment(of: [expectation], timeout: 1.0)
+        // First callback is initial state push (.active), second is explicit change
+        XCTAssertEqual(received, [.active, .claudeActive])
         await manager.removeActivityObserver(id: observerId)
     }
 
@@ -215,6 +219,7 @@ final class SessionManagerTests: XCTestCase {
 
         var receivedSessionIds: [UUID] = []
         let expectation = XCTestExpectation(description: "only token A")
+        expectation.expectedFulfillmentCount = 2
         let observerId = await manager.addActivityObserver(tokenId: tokenA.id) { sessionId, _ in
             receivedSessionIds.append(sessionId)
             expectation.fulfill()
@@ -224,7 +229,8 @@ final class SessionManagerTests: XCTestCase {
         await manager.reportActivityChange(sessionId: sessionA.id, activity: .idle)
 
         await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(receivedSessionIds, [sessionA.id])
+        // Initial push for sessionA + explicit change for sessionA (not sessionB)
+        XCTAssertEqual(receivedSessionIds, [sessionA.id, sessionA.id])
         await manager.removeActivityObserver(id: observerId)
     }
 
@@ -241,12 +247,14 @@ final class SessionManagerTests: XCTestCase {
             callCount += 1
         }
 
+        // callCount is 1 from initial state push on registration
         await manager.reportActivityChange(sessionId: session.id, activity: .claudeActive)
+        // callCount is now 2
         await manager.removeActivityObserver(id: observerId)
         await manager.reportActivityChange(sessionId: session.id, activity: .idle)
 
         try? await Task.sleep(for: .milliseconds(50))
-        XCTAssertEqual(callCount, 1, "Should not receive callbacks after removal")
+        XCTAssertEqual(callCount, 2, "Should not receive callbacks after removal")
     }
 
     // MARK: - Steal Observer
