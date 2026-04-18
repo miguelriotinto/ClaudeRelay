@@ -503,12 +503,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 70;
+				CURRENT_PROJECT_VERSION = 71;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Claude Relay uses the camera to scan QR codes for session sharing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -521,7 +522,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
+				PRODUCT_BUNDLE_IDENTIFIER = com.singular.claude.relay;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
@@ -535,12 +536,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 70;
+				CURRENT_PROJECT_VERSION = 71;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Claude Relay uses the camera to scan QR codes for session sharing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -553,7 +555,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay;
+				PRODUCT_BUNDLE_IDENTIFIER = com.singular.claude.relay;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
 				SUPPORTS_MACCATALYST = NO;
@@ -618,20 +620,20 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/obra/LLM.swift.git";
-			requirement = {
-				kind = branch;
-				branch = main;
-			};
-		};
 		1D1FB04D702329ACA8C21C83 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
 			requirement = {
 				kind = upToNextMinorVersion;
 				minimumVersion = 0.18.0;
+			};
+		};
+		56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/obra/LLM.swift.git";
+			requirement = {
+				branch = main;
+				kind = branch;
 			};
 		};
 		E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
