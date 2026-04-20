@@ -13,6 +13,8 @@ struct ActiveTerminalView: View {
     @State private var isKeyboardVisible = false
     @State private var hasHardwareKeyboard = GCKeyboard.coalesced != nil
     @State private var showQROverlay = false
+    @State private var showRenameAlert = false
+    @State private var renameText = ""
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -142,6 +144,10 @@ struct ActiveTerminalView: View {
                         .background(Color.white.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .layoutPriority(1)
+                        .onLongPressGesture {
+                            renameText = coordinator.name(for: id)
+                            showRenameAlert = true
+                        }
                 }
             }
             .padding(.horizontal, 12)
@@ -179,6 +185,16 @@ struct ActiveTerminalView: View {
             if case .error(let msg) = speechEngine.state {
                 Text(msg)
             }
+        }
+        .alert("Rename Session", isPresented: $showRenameAlert) {
+            TextField("Name", text: $renameText)
+            Button("Rename") {
+                let trimmed = renameText.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty, let id = coordinator.activeSessionId {
+                    coordinator.setName(trimmed, for: id)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .overlay {
             if let progress = speechEngine.modelLoadProgress {

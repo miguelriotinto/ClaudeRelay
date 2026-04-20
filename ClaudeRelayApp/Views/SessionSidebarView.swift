@@ -90,7 +90,7 @@ private struct SessionRow: View {
     let isActive: Bool
     let onRename: (String) -> Void
 
-    @State private var isEditing = false
+    @State private var showRenameAlert = false
     @State private var editedName = ""
 
     var body: some View {
@@ -99,22 +99,11 @@ private struct SessionRow: View {
                 .fill(isActive ? .green : .clear)
                 .frame(width: 8, height: 8)
 
-            // Left: name + ID/time stacked
             VStack(alignment: .leading, spacing: 3) {
-                if isEditing {
-                    TextField("Name", text: $editedName, onCommit: {
-                        let trimmed = editedName.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty { onRename(trimmed) }
-                        isEditing = false
-                    })
+                Text(name)
                     .font(.system(.subheadline, design: .rounded, weight: .medium))
-                    .textFieldStyle(.plain)
-                } else {
-                    Text(name)
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                 Text(shortId)
                     .font(.system(.caption2, design: .monospaced))
@@ -123,7 +112,6 @@ private struct SessionRow: View {
 
             Spacer()
 
-            // Right: badge + time stacked
             VStack(alignment: .trailing, spacing: 3) {
                 Text(session.state.rawValue)
                     .font(.caption2)
@@ -141,10 +129,18 @@ private struct SessionRow: View {
         .contextMenu {
             Button {
                 editedName = name
-                isEditing = true
+                showRenameAlert = true
             } label: {
                 Label("Rename", systemImage: "pencil")
             }
+        }
+        .alert("Rename Session", isPresented: $showRenameAlert) {
+            TextField("Name", text: $editedName)
+            Button("Rename") {
+                let trimmed = editedName.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { onRename(trimmed) }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
