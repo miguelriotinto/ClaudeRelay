@@ -327,19 +327,19 @@ final class SessionCoordinator: ObservableObject {
             try await controller.attachSession(id: id)
             claimSession(id)
 
+            let vm = TerminalViewModel(sessionId: id, connection: connection)
+            terminalViewModels[id] = vm
+            wireTerminalOutput(to: id)
+            activeSessionId = id
+
             // Prefer the server-side name; fall back to local theme name.
+            // Done after wiring so scrollback binary frames aren't dropped.
             if sessionNames[id] == nil {
                 let name = pickDefaultName()
                 sessionNames[id] = name
                 Self.saveNames(sessionNames)
                 try? await controller.renameSession(id: id, name: name)
             }
-
-            let vm = TerminalViewModel(sessionId: id, connection: connection)
-            terminalViewModels[id] = vm
-
-            wireTerminalOutput(to: id)
-            activeSessionId = id
 
             await fetchSessions()
         } catch {

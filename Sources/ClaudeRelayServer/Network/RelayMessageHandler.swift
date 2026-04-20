@@ -324,6 +324,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             do {
                 await self?.autoDetachIfNeeded()
                 let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId, excludeObserver: myStealId)
+                let buffered = await pty.readBuffer()
+                let filtered = Self.filterEscapeResponses(buffered)
                 let activity = await pty.getActivityState()
                 RelayLogger.log(category: "session", "Session attached: \(sessionId)")
                 ctx.value.eventLoop.execute {
@@ -331,6 +333,9 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     self.attachedSessionId = sessionId
                     self.attachedPTY = pty
                     self.sendServerMessage(.sessionAttached(sessionId: sessionId, state: info.state.rawValue), context: ctx.value)
+                    if !filtered.isEmpty {
+                        self.sendBinaryData(filtered, context: ctx.value)
+                    }
                     self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity), context: ctx.value)
                     self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
