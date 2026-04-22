@@ -53,6 +53,12 @@ final class SessionStateTests: XCTestCase {
         XCTAssertTrue(SessionState.activeDetached.canTransition(to: .resuming))
     }
 
+    func testActiveDetachedCanTransitionToActiveAttached() {
+        // Cross-device attach: the other device disconnected (session is
+        // activeDetached) and this device attaches directly.
+        XCTAssertTrue(SessionState.activeDetached.canTransition(to: .activeAttached))
+    }
+
     func testActiveDetachedCanTransitionToExpired() {
         XCTAssertTrue(SessionState.activeDetached.canTransition(to: .expired))
     }

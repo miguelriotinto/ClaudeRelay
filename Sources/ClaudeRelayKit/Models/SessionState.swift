@@ -25,7 +25,7 @@ public enum SessionState: String, Codable, Sendable {
     // Static transition sets — allocated once, not per call.
     private static let startingTransitions: Set<SessionState> = [.activeAttached, .failed]
     private static let attachedTransitions: Set<SessionState> = [.activeDetached, .exited, .failed, .terminated]
-    private static let detachedTransitions: Set<SessionState> = [.resuming, .expired, .exited, .failed, .terminated]
+    private static let detachedTransitions: Set<SessionState> = [.resuming, .activeAttached, .expired, .exited, .failed, .terminated]
     private static let resumingTransitions: Set<SessionState> = [.activeAttached, .failed, .terminated]
 
     /// Returns whether a transition from this state to the given target state is valid.

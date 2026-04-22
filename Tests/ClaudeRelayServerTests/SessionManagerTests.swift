@@ -438,4 +438,24 @@ final class SessionManagerTests: XCTestCase {
 
         XCTAssertEqual(attachedInfo.name, "Rhaegar")
     }
+
+    func testAttachFromDetachedCrossDevice() async throws {
+        // Simulates: device A owned the session and disconnected (session is
+        // activeDetached), then device B attaches from its session list.
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "device-b")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id)
+        try await manager.detachSession(id: session.id)
+        let detached = try await manager.inspectSession(id: session.id)
+        XCTAssertEqual(detached.state, .activeDetached)
+
+        let (attachedInfo, _) = try await manager.attachSession(id: session.id, tokenId: tokenB.id)
+
+        XCTAssertEqual(attachedInfo.state, .activeAttached)
+        XCTAssertEqual(attachedInfo.tokenId, tokenB.id)
+    }
 }

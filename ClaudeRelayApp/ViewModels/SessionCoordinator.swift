@@ -313,18 +313,29 @@ final class SessionCoordinator: ObservableObject {
     }
 
     /// Attaches to a session that may be active on another device.
+    /// On failure, the previous active session is preserved so the terminal
+    /// does not end up blank with a dangling activeSessionId.
     func attachRemoteSession(id: UUID) async {
         guard !isRecovering else { return }
+        let previousId = activeSessionId
         do {
             let controller = try await ensureAuthenticated()
 
-            if let currentId = activeSessionId {
+            // Detach current server-side attachment (if any) so the server
+            // can accept a new attach on this connection. Keep the local VM
+            // in place until the new attach succeeds.
+            if previousId != nil {
                 try? await controller.detach()
+            }
+
+            try await controller.attachSession(id: id)
+
+            // Attach succeeded — now swap the local VM.
+            if let currentId = previousId, currentId != id {
                 terminalViewModels[currentId]?.prepareForSwitch()
                 terminalViewModels[currentId] = nil
             }
 
-            try await controller.attachSession(id: id)
             claimSession(id)
 
             let vm = TerminalViewModel(sessionId: id, connection: connection)
@@ -343,6 +354,12 @@ final class SessionCoordinator: ObservableObject {
 
             await fetchSessions()
         } catch {
+            // Attach failed. Try to restore the previous session on the server
+            // so the local terminal keeps working.
+            if let previousId {
+                try? await sessionController?.resumeSession(id: previousId)
+                wireTerminalOutput(to: previousId)
+            }
             presentError(error.localizedDescription)
         }
     }
