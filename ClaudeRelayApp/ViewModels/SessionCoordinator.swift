@@ -315,7 +315,10 @@ final class SessionCoordinator: ObservableObject {
     /// Attaches to a session that may be active on another device.
     /// On failure, the previous active session is preserved so the terminal
     /// does not end up blank with a dangling activeSessionId.
-    func attachRemoteSession(id: UUID) async {
+    /// - Parameter serverName: The session's name as returned by the server's session list.
+    ///   When provided it takes precedence over any locally cached name, so the attaching
+    ///   device sees the same name as the originating device without issuing a rename.
+    func attachRemoteSession(id: UUID, serverName: String? = nil) async {
         guard !isRecovering else { return }
         let previousId = activeSessionId
         do {
@@ -343,9 +346,13 @@ final class SessionCoordinator: ObservableObject {
             wireTerminalOutput(to: id)
             activeSessionId = id
 
-            // Prefer the server-side name; fall back to local theme name.
-            // Done after wiring so scrollback binary frames aren't dropped.
-            if sessionNames[id] == nil {
+            // Use the server-supplied name when available so we don't overwrite
+            // the name the originating device gave the session. Only fall back
+            // to a locally-generated theme name when the session has no name at all.
+            if let serverName {
+                sessionNames[id] = serverName
+                Self.saveNames(sessionNames)
+            } else if sessionNames[id] == nil {
                 let name = pickDefaultName()
                 sessionNames[id] = name
                 Self.saveNames(sessionNames)

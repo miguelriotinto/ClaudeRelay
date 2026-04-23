@@ -8,6 +8,5 @@ build/
 DerivedData/
 *.xcarchive
 .DS_Store
-.gitnexus
 # Added by code-review-graph
 .code-review-graph/

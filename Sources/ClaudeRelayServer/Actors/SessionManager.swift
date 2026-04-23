@@ -122,20 +122,18 @@ public actor SessionManager {
             throw SessionError.notFound(id)
         }
 
-        // Transition to activeAttached
-        let newState: SessionState = .activeAttached
         let currentState = managed.info.state
+        let newState: SessionState = .activeAttached
 
-        // If already attached, allow re-attach (replace stale connection)
-        let isReattach = currentState == .activeAttached
-        guard isReattach || currentState.canTransition(to: newState) else {
+        // attachSession is a cross-device takeover: allow from any non-terminal state.
+        // Steal notification is only relevant when a live attachment is being displaced.
+        guard !currentState.isTerminal else {
             throw SessionError.invalidTransition(currentState, newState)
         }
 
         let oldTokenId = managed.info.tokenId
 
-        // Notify the old token's observers that this session is being stolen.
-        if isReattach {
+        if currentState == .activeAttached {
             reportSessionStolen(sessionId: id, tokenId: oldTokenId, excludeObserver: excludeObserver)
         }
 

@@ -175,7 +175,7 @@ private struct AttachSessionSheet: View {
                         List(sessions, id: \.id) { session in
                             Button {
                                 isPresented = false
-                                Task { await coordinator.attachRemoteSession(id: session.id) }
+                                Task { await coordinator.attachRemoteSession(id: session.id, serverName: session.name) }
                             } label: {
                                 HStack(spacing: 10) {
                                     VStack(alignment: .leading, spacing: 3) {
