@@ -224,6 +224,13 @@ final class SessionCoordinator: ObservableObject {
                 ownedSessionIds.subtract(staleOwned)
                 saveOwned()
             }
+            let staleNames = Set(sessionNames.keys).subtracting(serverIds)
+            if !staleNames.isEmpty {
+                for id in staleNames {
+                    sessionNames.removeValue(forKey: id)
+                }
+                Self.saveNames(sessionNames)
+            }
         } catch {
             // Session list refresh is non-critical — don't alert the user.
         }
