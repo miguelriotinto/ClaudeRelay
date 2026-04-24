@@ -83,6 +83,15 @@ final class TerminalViewModel: ObservableObject {
         }
     }
 
+    /// Resets terminal content before a scrollback replay (e.g. foreground recovery).
+    /// Sends RIS (Reset to Initial State) so the replayed buffer replaces rather than
+    /// appends to existing content.
+    func resetForReplay() {
+        if let handler = onTerminalOutput {
+            handler(Data([0x1B, 0x63]))  // ESC c
+        }
+    }
+
     /// Clears stale state when switching away from this session.
     /// The old SwiftTermView is destroyed and a fresh one will be created
     /// on next activation, which re-sets `onTerminalOutput`.

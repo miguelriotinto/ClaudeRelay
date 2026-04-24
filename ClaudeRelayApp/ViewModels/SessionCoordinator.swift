@@ -541,6 +541,7 @@ final class SessionCoordinator: ObservableObject {
 
             guard !isTornDown else { return }
             if let activeId = activeSessionId {
+                terminalViewModels[activeId]?.resetForReplay()
                 try await controller.resumeSession(id: activeId)
                 wireTerminalOutput(to: activeId)
             }
