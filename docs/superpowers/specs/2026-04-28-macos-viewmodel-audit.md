@@ -83,7 +83,33 @@ Helpers with differing access modifiers but identical semantics:
 
 ## Wire protocol parity notes
 
-Both apps use the same `ClaudeRelayClient` `SessionController` and `RelayConnection`. Because the wire encoding lives in `ClaudeRelayKit.MessageEnvelope` (shared), there cannot be protocol-level divergence between the two apps — only call-site differences (e.g., Mac sends `sessionRename` from keyboard-shortcut context; iOS sends it from alert context). See Task 5.4 for verification notes.
+Both apps use the same `ClaudeRelayClient` `SessionController` and `RelayConnection`. Because the wire encoding lives in `ClaudeRelayKit.MessageEnvelope` (shared), there cannot be protocol-level divergence between the two apps — only call-site differences (e.g., Mac sends `sessionRename` from keyboard-shortcut context; iOS sends it from alert context).
+
+### Verification (Task 5.4, 2026-04-28)
+
+Grep'd every wire-relevant API across both apps. All signatures match byte-for-byte:
+
+| API | iOS call sites | Mac call sites | Signature |
+|-----|---------------|----------------|-----------|
+| `controller.authenticate(token:)` | 2 | 1 | identical |
+| `controller.createSession(name:)` | 1 | 1 | identical |
+| `controller.attachSession(id:)` | 1 | 1 | identical |
+| `controller.resumeSession(id:)` | 3 | 2 | identical |
+| `controller.detach()` | 4 | 1 | identical |
+| `controller.listSessions()` | 2 | 1 | identical |
+| `controller.listAllSessions()` | 1 | 1 | identical |
+| `controller.renameSession(id:name:)` | 2 | 2 | identical |
+| `connection.send(.sessionTerminate(sessionId:))` | 1 | 1 | identical |
+| `connection.sendResize(cols:rows:)` | 2 | 2 | identical |
+| `connection.sendPasteImage(base64Data:)` | 2 | 2 | identical |
+
+**Conclusion:** No call-site divergence found. Both platforms drive the server through the exact same `ClaudeRelayClient` methods with the same argument shapes. All protocol evolution already happens in `ClaudeRelayKit` and propagates to both apps automatically.
+
+**Differences worth noting** (behavioral, not protocol-level):
+- iOS calls `controller.detach()` from more contexts (scene transitions, session switches, recovery) — 4 sites vs Mac's 1 site in `tearDown`. Mac's detach happens through a different path (explicit detachSession method + switchToSession internal detach), so the total number of detaches per session lifecycle is comparable.
+- iOS `resumeSession` is called from 3 sites (switch, attach-failure rollback, recovery); Mac from 2 (attach-failure rollback, switch). Mac's recovery path uses the same `resumeSession` call inside `restoreSession()`.
+
+No action needed.
 
 ## Implementation risk
 
