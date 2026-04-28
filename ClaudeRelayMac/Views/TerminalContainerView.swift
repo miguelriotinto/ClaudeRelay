@@ -2,6 +2,23 @@ import SwiftUI
 import SwiftTerm
 import AppKit
 
+/// Wraps a SwiftTerm TerminalView and intercepts Cmd+V to handle image paste.
+final class PasteAwareTerminalView: TerminalView {
+
+    /// Callback when an image was found on the pasteboard and handled.
+    var onImagePaste: ((Data) -> Void)?
+
+    override func paste(_ sender: Any) {
+        // If the clipboard holds an image, handle it specially.
+        if let pngData = ImagePasteHandler.extractFromPasteboard() {
+            onImagePaste?(pngData)
+            return
+        }
+        // Otherwise, fall through to SwiftTerm's default text paste.
+        super.paste(sender)
+    }
+}
+
 struct TerminalContainerView: NSViewRepresentable {
     @ObservedObject var viewModel: TerminalViewModel
 
@@ -9,9 +26,12 @@ struct TerminalContainerView: NSViewRepresentable {
         Coordinator(viewModel: viewModel)
     }
 
-    func makeNSView(context: Context) -> TerminalView {
-        let terminal = TerminalView(frame: .zero)
+    func makeNSView(context: Context) -> PasteAwareTerminalView {
+        let terminal = PasteAwareTerminalView(frame: .zero)
         terminal.terminalDelegate = context.coordinator
+        terminal.onImagePaste = { [weak viewModel] data in
+            viewModel?.sendPasteImage(data)
+        }
 
         // Appearance: black chrome to match iOS app.
         terminal.nativeBackgroundColor = .black
@@ -28,7 +48,7 @@ struct TerminalContainerView: NSViewRepresentable {
         return terminal
     }
 
-    func updateNSView(_ nsView: TerminalView, context: Context) {
+    func updateNSView(_ nsView: PasteAwareTerminalView, context: Context) {
         // No-op — updates are driven by the ViewModel callbacks.
     }
 
