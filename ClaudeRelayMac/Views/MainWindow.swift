@@ -70,9 +70,10 @@ struct MainWindow: View {
 
 private struct WorkspaceView: View {
     @ObservedObject var coordinator: SessionCoordinator
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SessionSidebarView(coordinator: coordinator)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } detail: {
@@ -98,6 +99,7 @@ private struct WorkspaceView: View {
                 StatusBarView(coordinator: coordinator)
             }
         }
+        .focusedValue(\.sidebarVisibility, $columnVisibility)
     }
 }
 

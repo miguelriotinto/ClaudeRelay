@@ -12,8 +12,20 @@ extension FocusedValues {
     }
 }
 
+struct SidebarVisibilityKey: FocusedValueKey {
+    typealias Value = Binding<NavigationSplitViewVisibility>
+}
+
+extension FocusedValues {
+    var sidebarVisibility: Binding<NavigationSplitViewVisibility>? {
+        get { self[SidebarVisibilityKey.self] }
+        set { self[SidebarVisibilityKey.self] = newValue }
+    }
+}
+
 struct AppCommands: Commands {
     @FocusedValue(\.sessionCoordinator) var coordinator: SessionCoordinator?
+    @FocusedValue(\.sidebarVisibility) var sidebarVisibility: Binding<NavigationSplitViewVisibility>?
 
     var body: some Commands {
         // Replace the default New item in the File menu.
@@ -53,6 +65,28 @@ struct AppCommands: Commands {
                 coordinator?.switchToPreviousSession()
             }
             .keyboardShortcut("[", modifiers: [.command, .shift])
+
+            Divider()
+
+            ForEach(1...9, id: \.self) { index in
+                Button("Session \(index)") {
+                    coordinator?.switchToSession(atIndex: index - 1)
+                }
+                .keyboardShortcut(KeyEquivalent(Character("\(index)")), modifiers: .command)
+            }
+        }
+
+        CommandGroup(after: .sidebar) {
+            Button("Toggle Sidebar") {
+                guard let binding = sidebarVisibility else { return }
+                switch binding.wrappedValue {
+                case .all:
+                    binding.wrappedValue = .detailOnly
+                default:
+                    binding.wrappedValue = .all
+                }
+            }
+            .keyboardShortcut("0", modifiers: .command)
         }
     }
 }

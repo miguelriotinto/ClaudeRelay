@@ -543,4 +543,11 @@ final class SessionCoordinator: ObservableObject {
         guard target != current else { return }
         Task { await switchToSession(id: target) }
     }
+
+    func switchToSession(atIndex index: Int) {
+        guard index >= 0, index < activeSessions.count else { return }
+        let target = activeSessions[index].id
+        guard target != activeSessionId else { return }
+        Task { await switchToSession(id: target) }
+    }
 }
