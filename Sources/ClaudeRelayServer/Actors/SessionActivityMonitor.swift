@@ -47,9 +47,6 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     private var consecutiveNonClaudePolls = 0
     private static let exitDebounceThreshold = 2
 
-    /// ESC [ ? 1049 l — leave alternate screen buffer.
-    private static let leaveAlternateScreen = Data([0x1B, 0x5B, 0x3F, 0x31, 0x30, 0x34, 0x39, 0x6C])
-
     /// Comprehensive ANSI/VT escape sequence stripper.
     private static let ansiEscapePattern = #/\x1B(?:\[[\x20-\x3F]*[\x40-\x7E]|\][^\x07\x1B]*(?:\x07|\x1B\\)|\([A-B0-2]|[=>])/#
 

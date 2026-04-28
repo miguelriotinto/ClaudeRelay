@@ -126,6 +126,7 @@ claude-relay logs tail                               # Follow log output
 claude-relay config show                             # Show current config
 claude-relay config set wsPort 9200                  # Set WebSocket port
 claude-relay config set adminPort 9100               # Set admin API port
+claude-relay config validate                         # Validate current config
 ```
 
 ## Configuration
@@ -137,7 +138,7 @@ Configuration is stored at `~/.claude-relay/config.json`:
   "wsPort": 9200,
   "adminPort": 9100,
   "detachTimeout": 0,
-  "scrollbackSize": 65536,
+  "scrollbackSize": 524288,
   "tlsCert": "~/.claude-relay/certs/cert.pem",
   "tlsKey": "~/.claude-relay/certs/key.pem",
   "logLevel": "info"
@@ -148,7 +149,7 @@ Configuration is stored at `~/.claude-relay/config.json`:
 - `wsPort` - WebSocket server port (default: 9200)
 - `adminPort` - Admin HTTP API port (default: 9100)
 - `detachTimeout` - Session timeout in seconds, 0 = never expire (default: 0)
-- `scrollbackSize` - Maximum scrollback buffer size in bytes (default: 65536)
+- `scrollbackSize` - Maximum scrollback buffer size in bytes (default: 524288)
 - `tlsCert` - Path to TLS certificate file for WebSocket server (optional)
 - `tlsKey` - Path to TLS private key file for WebSocket server (optional)
 - `logLevel` - Logging verbosity: "trace", "debug", "info", "warning", "error" (default: "info")
@@ -215,13 +216,13 @@ After modifying `ClaudeRelayClient` or `ClaudeRelayKit` sources, rebuild the iOS
 ```
 ClaudeRelay/
 ├── Sources/
+│   ├── CPTYShim/               # C shim for forkpty PTY operations
 │   ├── ClaudeRelayKit/         # Shared protocol models and utilities
 │   ├── ClaudeRelayServer/      # WebSocket + HTTP server (NIO-based)
 │   ├── ClaudeRelayCLI/         # Command-line interface (ArgumentParser)
-│   ├── ClaudeRelayClient/      # Swift client library
-│   └── CPTYShim/               # C shim for PTY operations
+│   └── ClaudeRelayClient/      # Swift client library
 ├── ClaudeRelayApp/             # iOS application (SwiftUI, XcodeGen-managed)
-│   ├── Views/                  # SwiftUI views
+│   ├── Views/                  # SwiftUI views + components
 │   ├── ViewModels/             # Observable view models
 │   ├── Models/                 # App settings, saved connections
 │   └── Speech/                 # On-device speech pipeline (WhisperKit + LLM)

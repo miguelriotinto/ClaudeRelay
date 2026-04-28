@@ -7,7 +7,6 @@ public enum SessionError: Error {
     case notFound(UUID)
     case ownershipViolation
     case invalidTransition(SessionState, SessionState)
-    case alreadyAttached
 }
 
 // MARK: - SessionManager Actor
@@ -55,17 +54,6 @@ public actor SessionManager {
         let id = UUID()
         let now = Date()
 
-        // Create initial info in .starting state (created -> starting)
-        let startingInfo = SessionInfo(
-            id: id,
-            name: name,
-            state: .starting,
-            tokenId: tokenId,
-            createdAt: now,
-            cols: cols,
-            rows: rows
-        )
-
         // Create PTY session and activate its read source
         let pty = try ptyFactory(id, cols, rows, config.scrollbackSize)
         await pty.startReading()
@@ -81,7 +69,7 @@ public actor SessionManager {
             rows: rows
         )
 
-        var managed = ManagedSession(info: activeInfo, ptySession: pty)
+        let managed = ManagedSession(info: activeInfo, ptySession: pty)
 
         // Set up exit handler BEFORE storing — guarantees handler is in place
         // before any EOF from the read source can fire handleExit().
@@ -191,7 +179,7 @@ public actor SessionManager {
             let timer = Task<Void, Never> {
                 try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds) * 1_000_000_000)
                 if !Task.isCancelled {
-                    try? await manager.handleDetachTimeout(sessionId: id)
+                    await manager.handleDetachTimeout(sessionId: id)
                 }
             }
             detachTimers[id]?.cancel()

@@ -4,6 +4,25 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; the iOS app uses X.Y.Z.
 
+## [0.2.2] - 2026-04-25
+
+### Fixed
+- Cross-device attach: preserve session name and fix state transition when attaching from a different token
+- Allow `activeDetached` → `activeAttached` transition for cross-device list-based attach
+- Send scrollback history when attaching remote sessions (not just on resume)
+- Prevent observer leak when channel disconnects during auth registration
+- Robust Claude Code detection with parent chain walk (up to 5 ancestors) and exit debouncing
+- Replaced `libproc` with `sysctl KERN_PROCARGS2` for reliable cross-platform process detection
+- Restore Claude detection state on session resume and app relaunch
+- Increased WebSocket frame limits to 10 MB to support image pasting
+
+### Fixed (iOS)
+- Reset terminal before scrollback replay on foreground recovery
+- Prune stale session names so thematic naming works again
+- Rename sessions via alert instead of inline editing
+- Match splash background to AppIcon sRGB exactly
+- Resolve Swift 6 Sendable warnings in speech layer
+
 ## [0.2.0] - 2026-04-16
 
 ### Added
