@@ -17,4 +17,6 @@ final class AppSettings: ObservableObject {
     @AppStorage("com.clauderelay.mac.showWindowOnLaunch") var showWindowOnLaunch = true
 
     @AppStorage("com.clauderelay.mac.sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
+
+    @AppStorage("com.clauderelay.mac.launchAtLogin") var launchAtLoginEnabled = false
 }

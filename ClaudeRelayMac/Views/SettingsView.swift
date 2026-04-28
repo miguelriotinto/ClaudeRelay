@@ -33,7 +33,17 @@ private struct GeneralSettingsTab: View {
             }
             Section("Launch") {
                 Toggle("Show window on launch", isOn: $settings.showWindowOnLaunch)
-                // Launch at login toggle added in Task 3.10.
+                Toggle("Launch at login", isOn: Binding(
+                    get: { settings.launchAtLoginEnabled },
+                    set: { newValue in
+                        do {
+                            try LaunchAtLogin.setEnabled(newValue)
+                            settings.launchAtLoginEnabled = newValue
+                        } catch {
+                            NSLog("[Mac] LaunchAtLogin toggle failed: \(error)")
+                        }
+                    }
+                ))
             }
         }
         .formStyle(.grouped)

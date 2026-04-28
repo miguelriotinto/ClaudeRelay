@@ -22,5 +22,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         sleepWakeObserver = SleepWakeObserver()
         networkMonitor = NetworkMonitor()
+
+        Task { @MainActor in
+            if !AppSettings.shared.showWindowOnLaunch {
+                for window in NSApp.windows where window.canBecomeMain {
+                    window.close()
+                }
+            }
+        }
     }
 }
