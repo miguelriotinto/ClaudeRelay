@@ -436,6 +436,31 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
+    func terminateSession(id: UUID) async {
+        guard !isRecovering else { return }
+        do {
+            try await connection.send(.sessionTerminate(sessionId: id))
+            if activeSessionId == id {
+                activeSessionId = nil
+                terminalViewModels[id] = nil
+            }
+            claudeSessions.remove(id)
+            unclaimSession(id)
+            sessionNames.removeValue(forKey: id)
+            terminalTitles.removeValue(forKey: id)
+            sessionsAwaitingInput.remove(id)
+            Self.saveNames(sessionNames)
+            await fetchSessions()
+
+            // Switch to another active session if available.
+            if activeSessionId == nil, let next = activeSessions.first {
+                await switchToSession(id: next.id)
+            }
+        } catch {
+            presentError(error.localizedDescription)
+        }
+    }
+
     /// Stub — implemented in Task 3.8.
     /// Note: declared here so the onReconnected closure in init can reference it.
     func handleAutoReconnect() async {
