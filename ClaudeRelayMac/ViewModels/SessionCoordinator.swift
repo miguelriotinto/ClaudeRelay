@@ -351,9 +351,32 @@ final class SessionCoordinator: ObservableObject {
 
     // MARK: - Stubs (filled in by Tasks 2.4–2.8)
 
-    /// Stub — implemented in Task 2.4.
     func createNewSession() async {
-        // Will call ensureAuthenticated, create on server, claim, wire terminal, refresh.
+        guard !isRecovering else { return }
+        do {
+            let controller = try await ensureAuthenticated()
+
+            if let currentId = activeSessionId {
+                try? await controller.detach()
+                terminalViewModels[currentId]?.prepareForSwitch()
+                terminalViewModels[currentId] = nil
+            }
+
+            let name = pickDefaultName()
+            let sessionId = try await controller.createSession(name: name)
+            claimSession(sessionId)
+            sessionNames[sessionId] = name
+            Self.saveNames(sessionNames)
+
+            let vm = TerminalViewModel(sessionId: sessionId, connection: connection)
+            terminalViewModels[sessionId] = vm
+            wireTerminalOutput(to: sessionId)
+            activeSessionId = sessionId
+
+            await fetchSessions()
+        } catch {
+            presentError(error.localizedDescription)
+        }
     }
 
     /// Stub — implemented in Task 2.5.
