@@ -5,7 +5,7 @@ import ClaudeRelayKit
 
 /// Central coordinator for session management in the workspace.
 @MainActor
-final class SessionCoordinator: ObservableObject {
+final class SessionCoordinator: ObservableObject, SessionCoordinating {
 
     // MARK: - Published State
 

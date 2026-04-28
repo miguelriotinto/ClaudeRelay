@@ -5,7 +5,7 @@ import ClaudeRelayClient
 import ClaudeRelayKit
 
 @MainActor
-final class SessionCoordinator: ObservableObject {
+final class SessionCoordinator: ObservableObject, SessionCoordinating {
 
     // MARK: - Published State
 
