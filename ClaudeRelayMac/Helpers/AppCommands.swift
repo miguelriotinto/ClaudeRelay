@@ -74,6 +74,14 @@ struct AppCommands: Commands {
                 }
                 .keyboardShortcut(KeyEquivalent(Character("\(index)")), modifiers: .command)
             }
+
+            Divider()
+
+            Button("Scan QR Code...") {
+                coordinator?.showQRScanner = true
+            }
+            .keyboardShortcut("q", modifiers: [.command, .shift])
+            .disabled(coordinator == nil)
         }
 
         CommandGroup(after: .sidebar) {

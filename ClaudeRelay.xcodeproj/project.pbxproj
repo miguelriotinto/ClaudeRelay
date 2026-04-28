@@ -16,6 +16,7 @@
 		14879492694E389CB21E84A9 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DECD505C04D50E2D42420381 /* AppSettings.swift */; };
 		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
+		208847B59339D16E6FE9C702 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE5CC46536E8CA8C49EB434 /* QRScannerView.swift */; };
 		299B416F1397BA56DE9F1BF6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6F2A87CE47474DE9D7836344 /* WhisperKit */; };
 		2BD76AD6A79D0ABC114DFF65 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B9B72D775E497F2FB66C38A /* AppCommands.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
@@ -121,6 +122,7 @@
 		A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudPromptEnhancer.swift; sourceTree = "<group>"; };
 		A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
+		AAE5CC46536E8CA8C49EB434 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
@@ -342,6 +344,7 @@
 				D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */,
 				C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */,
 				94688372C735D9B8D283F7BE /* QRCodePopover.swift */,
+				AAE5CC46536E8CA8C49EB434 /* QRScannerView.swift */,
 				BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */,
 				78EB2D70760D5EC3165F8E5C /* SessionSidebarView.swift */,
 				DD7FCEC509175BD571CE89C2 /* SettingsView.swift */,
@@ -491,6 +494,7 @@
 				028D1B51EA464565B380385D /* MenuBarViewModel.swift in Sources */,
 				9252366AEF0F3FF0490BC949 /* NetworkMonitor.swift in Sources */,
 				AE54E51AD13B1D63E09B1D41 /* QRCodePopover.swift in Sources */,
+				208847B59339D16E6FE9C702 /* QRScannerView.swift in Sources */,
 				6C66F7B77353E2963BE7A818 /* SavedConnection.swift in Sources */,
 				6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */,
 				63E3BCC85F93A4D12B9436B1 /* ServerListWindow.swift in Sources */,

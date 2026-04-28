@@ -25,6 +25,7 @@ final class SessionCoordinator: ObservableObject {
     @Published var showSessionStolen = false
     @Published private(set) var isConnected = false
     @Published private(set) var isAuthenticated = false
+    @Published var showQRScanner = false
 
     /// Sessions owned by this device (non-terminal, claimed via create or attach).
     private(set) var ownedSessionIds: Set<UUID> = []

@@ -119,6 +119,9 @@ private struct WorkspaceView: View {
             }
         }
         .focusedValue(\.sidebarVisibility, $columnVisibility)
+        .sheet(isPresented: $coordinator.showQRScanner) {
+            QRScannerSheet(coordinator: coordinator)
+        }
     }
 }
 
