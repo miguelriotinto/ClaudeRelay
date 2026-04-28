@@ -407,6 +407,21 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
+    /// Explicit resume — used by foreground recovery to replay scrollback after
+    /// a dead connection is restored. Calls resetForReplay on the VM before
+    /// triggering the resume flow.
+    func resumeActiveSession() async {
+        guard let activeId = activeSessionId else { return }
+        terminalViewModels[activeId]?.resetForReplay()
+        do {
+            let controller = try await ensureAuthenticated()
+            try await controller.resumeSession(id: activeId)
+            wireTerminalOutput(to: activeId)
+        } catch {
+            presentError(error.localizedDescription)
+        }
+    }
+
     /// Stub — implemented in Task 3.8.
     /// Note: declared here so the onReconnected closure in init can reference it.
     func handleAutoReconnect() async {
