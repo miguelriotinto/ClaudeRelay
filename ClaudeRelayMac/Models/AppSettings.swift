@@ -15,4 +15,6 @@ final class AppSettings: ObservableObject {
 
     /// Show main window on launch (false when launched-at-login with menu-bar-only mode).
     @AppStorage("com.clauderelay.mac.showWindowOnLaunch") var showWindowOnLaunch = true
+
+    @AppStorage("com.clauderelay.mac.sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
 }

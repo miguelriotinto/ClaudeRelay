@@ -123,11 +123,10 @@ final class SessionCoordinator: ObservableObject {
     }
 
     func pickDefaultName() -> String {
-        // Default name pool — replaced by naming-theme picker in Phase 3.
         let usedNames = Set(sessionNames.values)
-        let pool = ["alpha", "beta", "gamma", "delta", "epsilon",
-                    "zeta", "eta", "theta", "iota", "kappa"]
-        return pool.first { !usedNames.contains($0) } ?? "Session \(sessionNames.count + 1)"
+        let themeNames = AppSettings.shared.sessionNamingTheme.names
+        let available = themeNames.filter { !usedNames.contains($0) }
+        return available.randomElement() ?? "Session \(sessionNames.count + 1)"
     }
 
     // MARK: - Persistence

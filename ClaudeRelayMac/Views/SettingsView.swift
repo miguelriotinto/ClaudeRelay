@@ -24,8 +24,17 @@ private struct GeneralSettingsTab: View {
 
     var body: some View {
         Form {
-            Toggle("Show window on launch", isOn: $settings.showWindowOnLaunch)
-            // Launch at login toggle added in Task 3.10.
+            Section("Appearance") {
+                Picker("Session naming theme", selection: $settings.sessionNamingTheme) {
+                    ForEach(SessionNamingTheme.allCases) { theme in
+                        Text(theme.displayName).tag(theme)
+                    }
+                }
+            }
+            Section("Launch") {
+                Toggle("Show window on launch", isOn: $settings.showWindowOnLaunch)
+                // Launch at login toggle added in Task 3.10.
+            }
         }
         .formStyle(.grouped)
         .padding()
