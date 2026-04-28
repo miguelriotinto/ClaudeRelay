@@ -9,21 +9,10 @@ struct MainWindow: View {
 
     var body: some View {
         Group {
-            if let coordinator,
-               let activeId = coordinator.activeSessionId,
-               let vm = coordinator.viewModel(for: activeId) {
-                TerminalContainerView(viewModel: vm)
+            if let coordinator {
+                WorkspaceView(coordinator: coordinator)
             } else if let failure = loadFailure {
-                VStack(spacing: 12) {
-                    Text("Cannot connect")
-                        .font(.title2)
-                    Text(failure)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    Button("Choose Server") { showServerList = true }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                FailureView(message: failure) { showServerList = true }
             } else {
                 ProgressView("Connecting...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -38,9 +27,7 @@ struct MainWindow: View {
                 }
             }
         }
-        .task {
-            await attemptAutoConnect()
-        }
+        .task { await attemptAutoConnect() }
         .sheet(isPresented: $showServerList) {
             NavigationStack {
                 ServerListWindow { config in
@@ -49,9 +36,7 @@ struct MainWindow: View {
                 }
             }
         }
-        .onDisappear {
-            coordinator?.tearDown()
-        }
+        .onDisappear { coordinator?.tearDown() }
     }
 
     private func attemptAutoConnect() async {
@@ -66,7 +51,7 @@ struct MainWindow: View {
         loadFailure = nil
         do {
             guard let token = try AuthManager.shared.loadToken(for: config.id) else {
-                loadFailure = "No token stored for this server. Open Servers to re-enter."
+                loadFailure = "No token stored for this server."
                 return
             }
             let c = SessionCoordinator(config: config, token: token)
@@ -79,5 +64,55 @@ struct MainWindow: View {
         } catch {
             loadFailure = error.localizedDescription
         }
+    }
+}
+
+private struct WorkspaceView: View {
+    @ObservedObject var coordinator: SessionCoordinator
+
+    var body: some View {
+        NavigationSplitView {
+            SessionSidebarView(coordinator: coordinator)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
+        } detail: {
+            if let activeId = coordinator.activeSessionId,
+               let vm = coordinator.viewModel(for: activeId) {
+                TerminalContainerView(viewModel: vm)
+                    .id(activeId)
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "terminal")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+                    Text("No session selected")
+                        .foregroundStyle(.secondary)
+                    Button("New Session") {
+                        Task { await coordinator.createNewSession() }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+}
+
+private struct FailureView: View {
+    let message: String
+    let onChooseServer: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 36))
+                .foregroundStyle(.orange)
+            Text("Cannot connect")
+                .font(.title2)
+            Text(message)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Button("Choose Server") { onChooseServer() }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
