@@ -1,4 +1,5 @@
 import SwiftUI
+import ClaudeRelayClient
 
 @MainActor
 final class AppSettings: ObservableObject {

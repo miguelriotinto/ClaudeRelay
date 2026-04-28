@@ -124,10 +124,11 @@ final class SessionCoordinator: ObservableObject, SessionCoordinating {
     }
 
     func pickDefaultName() -> String {
-        let usedNames = Set(sessionNames.values)
-        let themeNames = AppSettings.shared.sessionNamingTheme.names
-        let available = themeNames.filter { !usedNames.contains($0) }
-        return available.randomElement() ?? "Session \(sessionNames.count + 1)"
+        SessionNaming.pickDefaultName(
+            usedNames: Set(sessionNames.values),
+            theme: AppSettings.shared.sessionNamingTheme,
+            fallbackIndex: sessionNames.count + 1
+        )
     }
 
     // MARK: - Persistence

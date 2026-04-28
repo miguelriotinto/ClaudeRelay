@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import ClaudeRelayClient
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
