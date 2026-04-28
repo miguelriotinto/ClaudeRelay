@@ -52,11 +52,40 @@ private struct GeneralSettingsTab: View {
 }
 
 private struct SpeechSettingsTab: View {
+    @StateObject private var settings = AppSettings.shared
+    @StateObject private var store = SpeechModelStore.shared
+
     var body: some View {
         Form {
-            Section("Speech-to-Text") {
-                Text("Speech engine configuration available in Phase 4.")
-                    .foregroundStyle(.secondary)
+            Section("Models") {
+                if store.modelsReady {
+                    Label("Models downloaded", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Button("Delete Models") {
+                        store.deleteModels()
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Speech models need to be downloaded before first use (~1 GB).")
+                            .foregroundStyle(.secondary)
+                        Button(store.downloadProgress == nil ? "Download Models" : "Downloading...") {
+                            Task { try? await store.downloadAllModels() }
+                        }
+                        .disabled(store.downloadProgress != nil)
+                        if let progress = store.downloadProgress {
+                            ProgressView(value: progress)
+                        }
+                    }
+                }
+            }
+            Section("Transcription") {
+                Toggle("Smart cleanup (local LLM)", isOn: $settings.smartCleanupEnabled)
+                Toggle("Prompt enhancement (Bedrock Haiku)", isOn: $settings.promptEnhancementEnabled)
+                if settings.promptEnhancementEnabled {
+                    SecureField("Bedrock Bearer Token", text: $settings.bedrockBearerToken)
+                        .textContentType(.password)
+                    TextField("AWS Region", text: $settings.bedrockRegion)
+                }
             }
         }
         .formStyle(.grouped)

@@ -19,4 +19,9 @@ final class AppSettings: ObservableObject {
     @AppStorage("com.clauderelay.mac.sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
 
     @AppStorage("com.clauderelay.mac.launchAtLogin") var launchAtLoginEnabled = false
+
+    @AppStorage("com.clauderelay.mac.smartCleanupEnabled") var smartCleanupEnabled = true
+    @AppStorage("com.clauderelay.mac.promptEnhancementEnabled") var promptEnhancementEnabled = false
+    @AppStorage("com.clauderelay.mac.bedrockBearerToken") var bedrockBearerToken = ""
+    @AppStorage("com.clauderelay.mac.bedrockRegion") var bedrockRegion = "us-east-1"
 }

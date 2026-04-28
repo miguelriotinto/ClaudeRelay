@@ -3,6 +3,7 @@ import ClaudeRelayClient
 
 struct MainWindow: View {
     @StateObject private var serverList = ServerListViewModel()
+    @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @State private var coordinator: SessionCoordinator?
     @State private var showServerList = false
     @State private var loadFailure: String?
@@ -39,6 +40,17 @@ struct MainWindow: View {
                         QRCodePopover(sessionId: id, sessionName: coordinator.name(for: id))
                     }
                 }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await toggleRecording() }
+                } label: {
+                    Label(
+                        speechEngine.state.isActive ? "Stop Recording" : "Record",
+                        systemImage: speechEngine.state.isActive ? "stop.circle.fill" : "mic"
+                    )
+                }
+                .disabled(coordinator?.activeSessionId == nil)
             }
         }
         .task { await attemptAutoConnect() }
@@ -83,6 +95,26 @@ struct MainWindow: View {
             }
         } catch {
             loadFailure = error.localizedDescription
+        }
+    }
+
+    private func toggleRecording() async {
+        if speechEngine.state.isActive {
+            let settings = AppSettings.shared
+            let text = await speechEngine.stopAndProcess(
+                smartCleanup: settings.smartCleanupEnabled,
+                promptEnhancement: settings.promptEnhancementEnabled,
+                bearerToken: settings.bedrockBearerToken,
+                region: settings.bedrockRegion
+            )
+            if let text, !text.isEmpty,
+               let coordinator,
+               let id = coordinator.activeSessionId,
+               let vm = coordinator.viewModel(for: id) {
+                vm.sendInput(text)
+            }
+        } else {
+            await speechEngine.startRecording()
         }
     }
 }
