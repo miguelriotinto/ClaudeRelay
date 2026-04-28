@@ -70,6 +70,7 @@
 		EFFCA49EDD9553791CAADCB9 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF311DE62F36AF5A19AB87E9 /* StatusBarView.swift */; };
 		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
 		FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */; };
+		FC2B37F9B2B5B54C4647C557 /* SpeechEngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6254B1D0ECF0451528EE6265 /* SpeechEngineState.swift */; };
 		FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD5621F82700100B9C4F53F /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -98,6 +99,7 @@
 		477B528B65A3A1F49D31B173 /* Claude Relay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Claude Relay"; path = .; sourceTree = SOURCE_ROOT; };
 		5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		55B2AF59490A10B933D223D7 /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
+		6254B1D0ECF0451528EE6265 /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
 		6E190520294712DF54746164 /* SpeechModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModelStore.swift; sourceTree = "<group>"; };
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
@@ -270,6 +272,7 @@
 				42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */,
 				67648825BC334FE028B1F2D7 /* Helpers */,
 				6949AF4F89256537825D5FF0 /* Models */,
+				E650DF41D5EBC35AA871E99B /* Speech */,
 				D379A2A16B821D0ABA8A224B /* ViewModels */,
 				FEAB57B6E05A8A89EFB47268 /* Views */,
 			);
@@ -301,6 +304,14 @@
 				7A861C483668D8DA343544C5 /* TerminalViewModel.swift */,
 			);
 			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		E650DF41D5EBC35AA871E99B /* Speech */ = {
+			isa = PBXGroup;
+			children = (
+				6254B1D0ECF0451528EE6265 /* SpeechEngineState.swift */,
+			);
+			path = Speech;
 			sourceTree = "<group>";
 		};
 		E7C7F2B75F10B4F3A2F3713A /* Components */ = {
@@ -504,6 +515,7 @@
 				9E41F6BB4D69F89CFE550AE9 /* SessionSidebarView.swift in Sources */,
 				8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */,
 				9971C020B99AC4E90062CFBC /* SleepWakeObserver.swift in Sources */,
+				FC2B37F9B2B5B54C4647C557 /* SpeechEngineState.swift in Sources */,
 				EFFCA49EDD9553791CAADCB9 /* StatusBarView.swift in Sources */,
 				AE20EB3A429DA20B6284117C /* TerminalContainerView.swift in Sources */,
 				10F9CDF3271693806BF4E51A /* TerminalViewModel.swift in Sources */,
