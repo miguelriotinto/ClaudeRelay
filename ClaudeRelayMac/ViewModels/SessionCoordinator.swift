@@ -523,4 +523,24 @@ final class SessionCoordinator: ObservableObject {
     func handleAutoReconnect() async {
         // Full recovery logic in Task 3.8.
     }
+
+    // MARK: - Next/Previous
+
+    func switchToNextSession() {
+        guard let current = activeSessionId,
+              let idx = activeSessions.firstIndex(where: { $0.id == current }) else { return }
+        let next = (idx + 1) % activeSessions.count
+        let target = activeSessions[next].id
+        guard target != current else { return }
+        Task { await switchToSession(id: target) }
+    }
+
+    func switchToPreviousSession() {
+        guard let current = activeSessionId,
+              let idx = activeSessions.firstIndex(where: { $0.id == current }) else { return }
+        let previous = (idx - 1 + activeSessions.count) % activeSessions.count
+        let target = activeSessions[previous].id
+        guard target != current else { return }
+        Task { await switchToSession(id: target) }
+    }
 }

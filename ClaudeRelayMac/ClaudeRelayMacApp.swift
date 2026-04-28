@@ -12,6 +12,9 @@ struct ClaudeRelayMacApp: App {
         }
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
+        .commands {
+            AppCommands()
+        }
 
         MenuBarExtra {
             MenuBarDropdown()

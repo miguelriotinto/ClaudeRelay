@@ -37,6 +37,7 @@ struct MainWindow: View {
             }
         }
         .onDisappear { coordinator?.tearDown() }
+        .focusedValue(\.sessionCoordinator, coordinator)
     }
 
     private func attemptAutoConnect() async {
