@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.claude
   deploymentTarget:
     iOS: "17.0"
+    macOS: "14.0"
   xcodeVersion: "15.0"
   generateEmptyDirectories: true
 
@@ -55,7 +56,10 @@ targets:
         CURRENT_PROJECT_VERSION: "77"
         GENERATE_INFOPLIST_FILE: YES
     info:
+      path: ClaudeRelayApp/Info.plist
       properties:
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
         CFBundleURLTypes:
           - CFBundleURLName: "com.claude.relay"
             CFBundleURLSchemes:
@@ -71,3 +75,42 @@ targets:
       base:
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ClaudeRelayApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ClaudeRelayApp"
         BUNDLE_LOADER: "$(TEST_HOST)"
+  ClaudeRelayMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: ClaudeRelayMac
+        excludes:
+          - "**/.gitkeep"
+          - "Info.plist"
+    dependencies:
+      - package: ClaudeRelayClient
+        product: ClaudeRelayClient
+      - package: SwiftTerm
+      - package: WhisperKit
+      - package: LLMSwift
+        product: LLM
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.claude.relay.mac
+        INFOPLIST_FILE: ClaudeRelayMac/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: "Claude Relay"
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Claude Relay needs microphone access for voice-to-text input."
+        INFOPLIST_KEY_NSCameraUsageDescription: "Claude Relay uses the camera to scan QR codes for session sharing."
+        INFOPLIST_KEY_LSUIElement: NO
+        SWIFT_VERSION: "5.9"
+        DEVELOPMENT_TEAM: T9WF95GC9T
+        SUPPORTED_PLATFORMS: "macosx"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        CODE_SIGN_ENTITLEMENTS: ClaudeRelayMac/ClaudeRelayMac.entitlements
+    info:
+      path: ClaudeRelayMac/Info.plist
+      properties:
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        CFBundleURLTypes:
+          - CFBundleURLName: "com.claude.relay.mac"
+            CFBundleURLSchemes:
+              - clauderelay

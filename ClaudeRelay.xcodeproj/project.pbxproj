@@ -9,8 +9,10 @@
 /* Begin PBXBuildFile section */
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
+		0DDD25DF810479BC88176F81 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1306E716950146DD761EE8DC /* ClaudeRelayClient */; };
 		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
+		299B416F1397BA56DE9F1BF6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6F2A87CE47474DE9D7836344 /* WhisperKit */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
 		31E3C54B6BC227D5C5A03BD9 /* SpeechEngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */; };
 		33CB2A7296D4D8959C1C8A3C /* TextCleanerStaticTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */; };
@@ -21,12 +23,14 @@
 		5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA02853D523E6DAF7B5CD68D /* Assets.xcassets */; };
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
+		83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE15BB470918FEC539F58286 /* QRScannerView.swift */; };
 		840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700712F6C8FC16A5214C345A /* TerminalViewModel.swift */; };
 		938D018C46C19AA652D25CBC /* OnDeviceSpeechEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */; };
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
+		A03B1DA7F4C5F3BEE062C43B /* LLM in Frameworks */ = {isa = PBXBuildFile; productRef = DA59C0C98834FDDC3AAD67A2 /* LLM */; };
 		A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E5892147C00AFFADE02948 /* SavedConnection.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
-		A9C3D4E5F67890AB12CD34EF /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D7E3A9C82F1B605DA31E7F2 /* QRScannerView.swift */; };
+		A9D94F9D30CF4FC923A8C6AB /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 2FA8AF8C498C1695C7EDA79A /* SwiftTerm */; };
 		B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */; };
 		B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */; };
 		B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */; };
@@ -54,6 +58,7 @@
 
 /* Begin PBXFileReference section */
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
+		09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
 		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
 		2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -61,7 +66,6 @@
 		338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
 		36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListView.swift; sourceTree = "<group>"; };
 		477B528B65A3A1F49D31B173 /* Claude Relay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Claude Relay"; path = .; sourceTree = SOURCE_ROOT; };
-		4D7E3A9C82F1B605DA31E7F2 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		55B2AF59490A10B933D223D7 /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
 		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
@@ -69,7 +73,7 @@
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
-		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -86,6 +90,8 @@
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureView.swift; sourceTree = "<group>"; };
 		D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngineTests.swift; sourceTree = "<group>"; };
+		D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClaudeRelayMac.entitlements; sourceTree = "<group>"; };
+		EE15BB470918FEC539F58286 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +103,17 @@
 				CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */,
 				E9FBE1A1DE907E4CF7E23433 /* WhisperKit in Frameworks */,
 				3806EBB40B1AC2B979D2E6AB /* LLM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2A53B9E37ADB3358372B75EC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0DDD25DF810479BC88176F81 /* ClaudeRelayClient in Frameworks */,
+				A9D94F9D30CF4FC923A8C6AB /* SwiftTerm in Frameworks */,
+				299B416F1397BA56DE9F1BF6 /* WhisperKit in Frameworks */,
+				A03B1DA7F4C5F3BEE062C43B /* LLM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -120,6 +137,7 @@
 			children = (
 				7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */,
 				91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */,
+				09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -138,8 +156,8 @@
 			children = (
 				0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */,
 				55B2AF59490A10B933D223D7 /* AddEditServerView.swift */,
+				EE15BB470918FEC539F58286 /* QRScannerView.swift */,
 				36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */,
-				4D7E3A9C82F1B605DA31E7F2 /* QRScannerView.swift */,
 				8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */,
 				91B48FD6DC9E458119F76B8E /* SettingsView.swift */,
 				79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */,
@@ -154,6 +172,7 @@
 			children = (
 				FD9BDF9589CD5417F7C454F4 /* ClaudeRelayApp */,
 				FADB8ECCEC3717C13790030F /* ClaudeRelayAppTests */,
+				AF870067608021C3EDB43141 /* ClaudeRelayMac */,
 				7D4E3B0EAF3D5DCAC3E10215 /* Packages */,
 				3AA098A37E7D398E1EC025E4 /* Products */,
 			);
@@ -165,6 +184,14 @@
 				477B528B65A3A1F49D31B173 /* Claude Relay */,
 			);
 			name = Packages;
+			sourceTree = "<group>";
+		};
+		AF870067608021C3EDB43141 /* ClaudeRelayMac */ = {
+			isa = PBXGroup;
+			children = (
+				D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */,
+			);
+			path = ClaudeRelayMac;
 			sourceTree = "<group>";
 		};
 		BB16FAFA733467A18CB796CD /* Speech */ = {
@@ -217,6 +244,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		4590A002CC655CDF66EA3646 /* ClaudeRelayMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 97CCE2D1B4FD6744C923B1D4 /* Build configuration list for PBXNativeTarget "ClaudeRelayMac" */;
+			buildPhases = (
+				1F062DDE80DFCA1BAA53FCD4 /* Sources */,
+				2A53B9E37ADB3358372B75EC /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ClaudeRelayMac;
+			packageProductDependencies = (
+				1306E716950146DD761EE8DC /* ClaudeRelayClient */,
+				2FA8AF8C498C1695C7EDA79A /* SwiftTerm */,
+				6F2A87CE47474DE9D7836344 /* WhisperKit */,
+				DA59C0C98834FDDC3AAD67A2 /* LLM */,
+			);
+			productName = ClaudeRelayMac;
+			productReference = 09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */;
+			productType = "com.apple.product-type.application";
+		};
 		53D3A67986EB0528C6161974 /* ClaudeRelayApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = CF4555A91AE896C6B4C29818 /* Build configuration list for PBXNativeTarget "ClaudeRelayApp" */;
@@ -267,6 +316,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
+					4590A002CC655CDF66EA3646 = {
+						DevelopmentTeam = T9WF95GC9T;
+					};
 					53D3A67986EB0528C6161974 = {
 						DevelopmentTeam = T9WF95GC9T;
 					};
@@ -282,10 +334,10 @@
 			mainGroup = 738834D27068F0B0BB3D8599;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				42A0526798AEDC7D445A8B54 /* XCRemoteSwiftPackageReference "LLM.swift" */,
 				E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 				1D1FB04D702329ACA8C21C83 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 				F4988706144E6DE2A73185C6 /* XCLocalSwiftPackageReference "." */,
-				56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3AA098A37E7D398E1EC025E4 /* Products */;
@@ -294,6 +346,7 @@
 			targets = (
 				53D3A67986EB0528C6161974 /* ClaudeRelayApp */,
 				7CBFB18DE009C817F4052367 /* ClaudeRelayAppTests */,
+				4590A002CC655CDF66EA3646 /* ClaudeRelayMac */,
 			);
 		};
 /* End PBXProject section */
@@ -310,6 +363,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1F062DDE80DFCA1BAA53FCD4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6E2F2AEBCCD638ED44CC7E11 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -334,7 +394,7 @@
 				160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
 				B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */,
-				A9C3D4E5F67890AB12CD34EF /* QRScannerView.swift in Sources */,
+				83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */,
 				A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
 				BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */,
@@ -363,6 +423,32 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0559130877F1DB9A5CAF370E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ClaudeRelayMac/ClaudeRelayMac.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T9WF95GC9T;
+				INFOPLIST_FILE = ClaudeRelayMac/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
+				INFOPLIST_KEY_LSUIElement = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Claude Relay uses the camera to scan QR codes for session sharing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay.mac;
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
 		381EE81FE04029B3C83AF93B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -409,10 +495,10 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -471,11 +557,11 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -508,7 +594,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Claude Relay uses the camera to scan QR codes for session sharing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
@@ -541,7 +626,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Claude Relay uses the camera to scan QR codes for session sharing.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Relay uses speech recognition to convert voice input to terminal commands.";
@@ -580,6 +664,32 @@
 			};
 			name = Release;
 		};
+		FAA7B7F57B64D11572F59CA3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ClaudeRelayMac/ClaudeRelayMac.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T9WF95GC9T;
+				INFOPLIST_FILE = ClaudeRelayMac/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Claude Relay";
+				INFOPLIST_KEY_LSUIElement = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Claude Relay uses the camera to scan QR codes for session sharing.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Relay needs microphone access for voice-to-text input.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay.mac;
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -597,6 +707,15 @@
 			buildConfigurations = (
 				9AE24920D2DF75D3EDC2B852 /* Debug */,
 				DF5EE07761AEF15C5D07D61A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		97CCE2D1B4FD6744C923B1D4 /* Build configuration list for PBXNativeTarget "ClaudeRelayMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0559130877F1DB9A5CAF370E /* Debug */,
+				FAA7B7F57B64D11572F59CA3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -628,7 +747,7 @@
 				minimumVersion = 0.18.0;
 			};
 		};
-		56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */ = {
+		42A0526798AEDC7D445A8B54 /* XCRemoteSwiftPackageReference "LLM.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/obra/LLM.swift.git";
 			requirement = {
@@ -652,10 +771,24 @@
 			package = 1D1FB04D702329ACA8C21C83 /* XCRemoteSwiftPackageReference "WhisperKit" */;
 			productName = WhisperKit;
 		};
+		1306E716950146DD761EE8DC /* ClaudeRelayClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ClaudeRelayClient;
+		};
+		2FA8AF8C498C1695C7EDA79A /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
 		51931B74F9245F0A1F0344F4 /* LLM */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 56F432A11391D64B0B0ED665 /* XCRemoteSwiftPackageReference "LLM.swift" */;
+			package = 42A0526798AEDC7D445A8B54 /* XCRemoteSwiftPackageReference "LLM.swift" */;
 			productName = LLM;
+		};
+		6F2A87CE47474DE9D7836344 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1D1FB04D702329ACA8C21C83 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
 		};
 		79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -665,6 +798,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E63A4716F16F553D3AC86E00 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
+		};
+		DA59C0C98834FDDC3AAD67A2 /* LLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 42A0526798AEDC7D445A8B54 /* XCRemoteSwiftPackageReference "LLM.swift" */;
+			productName = LLM;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
