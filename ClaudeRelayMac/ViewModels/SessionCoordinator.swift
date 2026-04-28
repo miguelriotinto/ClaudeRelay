@@ -379,9 +379,32 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
-    /// Stub — implemented in Task 2.5.
     func switchToSession(id: UUID) async {
-        // Will detach current, resume target, swap active VM.
+        guard !isRecovering, id != activeSessionId else { return }
+        do {
+            let controller = try await ensureAuthenticated()
+
+            if let currentId = activeSessionId {
+                try? await controller.detach()
+                terminalViewModels[currentId]?.prepareForSwitch()
+                terminalViewModels[currentId] = nil
+            }
+
+            try await controller.resumeSession(id: id)
+
+            if terminalViewModels[id] == nil {
+                terminalViewModels[id] = TerminalViewModel(sessionId: id, connection: connection)
+            } else {
+                terminalViewModels[id]?.prepareForSwitch()
+            }
+
+            wireTerminalOutput(to: id)
+            activeSessionId = id
+
+            await fetchSessions()
+        } catch {
+            presentError(error.localizedDescription)
+        }
     }
 
     /// Stub — implemented in Task 3.8.
