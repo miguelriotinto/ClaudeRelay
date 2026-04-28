@@ -57,6 +57,7 @@
 		BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */; };
 		BD146EC8C1D5AC64E63E39DD /* SpeechModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E190520294712DF54746164 /* SpeechModelStore.swift */; };
 		C859391329AB328F111CDC24 /* CloudPromptEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */; };
+		CC50C840F4CB8B067339A21D /* ImagePasteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */; };
 		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
 		D408E7014C7F63FE42DCBBDC /* SessionNamingTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E39D0EFC40FE1C977B3553E6 /* SessionNamingTheme.swift */; };
 		D5D85EABC55C071F8597AA44 /* MockSpeechComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */; };
@@ -107,6 +108,7 @@
 		7AD5621F82700100B9C4F53F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7B9B72D775E497F2FB66C38A /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteHandler.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		917B2C6A435C6C7A9F0B023F /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
@@ -203,6 +205,7 @@
 			isa = PBXGroup;
 			children = (
 				7B9B72D775E497F2FB66C38A /* AppCommands.swift */,
+				8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */,
 				1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */,
 				917B2C6A435C6C7A9F0B023F /* NetworkMonitor.swift */,
 				76DAF1C22B93D5299F03C3F5 /* SleepWakeObserver.swift */,
@@ -478,6 +481,7 @@
 				14879492694E389CB21E84A9 /* AppSettings.swift in Sources */,
 				FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */,
 				E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */,
+				CC50C840F4CB8B067339A21D /* ImagePasteHandler.swift in Sources */,
 				5696B67E1B61623069D8BB79 /* LaunchAtLogin.swift in Sources */,
 				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
 				60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */,
