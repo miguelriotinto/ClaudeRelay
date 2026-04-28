@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		028D1B51EA464565B380385D /* MenuBarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D717204F74BA58AC8D5C168 /* MenuBarViewModel.swift */; };
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
 		0C5F93F50E30A58EF58F5E5F /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */; };
@@ -105,6 +106,7 @@
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeRelayAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachRemoteSessionSheet.swift; sourceTree = "<group>"; };
+		9D717204F74BA58AC8D5C168 /* MenuBarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViewModel.swift; sourceTree = "<group>"; };
 		A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudPromptEnhancer.swift; sourceTree = "<group>"; };
 		A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
@@ -273,6 +275,7 @@
 			isa = PBXGroup;
 			children = (
 				DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */,
+				9D717204F74BA58AC8D5C168 /* MenuBarViewModel.swift */,
 				1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */,
 				AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */,
 				B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */,
@@ -465,6 +468,7 @@
 				E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */,
 				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
 				60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */,
+				028D1B51EA464565B380385D /* MenuBarViewModel.swift in Sources */,
 				6C66F7B77353E2963BE7A818 /* SavedConnection.swift in Sources */,
 				6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */,
 				63E3BCC85F93A4D12B9436B1 /* ServerListWindow.swift in Sources */,

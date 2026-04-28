@@ -36,7 +36,10 @@ struct MainWindow: View {
                 }
             }
         }
-        .onDisappear { coordinator?.tearDown() }
+        .onDisappear {
+            coordinator?.tearDown()
+            ActiveCoordinatorRegistry.shared.clear()
+        }
         .focusedValue(\.sessionCoordinator, coordinator)
     }
 
@@ -61,6 +64,8 @@ struct MainWindow: View {
             if let err = c.errorMessage {
                 loadFailure = err
                 coordinator = nil
+            } else {
+                ActiveCoordinatorRegistry.shared.register(coordinator: c, serverName: config.name)
             }
         } catch {
             loadFailure = error.localizedDescription
