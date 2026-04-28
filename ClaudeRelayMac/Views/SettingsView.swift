@@ -1,10 +1,54 @@
 import SwiftUI
+import ClaudeRelayClient
 
 struct SettingsView: View {
+    @StateObject private var settings = AppSettings.shared
+
     var body: some View {
         TabView {
-            Text("General settings (Phase 3)")
+            GeneralSettingsTab(settings: settings)
                 .tabItem { Label("General", systemImage: "gear") }
+
+            SpeechSettingsTab()
+                .tabItem { Label("Speech", systemImage: "mic") }
+
+            ServersSettingsTab()
+                .tabItem { Label("Servers", systemImage: "server.rack") }
+        }
+        .frame(width: 600, height: 420)
+    }
+}
+
+private struct GeneralSettingsTab: View {
+    @ObservedObject var settings: AppSettings
+
+    var body: some View {
+        Form {
+            Toggle("Show window on launch", isOn: $settings.showWindowOnLaunch)
+            // Launch at login toggle added in Task 3.10.
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+private struct SpeechSettingsTab: View {
+    var body: some View {
+        Form {
+            Section("Speech-to-Text") {
+                Text("Speech engine configuration available in Phase 4.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+private struct ServersSettingsTab: View {
+    var body: some View {
+        ServerListWindow { _ in
+            // No connect action from settings — just manage the list.
         }
     }
 }
