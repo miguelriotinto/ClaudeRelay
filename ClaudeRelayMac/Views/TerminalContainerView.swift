@@ -8,6 +8,16 @@ final class PasteAwareTerminalView: TerminalView {
     /// Callback when an image was found on the pasteboard and handled.
     var onImagePaste: ((Data) -> Void)?
 
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        registerForDraggedTypes([.png, .tiff, .fileURL])
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        registerForDraggedTypes([.png, .tiff, .fileURL])
+    }
+
     override func paste(_ sender: Any) {
         // If the clipboard holds an image, handle it specially.
         if let pngData = ImagePasteHandler.extractFromPasteboard() {
@@ -16,6 +26,34 @@ final class PasteAwareTerminalView: TerminalView {
         }
         // Otherwise, fall through to SwiftTerm's default text paste.
         super.paste(sender)
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if sender.draggingPasteboard.availableType(from: [.png, .tiff, .fileURL]) != nil {
+            return .copy
+        }
+        return []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let pasteboard = sender.draggingPasteboard
+
+        // Direct image data first.
+        if let pngData = ImagePasteHandler.extractFromPasteboard(pasteboard) {
+            onImagePaste?(pngData)
+            return true
+        }
+
+        // File URLs: look for image extensions.
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] {
+            for url in urls {
+                if let pngData = ImagePasteHandler.convertFileToPNG(at: url) {
+                    onImagePaste?(pngData)
+                    return true
+                }
+            }
+        }
+        return false
     }
 }
 
