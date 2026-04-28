@@ -422,6 +422,20 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
+    func detachSession(id: UUID) async {
+        do {
+            let controller = try await ensureAuthenticated()
+            if activeSessionId == id {
+                try await controller.detach()
+                terminalViewModels[id]?.prepareForSwitch()
+                terminalViewModels[id] = nil
+                activeSessionId = nil
+            }
+        } catch {
+            presentError(error.localizedDescription)
+        }
+    }
+
     /// Stub — implemented in Task 3.8.
     /// Note: declared here so the onReconnected closure in init can reference it.
     func handleAutoReconnect() async {
