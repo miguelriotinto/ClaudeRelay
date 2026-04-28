@@ -109,6 +109,7 @@ Append this target block to `project.yml` (after the `ClaudeRelayAppTests` targe
       - path: ClaudeRelayMac
         excludes:
           - "**/.gitkeep"
+          - "Info.plist"
     dependencies:
       - package: ClaudeRelayClient
         product: ClaudeRelayClient
@@ -119,6 +120,7 @@ Append this target block to `project.yml` (after the `ClaudeRelayAppTests` targe
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.claude.relay.mac
+        INFOPLIST_FILE: ClaudeRelayMac/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: "Claude Relay"
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Claude Relay needs microphone access for voice-to-text input."
         INFOPLIST_KEY_NSCameraUsageDescription: "Claude Relay uses the camera to scan QR codes for session sharing."
@@ -128,16 +130,20 @@ Append this target block to `project.yml` (after the `ClaudeRelayAppTests` targe
         SUPPORTED_PLATFORMS: "macosx"
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
-        GENERATE_INFOPLIST_FILE: YES
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         CODE_SIGN_ENTITLEMENTS: ClaudeRelayMac/ClaudeRelayMac.entitlements
     info:
+      path: ClaudeRelayMac/Info.plist
       properties:
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
         CFBundleURLTypes:
           - CFBundleURLName: "com.claude.relay.mac"
             CFBundleURLSchemes:
               - clauderelay
 ```
+
+**Note:** XcodeGen 2.45+ requires `info.path` on target definitions that use `info.properties`. The `INFOPLIST_FILE` build setting must point to the same path. Xcodegen writes a fresh Info.plist at that path with the declared properties, overwriting any manual edits.
 
 - [ ] **Step 3: Create entitlements file**
 
