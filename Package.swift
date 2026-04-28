@@ -72,5 +72,10 @@ let package = Package(
             dependencies: ["ClaudeRelayCLI", "ClaudeRelayKit"],
             path: "Tests/ClaudeRelayCLITests"
         ),
+        .testTarget(
+            name: "ClaudeRelayClientTests",
+            dependencies: ["ClaudeRelayClient"],
+            path: "Tests/ClaudeRelayClientTests"
+        ),
     ]
 )
