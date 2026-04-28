@@ -83,6 +83,7 @@ final class SessionCoordinator: ObservableObject {
         do {
             try await connection.connect(config: config, token: token)
             isConnected = true
+            registerRecoveryObservers()
             _ = try await ensureAuthenticated()
             await fetchSessions()
             // If we have no owned sessions yet, create one.
@@ -98,6 +99,7 @@ final class SessionCoordinator: ObservableObject {
 
     func tearDown() {
         isTornDown = true
+        unregisterRecoveryObservers()
         recoveryTask?.cancel()
         recoveryTask = nil
         if activeSessionId != nil {
@@ -518,10 +520,94 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
-    /// Stub — implemented in Task 3.8.
-    /// Note: declared here so the onReconnected closure in init can reference it.
     func handleAutoReconnect() async {
-        // Full recovery logic in Task 3.8.
+        isRecovering = true
+        defer { isRecovering = false }
+        await restoreSession()
+    }
+
+    // MARK: - Recovery
+
+    private var recoveryObservers: [NSObjectProtocol] = []
+
+    func registerRecoveryObservers() {
+        let center = NotificationCenter.default
+        let wakeObs = center.addObserver(
+            forName: SleepWakeObserver.systemDidWake,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.handleForegroundTransition()
+            }
+        }
+        let netObs = center.addObserver(
+            forName: NetworkMonitor.connectivityRestored,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.handleForegroundTransition()
+            }
+        }
+        recoveryObservers = [wakeObs, netObs]
+    }
+
+    func unregisterRecoveryObservers() {
+        for obs in recoveryObservers {
+            NotificationCenter.default.removeObserver(obs)
+        }
+        recoveryObservers.removeAll()
+    }
+
+    func handleForegroundTransition() async {
+        guard !isRecovering, !isTornDown else { return }
+
+        let alive = await connection.isAlive()
+        if alive {
+            await fetchSessions()
+            return
+        }
+
+        isRecovering = true
+        defer { isRecovering = false }
+
+        do {
+            try await connection.forceReconnect()
+        } catch {
+            guard !isTornDown else { return }
+            if !(error is CancellationError) {
+                connectionTimedOut = true
+            }
+            return
+        }
+
+        guard !isTornDown else { return }
+        await restoreSession()
+    }
+
+    private func restoreSession() async {
+        sessionController?.resetAuth()
+        do {
+            let controller = try await ensureAuthenticated()
+            guard !isTornDown else { return }
+            if let activeId = activeSessionId {
+                terminalViewModels[activeId]?.resetForReplay()
+                try await controller.resumeSession(id: activeId)
+                wireTerminalOutput(to: activeId)
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !isTornDown else { return }
+            if activeSessionId != nil {
+                activeSessionId = nil
+            }
+            connectionTimedOut = true
+            return
+        }
+
+        if !isTornDown {
+            await fetchSessions()
+        }
     }
 
     // MARK: - Next/Previous
