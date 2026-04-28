@@ -18,11 +18,14 @@
 		33CB2A7296D4D8959C1C8A3C /* TextCleanerStaticTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */; };
 		3806EBB40B1AC2B979D2E6AB /* LLM in Frameworks */ = {isa = PBXBuildFile; productRef = 51931B74F9245F0A1F0344F4 /* LLM */; };
 		382DD387109329B4EC0DB56B /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B2AF59490A10B933D223D7 /* AddEditServerView.swift */; };
+		3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */; };
 		4644DE3ED2824ABC39E387F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B48FD6DC9E458119F76B8E /* SettingsView.swift */; };
 		5F5CF1FE1D420934C11556C7 /* WhisperTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */; };
 		5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA02853D523E6DAF7B5CD68D /* Assets.xcassets */; };
+		60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */; };
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
+		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
 		83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE15BB470918FEC539F58286 /* QRScannerView.swift */; };
 		840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700712F6C8FC16A5214C345A /* TerminalViewModel.swift */; };
 		938D018C46C19AA652D25CBC /* OnDeviceSpeechEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */; };
@@ -40,10 +43,12 @@
 		C859391329AB328F111CDC24 /* CloudPromptEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */; };
 		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
 		D5D85EABC55C071F8597AA44 /* MockSpeechComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */; };
+		E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */; };
 		E773E7EDA1271778ADC748E0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */; };
 		E9FBE1A1DE907E4CF7E23433 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0CBB468C2C2BFB21A5A3C335 /* WhisperKit */; };
 		ECB70A1E160B86A34825974D /* AudioCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */; };
 		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
+		FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD5621F82700100B9C4F53F /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,6 +70,7 @@
 		2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
 		338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
 		36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListView.swift; sourceTree = "<group>"; };
+		42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayMacApp.swift; sourceTree = "<group>"; };
 		477B528B65A3A1F49D31B173 /* Claude Relay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Claude Relay"; path = .; sourceTree = SOURCE_ROOT; };
 		5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		55B2AF59490A10B933D223D7 /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
@@ -73,6 +79,7 @@
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
+		7AD5621F82700100B9C4F53F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
@@ -88,9 +95,12 @@
 		C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSpeechComponents.swift; sourceTree = "<group>"; };
 		C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleanerStaticTests.swift; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarDropdown.swift; sourceTree = "<group>"; };
 		CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureView.swift; sourceTree = "<group>"; };
 		D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngineTests.swift; sourceTree = "<group>"; };
 		D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClaudeRelayMac.entitlements; sourceTree = "<group>"; };
+		D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
+		DD7FCEC509175BD571CE89C2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		EE15BB470918FEC539F58286 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -189,7 +199,10 @@
 		AF870067608021C3EDB43141 /* ClaudeRelayMac */ = {
 			isa = PBXGroup;
 			children = (
+				7AD5621F82700100B9C4F53F /* AppDelegate.swift */,
 				D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */,
+				42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */,
+				FEAB57B6E05A8A89EFB47268 /* Views */,
 			);
 			path = ClaudeRelayMac;
 			sourceTree = "<group>";
@@ -239,6 +252,16 @@
 				70BD4C5D5BA2300CBF265C8E /* Views */,
 			);
 			path = ClaudeRelayApp;
+			sourceTree = "<group>";
+		};
+		FEAB57B6E05A8A89EFB47268 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */,
+				C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */,
+				DD7FCEC509175BD571CE89C2 /* SettingsView.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -367,6 +390,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */,
+				E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */,
+				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
+				60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */,
+				8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
