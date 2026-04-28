@@ -21,6 +21,7 @@
 		299B416F1397BA56DE9F1BF6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6F2A87CE47474DE9D7836344 /* WhisperKit */; };
 		2BD76AD6A79D0ABC114DFF65 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B9B72D775E497F2FB66C38A /* AppCommands.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
+		2FF3828F5E1DFF14ADE9A6B3 /* CloudPromptEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE15F0DC470F55BE8E6D445 /* CloudPromptEnhancer.swift */; };
 		31E3C54B6BC227D5C5A03BD9 /* SpeechEngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */; };
 		33CB2A7296D4D8959C1C8A3C /* TextCleanerStaticTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */; };
 		3806EBB40B1AC2B979D2E6AB /* LLM in Frameworks */ = {isa = PBXBuildFile; productRef = 51931B74F9245F0A1F0344F4 /* LLM */; };
@@ -63,6 +64,7 @@
 		C859391329AB328F111CDC24 /* CloudPromptEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */; };
 		CC50C840F4CB8B067339A21D /* ImagePasteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */; };
 		CCCBDB052AD5F9FFDFEE452F /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
+		CFDB7A2D097ADE4298773617 /* SpeechModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3642A52A99577DD27ACA30 /* SpeechModelStore.swift */; };
 		D408E7014C7F63FE42DCBBDC /* SessionNamingTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E39D0EFC40FE1C977B3553E6 /* SessionNamingTheme.swift */; };
 		D5D85EABC55C071F8597AA44 /* MockSpeechComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */; };
 		DC4D0F613989D91D54095034 /* AudioCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C993F5E59E578C07A96459BB /* AudioCaptureSession.swift */; };
@@ -91,6 +93,7 @@
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
 		09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
+		0F3642A52A99577DD27ACA30 /* SpeechModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModelStore.swift; sourceTree = "<group>"; };
 		1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
 		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
@@ -117,6 +120,7 @@
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteHandler.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
+		8FE15F0DC470F55BE8E6D445 /* CloudPromptEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudPromptEnhancer.swift; sourceTree = "<group>"; };
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		917B2C6A435C6C7A9F0B023F /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -316,7 +320,9 @@
 			isa = PBXGroup;
 			children = (
 				C993F5E59E578C07A96459BB /* AudioCaptureSession.swift */,
+				8FE15F0DC470F55BE8E6D445 /* CloudPromptEnhancer.swift */,
 				6254B1D0ECF0451528EE6265 /* SpeechEngineState.swift */,
+				0F3642A52A99577DD27ACA30 /* SpeechModelStore.swift */,
 				BFF584FD17FFDE37F7AF93D6 /* TextCleaner.swift */,
 				FA35D2CCB1A54C569770825B /* WhisperTranscriber.swift */,
 			);
@@ -508,6 +514,7 @@
 				FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */,
 				DC4D0F613989D91D54095034 /* AudioCaptureSession.swift in Sources */,
 				E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */,
+				2FF3828F5E1DFF14ADE9A6B3 /* CloudPromptEnhancer.swift in Sources */,
 				CC50C840F4CB8B067339A21D /* ImagePasteHandler.swift in Sources */,
 				5696B67E1B61623069D8BB79 /* LaunchAtLogin.swift in Sources */,
 				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
@@ -526,6 +533,7 @@
 				8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */,
 				9971C020B99AC4E90062CFBC /* SleepWakeObserver.swift in Sources */,
 				FC2B37F9B2B5B54C4647C557 /* SpeechEngineState.swift in Sources */,
+				CFDB7A2D097ADE4298773617 /* SpeechModelStore.swift in Sources */,
 				EFFCA49EDD9553791CAADCB9 /* StatusBarView.swift in Sources */,
 				AE20EB3A429DA20B6284117C /* TerminalContainerView.swift in Sources */,
 				10F9CDF3271693806BF4E51A /* TerminalViewModel.swift in Sources */,
