@@ -6,6 +6,7 @@ struct MainWindow: View {
     @State private var coordinator: SessionCoordinator?
     @State private var showServerList = false
     @State private var loadFailure: String?
+    @State private var showQRPopover = false
 
     var body: some View {
         Group {
@@ -24,6 +25,19 @@ struct MainWindow: View {
                     showServerList = true
                 } label: {
                     Label("Servers", systemImage: "server.rack")
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showQRPopover = true
+                } label: {
+                    Label("Share via QR Code", systemImage: "qrcode")
+                }
+                .disabled(coordinator?.activeSessionId == nil)
+                .popover(isPresented: $showQRPopover, arrowEdge: .bottom) {
+                    if let coordinator, let id = coordinator.activeSessionId {
+                        QRCodePopover(sessionId: id, sessionName: coordinator.name(for: id))
+                    }
                 }
             }
         }
