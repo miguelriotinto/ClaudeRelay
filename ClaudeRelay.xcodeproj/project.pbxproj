@@ -9,7 +9,10 @@
 /* Begin PBXBuildFile section */
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
+		0C5F93F50E30A58EF58F5E5F /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */; };
 		0DDD25DF810479BC88176F81 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1306E716950146DD761EE8DC /* ClaudeRelayClient */; };
+		10F9CDF3271693806BF4E51A /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A861C483668D8DA343544C5 /* TerminalViewModel.swift */; };
+		14879492694E389CB21E84A9 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DECD505C04D50E2D42420381 /* AppSettings.swift */; };
 		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
 		299B416F1397BA56DE9F1BF6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6F2A87CE47474DE9D7836344 /* WhisperKit */; };
@@ -19,21 +22,29 @@
 		3806EBB40B1AC2B979D2E6AB /* LLM in Frameworks */ = {isa = PBXBuildFile; productRef = 51931B74F9245F0A1F0344F4 /* LLM */; };
 		382DD387109329B4EC0DB56B /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B2AF59490A10B933D223D7 /* AddEditServerView.swift */; };
 		3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */; };
+		3C1FB57BAEEB29070F151C11 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */; };
+		41F39C140085E25466F7428C /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D78DC0EE4B30D251D06A848D /* AddEditServerView.swift */; };
 		4644DE3ED2824ABC39E387F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B48FD6DC9E458119F76B8E /* SettingsView.swift */; };
 		5F5CF1FE1D420934C11556C7 /* WhisperTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */; };
 		5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA02853D523E6DAF7B5CD68D /* Assets.xcassets */; };
 		60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */; };
+		63E3BCC85F93A4D12B9436B1 /* ServerListWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */; };
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
+		6C66F7B77353E2963BE7A818 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A367FEA0ADF2B1806F75B4 /* SavedConnection.swift */; };
+		6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
 		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
 		83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE15BB470918FEC539F58286 /* QRScannerView.swift */; };
 		840B590A1111404972A10D4F /* TerminalViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700712F6C8FC16A5214C345A /* TerminalViewModel.swift */; };
 		938D018C46C19AA652D25CBC /* OnDeviceSpeechEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */; };
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
+		9E41F6BB4D69F89CFE550AE9 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EB2D70760D5EC3165F8E5C /* SessionSidebarView.swift */; };
+		9F969F3A08C0E920D87E7B2A /* ServerStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */; };
 		A03B1DA7F4C5F3BEE062C43B /* LLM in Frameworks */ = {isa = PBXBuildFile; productRef = DA59C0C98834FDDC3AAD67A2 /* LLM */; };
 		A104966DDC83E2BDA5612709 /* SavedConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E5892147C00AFFADE02948 /* SavedConnection.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
 		A9D94F9D30CF4FC923A8C6AB /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 2FA8AF8C498C1695C7EDA79A /* SwiftTerm */; };
+		AE20EB3A429DA20B6284117C /* TerminalContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B785672A5F0D293AC7BF84 /* TerminalContainerView.swift */; };
 		B2269BDFBD27F8A4464C7B2B /* OnDeviceSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */; };
 		B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */; };
 		B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */; };
@@ -65,6 +76,7 @@
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
 		09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
+		1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
 		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
 		2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
@@ -78,7 +90,10 @@
 		6E190520294712DF54746164 /* SpeechModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModelStore.swift; sourceTree = "<group>"; };
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriber.swift; sourceTree = "<group>"; };
+		78A367FEA0ADF2B1806F75B4 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
+		78EB2D70760D5EC3165F8E5C /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
+		7A861C483668D8DA343544C5 /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		7AD5621F82700100B9C4F53F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
@@ -88,9 +103,13 @@
 		A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudPromptEnhancer.swift; sourceTree = "<group>"; };
 		A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
+		AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
+		B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
+		B5B785672A5F0D293AC7BF84 /* TerminalContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalContainerView.swift; sourceTree = "<group>"; };
 		B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCaptureSession.swift; sourceTree = "<group>"; };
 		BA02853D523E6DAF7B5CD68D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListWindow.swift; sourceTree = "<group>"; };
 		BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngine.swift; sourceTree = "<group>"; };
 		C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSpeechComponents.swift; sourceTree = "<group>"; };
 		C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleanerStaticTests.swift; sourceTree = "<group>"; };
@@ -99,8 +118,11 @@
 		CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureView.swift; sourceTree = "<group>"; };
 		D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngineTests.swift; sourceTree = "<group>"; };
 		D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClaudeRelayMac.entitlements; sourceTree = "<group>"; };
+		D78DC0EE4B30D251D06A848D /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
 		D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
 		DD7FCEC509175BD571CE89C2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
+		DECD505C04D50E2D42420381 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		EE15BB470918FEC539F58286 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -161,6 +183,15 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		6949AF4F89256537825D5FF0 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				DECD505C04D50E2D42420381 /* AppSettings.swift */,
+				78A367FEA0ADF2B1806F75B4 /* SavedConnection.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		70BD4C5D5BA2300CBF265C8E /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -202,6 +233,8 @@
 				7AD5621F82700100B9C4F53F /* AppDelegate.swift */,
 				D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */,
 				42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */,
+				6949AF4F89256537825D5FF0 /* Models */,
+				D379A2A16B821D0ABA8A224B /* ViewModels */,
 				FEAB57B6E05A8A89EFB47268 /* Views */,
 			);
 			path = ClaudeRelayMac;
@@ -219,6 +252,18 @@
 				7133C47C3A9D6401595F3446 /* WhisperTranscriber.swift */,
 			);
 			path = Speech;
+			sourceTree = "<group>";
+		};
+		D379A2A16B821D0ABA8A224B /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */,
+				1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */,
+				AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */,
+				B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */,
+				7A861C483668D8DA343544C5 /* TerminalViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		E7C7F2B75F10B4F3A2F3713A /* Components */ = {
@@ -257,9 +302,13 @@
 		FEAB57B6E05A8A89EFB47268 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				D78DC0EE4B30D251D06A848D /* AddEditServerView.swift */,
 				D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */,
 				C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */,
+				BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */,
+				78EB2D70760D5EC3165F8E5C /* SessionSidebarView.swift */,
 				DD7FCEC509175BD571CE89C2 /* SettingsView.swift */,
+				B5B785672A5F0D293AC7BF84 /* TerminalContainerView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -390,11 +439,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				41F39C140085E25466F7428C /* AddEditServerView.swift in Sources */,
+				3C1FB57BAEEB29070F151C11 /* AddEditServerViewModel.swift in Sources */,
 				FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */,
+				14879492694E389CB21E84A9 /* AppSettings.swift in Sources */,
 				E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */,
 				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
 				60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */,
+				6C66F7B77353E2963BE7A818 /* SavedConnection.swift in Sources */,
+				6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */,
+				63E3BCC85F93A4D12B9436B1 /* ServerListWindow.swift in Sources */,
+				9F969F3A08C0E920D87E7B2A /* ServerStatusChecker.swift in Sources */,
+				0C5F93F50E30A58EF58F5E5F /* SessionCoordinator.swift in Sources */,
+				9E41F6BB4D69F89CFE550AE9 /* SessionSidebarView.swift in Sources */,
 				8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */,
+				AE20EB3A429DA20B6284117C /* TerminalContainerView.swift in Sources */,
+				10F9CDF3271693806BF4E51A /* TerminalViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
