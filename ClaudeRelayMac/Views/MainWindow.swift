@@ -75,22 +75,26 @@ private struct WorkspaceView: View {
             SessionSidebarView(coordinator: coordinator)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } detail: {
-            if let activeId = coordinator.activeSessionId,
-               let vm = coordinator.viewModel(for: activeId) {
-                TerminalContainerView(viewModel: vm)
-                    .id(activeId)
-            } else {
-                VStack(spacing: 12) {
-                    Image(systemName: "terminal")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.secondary)
-                    Text("No session selected")
-                        .foregroundStyle(.secondary)
-                    Button("New Session") {
-                        Task { await coordinator.createNewSession() }
+            VStack(spacing: 0) {
+                if let activeId = coordinator.activeSessionId,
+                   let vm = coordinator.viewModel(for: activeId) {
+                    TerminalContainerView(viewModel: vm)
+                        .id(activeId)
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "terminal")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.secondary)
+                        Text("No session selected")
+                            .foregroundStyle(.secondary)
+                        Button("New Session") {
+                            Task { await coordinator.createNewSession() }
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Divider()
+                StatusBarView(coordinator: coordinator)
             }
         }
     }
