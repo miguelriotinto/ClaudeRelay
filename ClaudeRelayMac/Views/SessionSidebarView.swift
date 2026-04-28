@@ -6,6 +6,7 @@ struct SessionSidebarView: View {
     @State private var renameTarget: UUID?
     @State private var renameText: String = ""
     @State private var terminateTarget: UUID?
+    @State private var showAttachSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,14 +41,27 @@ struct SessionSidebarView: View {
             .listStyle(.sidebar)
 
             Divider()
-            Button {
-                Task { await coordinator.createNewSession() }
-            } label: {
-                Label("New Session", systemImage: "plus")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Button {
+                    Task { await coordinator.createNewSession() }
+                } label: {
+                    Label("New", systemImage: "plus")
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button {
+                    showAttachSheet = true
+                } label: {
+                    Label("Attach", systemImage: "rectangle.connected.to.line.below")
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             .padding(12)
+        }
+        .sheet(isPresented: $showAttachSheet) {
+            AttachRemoteSessionSheet(coordinator: coordinator)
         }
         .alert("Rename Session", isPresented: .init(
             get: { renameTarget != nil },

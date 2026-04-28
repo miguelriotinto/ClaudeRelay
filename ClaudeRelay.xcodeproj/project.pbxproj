@@ -59,6 +59,7 @@
 		E9FBE1A1DE907E4CF7E23433 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0CBB468C2C2BFB21A5A3C335 /* WhisperKit */; };
 		ECB70A1E160B86A34825974D /* AudioCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8650A7BA2F46F759A711A93 /* AudioCaptureSession.swift */; };
 		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
+		FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */; };
 		FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD5621F82700100B9C4F53F /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -100,6 +101,7 @@
 		911C67F9B9B397EAF41E66AA /* SpeechEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineState.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeRelayAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachRemoteSessionSheet.swift; sourceTree = "<group>"; };
 		A1F9E5FB838BACE3EFE25053 /* CloudPromptEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudPromptEnhancer.swift; sourceTree = "<group>"; };
 		A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		A5E5892147C00AFFADE02948 /* SavedConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConnection.swift; sourceTree = "<group>"; };
@@ -303,6 +305,7 @@
 			isa = PBXGroup;
 			children = (
 				D78DC0EE4B30D251D06A848D /* AddEditServerView.swift */,
+				9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */,
 				D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */,
 				C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */,
 				BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */,
@@ -443,6 +446,7 @@
 				3C1FB57BAEEB29070F151C11 /* AddEditServerViewModel.swift in Sources */,
 				FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */,
 				14879492694E389CB21E84A9 /* AppSettings.swift in Sources */,
+				FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */,
 				E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */,
 				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
 				60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */,

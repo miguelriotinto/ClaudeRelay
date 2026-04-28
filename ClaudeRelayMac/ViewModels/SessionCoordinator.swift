@@ -349,6 +349,63 @@ final class SessionCoordinator: ObservableObject {
         showError = true
     }
 
+    // MARK: - Remote Attach
+
+    func fetchAttachableSessions() async -> [SessionInfo] {
+        do {
+            let controller = try await ensureAuthenticated()
+            let all = try await controller.listAllSessions()
+            return all.filter { session in
+                !session.state.isTerminal && !ownedSessionIds.contains(session.id)
+            }
+        } catch {
+            return []
+        }
+    }
+
+    func attachRemoteSession(id: UUID, serverName: String? = nil) async {
+        guard !isRecovering else { return }
+        let previousId = activeSessionId
+        do {
+            let controller = try await ensureAuthenticated()
+
+            if previousId != nil {
+                try? await controller.detach()
+            }
+
+            try await controller.attachSession(id: id)
+
+            if let currentId = previousId, currentId != id {
+                terminalViewModels[currentId]?.prepareForSwitch()
+                terminalViewModels[currentId] = nil
+            }
+
+            claimSession(id)
+            let vm = TerminalViewModel(sessionId: id, connection: connection)
+            terminalViewModels[id] = vm
+            wireTerminalOutput(to: id)
+            activeSessionId = id
+
+            if let serverName {
+                sessionNames[id] = serverName
+                Self.saveNames(sessionNames)
+            } else if sessionNames[id] == nil {
+                let name = pickDefaultName()
+                sessionNames[id] = name
+                Self.saveNames(sessionNames)
+                try? await controller.renameSession(id: id, name: name)
+            }
+
+            await fetchSessions()
+        } catch {
+            if let previousId {
+                try? await sessionController?.resumeSession(id: previousId)
+                wireTerminalOutput(to: previousId)
+            }
+            presentError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Stubs (filled in by Tasks 2.4–2.8)
 
     func createNewSession() async {
