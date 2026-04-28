@@ -17,6 +17,7 @@
 		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
 		19335B16C80AB300567F9558 /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D5B4184BE3EBE42DB37B2D /* TextCleaner.swift */; };
 		208847B59339D16E6FE9C702 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE5CC46536E8CA8C49EB434 /* QRScannerView.swift */; };
+		25E7ED7662C0DB1D3BAD959D /* TextCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF584FD17FFDE37F7AF93D6 /* TextCleaner.swift */; };
 		299B416F1397BA56DE9F1BF6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6F2A87CE47474DE9D7836344 /* WhisperKit */; };
 		2BD76AD6A79D0ABC114DFF65 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B9B72D775E497F2FB66C38A /* AppCommands.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
@@ -133,6 +134,7 @@
 		BA02853D523E6DAF7B5CD68D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListWindow.swift; sourceTree = "<group>"; };
 		BED0A684BA08A6A814A22BC4 /* OnDeviceSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngine.swift; sourceTree = "<group>"; };
+		BFF584FD17FFDE37F7AF93D6 /* TextCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleaner.swift; sourceTree = "<group>"; };
 		C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSpeechComponents.swift; sourceTree = "<group>"; };
 		C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleanerStaticTests.swift; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -310,6 +312,7 @@
 			isa = PBXGroup;
 			children = (
 				6254B1D0ECF0451528EE6265 /* SpeechEngineState.swift */,
+				BFF584FD17FFDE37F7AF93D6 /* TextCleaner.swift */,
 			);
 			path = Speech;
 			sourceTree = "<group>";
@@ -519,6 +522,7 @@
 				EFFCA49EDD9553791CAADCB9 /* StatusBarView.swift in Sources */,
 				AE20EB3A429DA20B6284117C /* TerminalContainerView.swift in Sources */,
 				10F9CDF3271693806BF4E51A /* TerminalViewModel.swift in Sources */,
+				25E7ED7662C0DB1D3BAD959D /* TextCleaner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
