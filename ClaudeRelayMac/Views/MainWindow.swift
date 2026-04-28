@@ -9,7 +9,9 @@ struct MainWindow: View {
 
     var body: some View {
         Group {
-            if let coordinator, let vm = coordinator.terminalViewModel {
+            if let coordinator,
+               let activeId = coordinator.activeSessionId,
+               let vm = coordinator.viewModel(for: activeId) {
                 TerminalContainerView(viewModel: vm)
             } else if let failure = loadFailure {
                 VStack(spacing: 12) {
