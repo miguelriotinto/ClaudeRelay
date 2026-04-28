@@ -1,0 +1,87 @@
+import SwiftUI
+import SwiftTerm
+import AppKit
+
+struct TerminalContainerView: NSViewRepresentable {
+    @ObservedObject var viewModel: TerminalViewModel
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(viewModel: viewModel)
+    }
+
+    func makeNSView(context: Context) -> TerminalView {
+        let terminal = TerminalView(frame: .zero)
+        terminal.terminalDelegate = context.coordinator
+
+        // Appearance: black chrome to match iOS app.
+        terminal.nativeBackgroundColor = .black
+        terminal.nativeForegroundColor = .white
+
+        // Feed buffered output through the ViewModel.
+        viewModel.onTerminalOutput = { [weak terminal] data in
+            guard let terminal else { return }
+            let bytes = Array(data)
+            terminal.feed(byteArray: bytes[...])
+        }
+
+        viewModel.terminalReady()
+        return terminal
+    }
+
+    func updateNSView(_ nsView: TerminalView, context: Context) {
+        // No-op — updates are driven by the ViewModel callbacks.
+    }
+
+    // MARK: - Coordinator
+
+    final class Coordinator: NSObject, TerminalViewDelegate {
+        let viewModel: TerminalViewModel
+
+        init(viewModel: TerminalViewModel) {
+            self.viewModel = viewModel
+        }
+
+        // Called by SwiftTerm when the user types or pastes.
+        func send(source: TerminalView, data: ArraySlice<UInt8>) {
+            let bytes = Data(data)
+            Task { @MainActor [viewModel] in
+                viewModel.sendInput(bytes)
+            }
+        }
+
+        func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+            let cols = UInt16(newCols)
+            let rows = UInt16(newRows)
+            Task { @MainActor [viewModel] in
+                viewModel.sendResize(cols: cols, rows: rows)
+                viewModel.terminalReady()
+            }
+        }
+
+        func setTerminalTitle(source: TerminalView, title: String) {
+            Task { @MainActor [viewModel] in
+                viewModel.terminalTitle = title
+                viewModel.onTitleChanged?(title)
+            }
+        }
+
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+            // Not used.
+        }
+
+        func scrolled(source: TerminalView, position: Double) {
+            // Not used.
+        }
+
+        func clipboardCopy(source: TerminalView, content: Data) {
+            if let str = String(data: content, encoding: .utf8) {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(str, forType: .string)
+            }
+        }
+
+        func rangeChanged(source: TerminalView, startY: Int, endY: Int) {
+            // Not used.
+        }
+    }
+}
