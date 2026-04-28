@@ -85,6 +85,7 @@ targets:
         excludes:
           - "**/.gitkeep"
           - "Info.plist"
+          - "README.md"
     dependencies:
       - package: ClaudeRelayClient
         product: ClaudeRelayClient

@@ -2,7 +2,32 @@
 
 All notable changes to ClaudeRelay are documented in this file.
 
-The server/CLI and iOS app are versioned independently. Server/CLI uses 0.x.y; the iOS app uses X.Y.Z.
+The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
+
+## [Unreleased] — macOS App
+
+### Added
+- **ClaudeRelayMac** — native macOS client with full iOS feature parity
+  - Single-window terminal with sidebar session list and `NavigationSplitView` layout
+  - Menu bar persistent icon (`MenuBarExtra(.window)`) showing connection state and session list with activity icons
+  - Keyboard shortcuts: `Cmd+T` new session, `Cmd+W` detach, `Cmd+Shift+W` terminate, `Cmd+1..9` switch by index, `Cmd+0` toggle sidebar, `Cmd+Shift+[/]` previous/next session, `Cmd+Shift+Q` scan QR code
+  - Automatic foreground recovery via `NSWorkspace` sleep/wake and `NWPathMonitor` network-change observers
+  - Launch-at-login via `SMAppService.mainApp` (macOS 13+) with optional menu-bar-only mode
+  - Image paste: `Cmd+V` from clipboard and drag-and-drop onto terminal
+  - QR code: generation for sharing sessions to mobile, camera scanning for inbound attach
+  - On-device speech engine: WhisperKit (CoreML/ANE) + LLM.swift (Metal) + optional Anthropic Haiku enhancement via AWS Bedrock
+  - Session naming themes shared with iOS (Game of Thrones, Viking, Star Wars, Dune, Lord of the Rings)
+  - `clauderelay://session/<uuid>` deep link support
+  - TLS toggle per saved server
+
+### Shared Library Changes
+- `SessionCoordinating` protocol added to `ClaudeRelayClient` and conformed by both apps — formalizes the cross-platform session-lifecycle surface
+- `SessionNamingTheme` and `SessionNaming.pickDefaultName` moved to `ClaudeRelayClient` as shared types
+- New `ClaudeRelayClientTests` target (8 unit tests, SPM test count now 200 / was 192)
+
+### Infrastructure Fixes
+- Fixed `ClaudeRelayAppTests` target missing Info.plist generation (pre-existing, surfaced while regression-testing the Mac work)
+- `project.yml` now declares `info.path` for both iOS and Mac app targets (required by XcodeGen 2.45+)
 
 ## [0.2.2] - 2026-04-25
 

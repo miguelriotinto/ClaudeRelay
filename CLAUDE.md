@@ -30,14 +30,15 @@ Note: Service commands are top-level (`claude-relay stop`), while token/session/
 
 ## Architecture
 
-Five SPM targets + one iOS app (XcodeGen-managed via `project.yml`):
+Five SPM targets + iOS app + macOS app (both XcodeGen-managed via `project.yml`):
 
 - **CPTYShim** — C shim for `forkpty` used by PTYSession.
 - **ClaudeRelayKit** — Shared library: protocol models (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), `SessionInfo`, `TokenInfo`, `RelayConfig`, `ConfigManager`. Used by all other targets.
 - **ClaudeRelayServer** — NIO-based server: `WebSocketServer` (port 9200, optional TLS via NIO-SSL) + `AdminHTTPServer` (port 9100, localhost-only). Uses actors: `SessionManager`, `TokenStore`, `PTYSession`. Rate-limited via `RateLimiter` actor.
 - **ClaudeRelayCLI** — ArgumentParser CLI (`claude-relay`): token/session/config/service/log management. Talks to admin HTTP API.
-- **ClaudeRelayClient** — URLSessionWebSocketTask client: `RelayConnection` (WebSocket transport), `SessionController` (session lifecycle), `AuthManager` (auth flow).
+- **ClaudeRelayClient** — URLSessionWebSocketTask client: `RelayConnection` (WebSocket transport), `SessionController` (session lifecycle), `AuthManager` (auth flow). Also hosts cross-platform `SessionCoordinating` protocol and `SessionNaming` helpers used by both apps.
 - **ClaudeRelayApp/** — iOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + SwiftTerm + WhisperKit + LLM.swift.
+- **ClaudeRelayMac/** — macOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + SwiftTerm + WhisperKit + LLM.swift. Menu-bar persistent, single-window with sidebar + native tab support, full iOS feature parity.
 
 ### Wire Protocol
 
