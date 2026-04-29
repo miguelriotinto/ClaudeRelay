@@ -1,16 +1,23 @@
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Orchestrates the speech pipeline: record -> transcribe -> (local cleanup | cloud enhance) -> output.
 /// This is the only class the UI talks to.
+///
+/// On iOS the engine observes `UIApplication.didReceiveMemoryWarning` to unload
+/// the cleanup model under pressure. macOS has no equivalent notification — the
+/// system handles memory pressure automatically — so the observer is omitted.
 @MainActor
-final class OnDeviceSpeechEngine: ObservableObject {
+public final class OnDeviceSpeechEngine: ObservableObject {
 
-    @Published private(set) var state: SpeechEngineState = .idle
-    @Published private(set) var modelsReady: Bool = false
+    @Published public private(set) var state: SpeechEngineState = .idle
+    @Published public private(set) var modelsReady: Bool = false
     /// 0.0–1.0 progress while loading models into memory. `nil` when not loading.
-    @Published private(set) var modelLoadProgress: Double?
+    @Published public private(set) var modelLoadProgress: Double?
 
-    let modelStore: SpeechModelStore
+    public let modelStore: SpeechModelStore
 
     private let transcriber: any SpeechTranscribing
     private let cleaner: any TextCleaning
@@ -23,10 +30,14 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
     private var processingTask: Task<Result<String, Error>, Never>?
 
+    #if canImport(UIKit)
+    private var memoryWarningObserver: NSObjectProtocol?
+    #endif
+
     // MARK: - Init
 
     /// Production initializer.
-    convenience init(modelStore: SpeechModelStore? = nil) {
+    public convenience init(modelStore: SpeechModelStore? = nil) {
         let store = modelStore ?? .shared
         let transcriber = WhisperTranscriber.shared
         let cleaner = TextCleaner.shared
@@ -42,7 +53,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
     }
 
     /// Test initializer — accepts protocol-typed mocks.
-    init(
+    public init(
         transcriber: any SpeechTranscribing,
         cleaner: any TextCleaning,
         cloudEnhancer: CloudPromptEnhancer = CloudPromptEnhancer(),
@@ -59,14 +70,22 @@ final class OnDeviceSpeechEngine: ObservableObject {
         self.whisperTranscriber = whisperTranscriber
         self.textCleaner = textCleaner
         self.modelsReady = modelStore.modelsReady
-        // macOS does not emit memory-warning notifications like iOS does,
-        // so there's no memory-pressure observer here. If the user is low
-        // on memory, the system will reap unused memory automatically.
+        #if canImport(UIKit)
+        observeMemoryWarnings()
+        #endif
     }
+
+    #if canImport(UIKit)
+    deinit {
+        if let observer = memoryWarningObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    #endif
 
     // MARK: - Model Preparation
 
-    func prepareModels() async {
+    public func prepareModels() async {
         do {
             try await modelStore.downloadAllModels()
             try await whisperTranscriber?.loadModel()
@@ -79,7 +98,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
 
     // MARK: - Recording
 
-    func startRecording() async {
+    public func startRecording() async {
         guard state == .idle else { return }
 
         do {
@@ -122,7 +141,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
     /// - `smartCleanup`: use local LLM for filler removal
     /// - `promptEnhancement`: use cloud Haiku for prompt rewriting (overrides cleanup)
     /// - `bearerToken` / `region`: required when promptEnhancement is true
-    func stopAndProcess(
+    public func stopAndProcess(
         smartCleanup: Bool = true,
         promptEnhancement: Bool = false,
         bearerToken: String = "",
@@ -210,7 +229,7 @@ final class OnDeviceSpeechEngine: ObservableObject {
         }
     }
 
-    func cancel() {
+    public func cancel() {
         processingTask?.cancel()
         processingTask = nil
         if capture.isRecording {
@@ -218,4 +237,18 @@ final class OnDeviceSpeechEngine: ObservableObject {
         }
         state = .idle
     }
+
+    // MARK: - Memory
+
+    #if canImport(UIKit)
+    private func observeMemoryWarnings() {
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.textCleaner?.unload()
+        }
+    }
+    #endif
 }

@@ -2,25 +2,33 @@ import AVFoundation
 
 /// Captures microphone audio and accumulates a 16kHz mono Float32 buffer.
 /// Not an actor — must be called from @MainActor (OnDeviceSpeechEngine).
-final class AudioCaptureSession {
+///
+/// On iOS, configures `AVAudioSession` for record+measurement. On macOS, the
+/// system handles mic permissions via `NSMicrophoneUsageDescription` in
+/// Info.plist and the audio-input entitlement — `AVAudioSession` is iOS-only.
+public final class AudioCaptureSession {
 
     private let audioEngine = AVAudioEngine()
     private var buffer: [Float] = []
-    private(set) var isRecording = false
+    public private(set) var isRecording = false
 
     /// Minimum recording duration in seconds to avoid empty transcriptions.
-    static let minimumDuration: TimeInterval = 0.5
+    public static let minimumDuration: TimeInterval = 0.5
 
     private var recordingStart: Date?
 
-    /// Configure audio session, install tap on input node, start engine.
-    func start() throws {
+    public init() {}
+
+    /// Configure audio session (iOS), install tap on input node, start engine.
+    public func start() throws {
         guard !isRecording else { return }
         buffer.removeAll()
 
+        #if canImport(UIKit)
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.record, mode: .measurement)
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        #endif
 
         let inputNode = audioEngine.inputNode
         let hardwareFormat = inputNode.outputFormat(forBus: 0)
@@ -51,18 +59,20 @@ final class AudioCaptureSession {
         isRecording = true
     }
 
-    /// Stop engine, deactivate audio session, return accumulated buffer.
+    /// Stop engine, deactivate audio session (iOS), return accumulated buffer.
     /// Returns nil if recording was shorter than `minimumDuration`.
-    func stop() -> [Float]? {
+    public func stop() -> [Float]? {
         guard isRecording else { return nil }
 
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         isRecording = false
 
+        #if canImport(UIKit)
         try? AVAudioSession.sharedInstance().setActive(
             false, options: .notifyOthersOnDeactivation
         )
+        #endif
 
         // Guard against empty/too-short recordings
         if let start = recordingStart,
@@ -112,11 +122,11 @@ final class AudioCaptureSession {
     }
 }
 
-enum AudioCaptureError: Error, LocalizedError {
+public enum AudioCaptureError: Error, LocalizedError {
     case formatCreationFailed
     case converterCreationFailed
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .formatCreationFailed: return "Failed to create 16kHz audio format"
         case .converterCreationFailed: return "Failed to create audio converter"

@@ -1,5 +1,6 @@
 import SwiftUI
 import ClaudeRelayClient
+import ClaudeRelaySpeech
 
 struct MainWindow: View {
     @StateObject private var serverList = ServerListViewModel()

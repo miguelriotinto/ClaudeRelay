@@ -13,12 +13,6 @@ packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm.git
     majorVersion: 1.2.0
-  WhisperKit:
-    url: https://github.com/argmaxinc/WhisperKit.git
-    minorVersion: 0.18.0
-  LLMSwift:
-    url: https://github.com/obra/LLM.swift.git
-    branch: main
 
 targets:
   ClaudeRelayApp:
@@ -31,10 +25,9 @@ targets:
     dependencies:
       - package: ClaudeRelayClient
         product: ClaudeRelayClient
+      - package: ClaudeRelayClient
+        product: ClaudeRelaySpeech
       - package: SwiftTerm
-      - package: WhisperKit
-      - package: LLMSwift
-        product: LLM
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.claude.relay
@@ -89,10 +82,9 @@ targets:
     dependencies:
       - package: ClaudeRelayClient
         product: ClaudeRelayClient
+      - package: ClaudeRelayClient
+        product: ClaudeRelaySpeech
       - package: SwiftTerm
-      - package: WhisperKit
-      - package: LLMSwift
-        product: LLM
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.claude.relay.mac

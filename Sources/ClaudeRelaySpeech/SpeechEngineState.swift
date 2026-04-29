@@ -2,10 +2,7 @@ import Foundation
 
 /// Pipeline states for the on-device speech engine.
 /// UI observes this to drive mic button color and indicators.
-///
-/// Mirrors the iOS `SpeechEngineState` so the `OnDeviceSpeechEngine`
-/// orchestrator can be ported verbatim.
-enum SpeechEngineState: Equatable {
+public enum SpeechEngineState: Equatable, Sendable {
     case idle
     case loadingModel   // Whisper model loading into memory (first use after launch)
     case recording
@@ -13,14 +10,14 @@ enum SpeechEngineState: Equatable {
     case cleaning       // Smart cleanup (local LLM) or prompt enhancement (cloud)
     case error(String)
 
-    var isActive: Bool {
+    public var isActive: Bool {
         switch self {
         case .idle, .error: return false
         default: return true
         }
     }
 
-    var description: String {
+    public var description: String {
         switch self {
         case .idle:         return "Idle"
         case .loadingModel: return "Loading model..."

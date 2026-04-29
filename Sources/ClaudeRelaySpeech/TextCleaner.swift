@@ -2,31 +2,33 @@ import Foundation
 import LLM
 
 /// Protocol for local text cleanup — enables mock injection in tests.
-protocol TextCleaning: Sendable {
+public protocol TextCleaning: Sendable {
     func clean(_ text: String) async throws -> String
 }
 
 /// Runs a local Qwen 3.5 0.8B GGUF model via llama.cpp (Metal GPU) to clean transcriptions.
 /// Only handles filler word removal and punctuation fixes — prompt enhancement is cloud-based.
-final class TextCleaner: TextCleaning, @unchecked Sendable {
+public final class TextCleaner: TextCleaning, @unchecked Sendable {
 
-    static let shared = TextCleaner()
+    public static let shared = TextCleaner()
 
     private var llm: LLM?
     private var unloadTimer: Task<Void, Never>?
-    private(set) var isLoaded = false
+    public private(set) var isLoaded = false
 
     /// Idle timeout before unloading the model to free memory.
-    static let idleTimeout: TimeInterval = 30
+    public static let idleTimeout: TimeInterval = 30
 
     /// Minimum word count worth sending through the LLM.
-    static let minimumWordCount = 3
+    public static let minimumWordCount = 3
 
     /// Path to the GGUF model file. Set by OnDeviceSpeechEngine after download.
-    var modelPath: URL?
+    public var modelPath: URL?
+
+    public init() {}
 
     /// Load a GGUF model from disk.
-    func loadModel(from path: URL) throws {
+    public func loadModel(from path: URL) throws {
         guard FileManager.default.fileExists(atPath: path.path) else {
             throw CleanerError.modelFileNotFound
         }
@@ -46,7 +48,7 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
     }
 
     /// Remove filler words and fix punctuation using the on-device LLM.
-    func clean(_ text: String) async throws -> String {
+    public func clean(_ text: String) async throws -> String {
         let wordCount = text.split(separator: " ").count
 
         // Short inputs don't benefit from LLM processing
@@ -96,7 +98,7 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
     }
 
     /// Release the model from memory.
-    func unload() {
+    public func unload() {
         unloadTimer?.cancel()
         unloadTimer = nil
         llm = nil
@@ -114,7 +116,7 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         }
     }
 
-    static let systemPrompt = """
+    public static let systemPrompt = """
         You are a transcription cleanup engine. Output ONLY the cleaned text. \
         Do NOT think, reason, or explain. Do NOT use <think> tags. \
         Remove filler words (um, uh, like, you know, so, basically). \
@@ -124,7 +126,7 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
         """
 
     /// Strip any <think> reasoning blocks from LLM output.
-    static func sanitizeResponse(_ response: String) -> String {
+    public static func sanitizeResponse(_ response: String) -> String {
         var result = response
 
         while let thinkStart = result.range(of: "<think>"),
@@ -136,7 +138,7 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
     }
 
     /// Detect likely hallucinated output from the LLM.
-    static func looksHallucinated(input: String, output: String) -> Bool {
+    public static func looksHallucinated(input: String, output: String) -> Bool {
         if output.count > input.count * 3, output.count > 100 {
             return true
         }
@@ -148,11 +150,11 @@ final class TextCleaner: TextCleaning, @unchecked Sendable {
     }
 }
 
-enum CleanerError: Error, LocalizedError {
+public enum CleanerError: Error, LocalizedError {
     case modelNotLoaded
     case modelFileNotFound
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .modelNotLoaded: return "Cleanup model not loaded"
         case .modelFileNotFound: return "Cleanup model file not found on disk"

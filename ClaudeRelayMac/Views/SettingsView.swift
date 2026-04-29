@@ -1,5 +1,6 @@
 import SwiftUI
 import ClaudeRelayClient
+import ClaudeRelaySpeech
 
 struct SettingsView: View {
     @StateObject private var settings = AppSettings.shared

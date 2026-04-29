@@ -98,14 +98,6 @@ ClaudeRelayMac/
     QRCodePopover.swift             -- QR code generation popover
     QRScannerView.swift             -- AVFoundation camera QR scanner sheet
     AttachRemoteSessionSheet.swift  -- Cross-device attach picker
-  Speech/
-    OnDeviceSpeechEngine.swift      -- Pipeline orchestrator (record → transcribe → cleanup → output)
-    AudioCaptureSession.swift       -- AVAudioEngine 16kHz mono capture
-    WhisperTranscriber.swift        -- WhisperKit CoreML/ANE wrapper
-    CloudPromptEnhancer.swift       -- AWS Bedrock Haiku enhancer
-    SpeechEngineState.swift         -- Pipeline state enum
-    SpeechModelStore.swift          -- Model download/caching (Application Support/ClaudeRelay/Models)
-    TextCleaner.swift               -- Local LLM filler-word cleanup via LLM.swift
   Helpers/
     NetworkMonitor.swift            -- NWPathMonitor + connectivity-restored notification
     SleepWakeObserver.swift         -- NSWorkspace sleep/wake observer
@@ -120,6 +112,7 @@ Both apps build on:
 
 - **ClaudeRelayKit** — wire protocol (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), session models, tokens, config.
 - **ClaudeRelayClient** — WebSocket transport, session controller, auth manager, `SessionCoordinating` protocol, `SessionNaming` helpers.
+- **ClaudeRelaySpeech** — on-device speech pipeline: `OnDeviceSpeechEngine` orchestrator, `WhisperTranscriber`, `TextCleaner`, `CloudPromptEnhancer`, `AudioCaptureSession`, `SpeechModelStore`. Platform differences (iOS `AVAudioSession`, iOS `UIApplication` memory-warning observer, per-OS model storage paths) are handled internally via `#if canImport(UIKit)` / `#if os(iOS)`.
 
 The `SessionCoordinator` in each app conforms to `ClaudeRelayClient.SessionCoordinating`, which documents the shared core surface. Platform-specific methods (menu commands, keyboard shortcuts, sleep/wake handlers) live only in the respective app.
 

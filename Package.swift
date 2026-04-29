@@ -9,12 +9,15 @@ let package = Package(
         .executable(name: "claude-relay", targets: ["ClaudeRelayCLI"]),
         .library(name: "ClaudeRelayKit", targets: ["ClaudeRelayKit"]),
         .library(name: "ClaudeRelayClient", targets: ["ClaudeRelayClient"]),
+        .library(name: "ClaudeRelaySpeech", targets: ["ClaudeRelaySpeech"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.27.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
+        .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.18.0"),
+        .package(url: "https://github.com/obra/LLM.swift.git", branch: "main"),
     ],
     targets: [
         .target(
@@ -56,6 +59,14 @@ let package = Package(
             name: "ClaudeRelayClient",
             dependencies: ["ClaudeRelayKit"],
             path: "Sources/ClaudeRelayClient"
+        ),
+        .target(
+            name: "ClaudeRelaySpeech",
+            dependencies: [
+                .product(name: "WhisperKit", package: "WhisperKit"),
+                .product(name: "LLM", package: "LLM.swift"),
+            ],
+            path: "Sources/ClaudeRelaySpeech"
         ),
         .testTarget(
             name: "ClaudeRelayKitTests",

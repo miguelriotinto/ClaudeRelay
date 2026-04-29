@@ -2,14 +2,14 @@ import Foundation
 
 /// Calls AWS Bedrock Converse API with Claude Haiku to enhance transcribed speech into
 /// a clear, actionable prompt. Requires a bearer token for authentication.
-final class CloudPromptEnhancer: Sendable {
+public final class CloudPromptEnhancer: Sendable {
 
     /// Bedrock cross-region inference profile for Claude Haiku.
     /// On-demand throughput requires an inference profile ID, not the raw model ID.
     private static let modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
     /// System prompt that guides Haiku to enhance while staying faithful to intent.
-    static let systemPrompt = """
+    public static let systemPrompt = """
         You are a prompt enhancement engine. Your job is to take rough speech-to-text input \
         and sharpen it into a clear, well-structured instruction — while staying faithful \
         to the speaker's original intent.
@@ -32,13 +32,15 @@ final class CloudPromptEnhancer: Sendable {
         Focus on obvious inefficiencies and provide concise, actionable suggestions."
         """
 
+    public init() {}
+
     /// Enhance a transcribed text into a clear prompt using Bedrock Haiku.
     /// - Parameters:
     ///   - text: Raw transcription from Whisper.
     ///   - bearerToken: AWS Bedrock bearer token.
     ///   - region: AWS region (e.g. "us-east-1").
     /// - Returns: The enhanced prompt string.
-    func enhance(_ text: String, bearerToken: String, region: String) async throws -> String {
+    public func enhance(_ text: String, bearerToken: String, region: String) async throws -> String {
         guard !bearerToken.isEmpty else {
             throw EnhancerError.missingBearerToken
         }
@@ -101,12 +103,12 @@ final class CloudPromptEnhancer: Sendable {
     }
 }
 
-enum EnhancerError: Error, LocalizedError {
+public enum EnhancerError: Error, LocalizedError {
     case missingBearerToken
     case invalidResponse
     case bedrockError(statusCode: Int, message: String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .missingBearerToken:
             return "Bearer token not configured. Add it in Settings."

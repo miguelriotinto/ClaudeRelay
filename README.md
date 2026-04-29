@@ -227,19 +227,18 @@ ClaudeRelay/
 │   ├── ClaudeRelayKit/         # Shared protocol models and utilities
 │   ├── ClaudeRelayServer/      # WebSocket + HTTP server (NIO-based)
 │   ├── ClaudeRelayCLI/         # Command-line interface (ArgumentParser)
-│   └── ClaudeRelayClient/      # Swift client library (shared across apps)
-│       ├── Protocols/          # SessionCoordinating protocol
-│       └── Helpers/            # SessionNaming + theme pools
+│   ├── ClaudeRelayClient/      # Swift client library (shared across apps)
+│   │   ├── Protocols/          # SessionCoordinating protocol
+│   │   └── Helpers/            # SessionNaming + theme pools
+│   └── ClaudeRelaySpeech/      # Cross-platform on-device speech pipeline (WhisperKit + LLM)
 ├── ClaudeRelayApp/             # iOS application (SwiftUI, XcodeGen-managed)
 │   ├── Views/                  # SwiftUI views + components
 │   ├── ViewModels/             # Observable view models
-│   ├── Models/                 # App settings, saved connections
-│   └── Speech/                 # On-device speech pipeline (WhisperKit + LLM)
+│   └── Models/                 # App settings, saved connections
 ├── ClaudeRelayMac/             # macOS application (SwiftUI, XcodeGen-managed)
 │   ├── Views/                  # SwiftUI views + menu-bar dropdown
 │   ├── ViewModels/             # Observable view models
 │   ├── Models/                 # App settings, saved connections
-│   ├── Speech/                 # On-device speech pipeline (WhisperKit + LLM)
 │   └── Helpers/                # NetworkMonitor, SleepWakeObserver, image paste
 ├── Tests/
 │   ├── ClaudeRelayKitTests/

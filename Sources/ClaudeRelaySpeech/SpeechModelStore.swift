@@ -2,16 +2,24 @@ import Foundation
 import WhisperKit
 
 /// Manages model downloads, caching, and disk lifecycle for the speech pipeline.
+///
+/// Storage paths are intentionally per-platform to preserve existing user downloads:
+/// - iOS uses `<AppSupport>/Models/` and the `speechModelStore.whisperDownloaded` key
+/// - macOS uses `<AppSupport>/ClaudeRelay/Models/` and the `com.clauderelay.mac.whisperDownloaded` key
 @MainActor
-final class SpeechModelStore: ObservableObject {
+public final class SpeechModelStore: ObservableObject {
 
-    static let shared = SpeechModelStore()
+    public static let shared = SpeechModelStore()
 
-    @Published private(set) var whisperReady = false
-    @Published private(set) var llmDownloaded = false
-    @Published private(set) var downloadProgress: Double?
+    @Published public private(set) var whisperReady = false
+    @Published public private(set) var llmDownloaded = false
+    @Published public private(set) var downloadProgress: Double?
 
+    #if os(iOS)
+    private static let whisperReadyKey = "speechModelStore.whisperDownloaded"
+    #else
     private static let whisperReadyKey = "com.clauderelay.mac.whisperDownloaded"
+    #endif
 
     /// HuggingFace URL for the Qwen 3.5 0.8B Q4_K_M GGUF model.
     private static let llmModelURL = URL(
@@ -20,22 +28,26 @@ final class SpeechModelStore: ObservableObject {
 
     private static let llmFileName = "qwen35-0.8b-q4km.gguf"
 
-    var modelsReady: Bool { whisperReady && llmDownloaded }
+    public var modelsReady: Bool { whisperReady && llmDownloaded }
 
     // MARK: - Paths
 
-    /// Base directory for speech models: <AppSupport>/ClaudeRelay/Models/
-    /// Uses a dedicated ClaudeRelay subdirectory on Mac so our models are
-    /// isolated from any other app's Application Support usage.
+    /// Base directory for speech models. Platform-specific to preserve existing installs:
+    /// iOS uses `<AppSupport>/Models/`; macOS uses `<AppSupport>/ClaudeRelay/Models/`
+    /// so models are isolated from any other app's Application Support usage.
     private var modelsDirectory: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        #if os(iOS)
+        return appSupport.appendingPathComponent("Models", isDirectory: true)
+        #else
         return appSupport
             .appendingPathComponent("ClaudeRelay", isDirectory: true)
             .appendingPathComponent("Models", isDirectory: true)
+        #endif
     }
 
     /// Path to the LLM GGUF file on disk.
-    var llmModelPath: URL {
+    public var llmModelPath: URL {
         modelsDirectory.appendingPathComponent(Self.llmFileName)
     }
 
@@ -50,7 +62,7 @@ final class SpeechModelStore: ObservableObject {
 
     /// Download both models. Updates `downloadProgress` during the process.
     /// Progress range: Whisper 0.0–0.5, LLM 0.5–1.0.
-    func downloadAllModels() async throws {
+    public func downloadAllModels() async throws {
         downloadProgress = 0.0
 
         // Phase 1: Whisper model — download with progress, then load
@@ -133,7 +145,7 @@ final class SpeechModelStore: ObservableObject {
     }
 
     /// Delete all downloaded models to free disk space.
-    func deleteModels() {
+    public func deleteModels() {
         try? FileManager.default.removeItem(at: modelsDirectory)
         whisperReady = false
         llmDownloaded = false
@@ -141,7 +153,7 @@ final class SpeechModelStore: ObservableObject {
     }
 
     /// Total bytes used by models on disk.
-    var totalModelSize: Int64 {
+    public var totalModelSize: Int64 {
         guard FileManager.default.fileExists(atPath: modelsDirectory.path) else { return 0 }
         let enumerator = FileManager.default.enumerator(at: modelsDirectory, includingPropertiesForKeys: [.fileSizeKey])
         var total: Int64 = 0
@@ -156,6 +168,10 @@ final class SpeechModelStore: ObservableObject {
 // MARK: - Download Progress Delegate
 
 private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    // `@MainActor @Sendable`: the closure only captures main-actor-isolated state,
+    // so it's safe to move across isolation domains. Required by Swift 6 because
+    // DownloadProgressDelegate is @unchecked Sendable and URLSession invokes the
+    // delegate callbacks from its own serial queue.
     private let progressHandler: @MainActor @Sendable (Double) -> Void
 
     init(progressHandler: @MainActor @Sendable @escaping (Double) -> Void) {
@@ -184,11 +200,11 @@ private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelega
     }
 }
 
-enum ModelStoreError: Error, LocalizedError {
+public enum ModelStoreError: Error, LocalizedError {
     case downloadFailed
     case insufficientDiskSpace
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .downloadFailed: return "Failed to download speech model"
         case .insufficientDiskSpace: return "Not enough storage for speech models (~1 GB required)"

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftTerm
 import ClaudeRelayClient
+import ClaudeRelaySpeech
 import GameController
 import CoreImage
 

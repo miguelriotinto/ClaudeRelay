@@ -1,4 +1,5 @@
 import SwiftUI
+import ClaudeRelaySpeech
 
 @main
 struct ClaudeRelayApp: App {
