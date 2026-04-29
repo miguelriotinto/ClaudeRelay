@@ -121,15 +121,19 @@ struct ServerListView: View {
                 viewModel.refreshServers()
                 viewModel.startPolling()
             }
-            .task(id: viewModel.isNavigatingToWorkspace) {
-                guard !viewModel.isNavigatingToWorkspace else { return }
-                attemptAutoConnect()
+            .sheet(isPresented: $viewModel.isAutoReconnecting) {
+                AutoReconnectView(
+                    serverName: viewModel.autoReconnectServerName ?? "Server",
+                    phase: viewModel.reconnectPhase,
+                    onCancel: { viewModel.cancelAutoReconnect() }
+                )
+                .interactiveDismissDisabled()
             }
             .onChange(of: showTimeoutAlert) { _, timedOut in
                 guard timedOut else { return }
                 if let server = viewModel.autoConnectServerIfNeeded() {
                     showTimeoutAlert = false
-                    viewModel.startConnect(to: server)
+                    viewModel.startAutoReconnect(to: server)
                 }
             }
             .onChange(of: pendingSessionId) { _, sessionId in
@@ -138,13 +142,6 @@ struct ServerListView: View {
                     viewModel.startConnect(to: first)
                 }
             }
-        }
-    }
-
-    private func attemptAutoConnect() {
-        guard !viewModel.isConnecting, !viewModel.isNavigatingToWorkspace else { return }
-        if let server = viewModel.autoConnectServerIfNeeded() {
-            viewModel.startConnect(to: server)
         }
     }
 
@@ -173,6 +170,44 @@ struct ConnectingView: View {
             Text("Establishing secure connection")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button("Cancel", role: .cancel) {
+                onCancel()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .padding(.bottom, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+// MARK: - Auto-Reconnect Modal
+
+struct AutoReconnectView: View {
+    let serverName: String
+    let phase: ServerListViewModel.ReconnectPhase
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            ProgressView()
+                .scaleEffect(1.5)
+
+            Text("Reconnecting to \(serverName)")
+                .font(.headline)
+
+            Text(phase.label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .contentTransition(.interpolate)
+                .animation(.easeInOut(duration: 0.25), value: phase)
 
             Spacer()
 
