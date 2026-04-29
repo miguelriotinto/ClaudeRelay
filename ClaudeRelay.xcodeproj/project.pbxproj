@@ -11,6 +11,7 @@
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
 		0C5F93F50E30A58EF58F5E5F /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */; };
+		0D5C609EB39AC81E2A65632B /* QRCodeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D21FADD27700A6E040337F /* QRCodeSheet.swift */; };
 		0DDD25DF810479BC88176F81 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1306E716950146DD761EE8DC /* ClaudeRelayClient */; };
 		14879492694E389CB21E84A9 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DECD505C04D50E2D42420381 /* AppSettings.swift */; };
 		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
@@ -31,6 +32,7 @@
 		63E3BCC85F93A4D12B9436B1 /* ServerListWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */; };
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
 		6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */; };
+		745A17F726691586A4AEF53F /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA51433030AD547F7F983FD /* KeyCaptureView.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
 		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
 		83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE15BB470918FEC539F58286 /* QRScannerView.swift */; };
@@ -122,6 +124,8 @@
 		DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
 		DECD505C04D50E2D42420381 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		EE15BB470918FEC539F58286 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		F3D21FADD27700A6E040337F /* QRCodeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeSheet.swift; sourceTree = "<group>"; };
+		FFA51433030AD547F7F983FD /* KeyCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -202,6 +206,7 @@
 			children = (
 				0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */,
 				55B2AF59490A10B933D223D7 /* AddEditServerView.swift */,
+				F3D21FADD27700A6E040337F /* QRCodeSheet.swift */,
 				EE15BB470918FEC539F58286 /* QRScannerView.swift */,
 				36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */,
 				8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */,
@@ -268,6 +273,14 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		F24C7FBC4DE7530956495715 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				FFA51433030AD547F7F983FD /* KeyCaptureView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
 		FADB8ECCEC3717C13790030F /* ClaudeRelayAppTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -305,6 +318,7 @@
 				DD7FCEC509175BD571CE89C2 /* SettingsView.swift */,
 				CF311DE62F36AF5A19AB87E9 /* StatusBarView.swift */,
 				B5B785672A5F0D293AC7BF84 /* TerminalContainerView.swift */,
+				F24C7FBC4DE7530956495715 /* Components */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -448,6 +462,7 @@
 				FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */,
 				E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */,
 				CC50C840F4CB8B067339A21D /* ImagePasteHandler.swift in Sources */,
+				745A17F726691586A4AEF53F /* KeyCaptureView.swift in Sources */,
 				5696B67E1B61623069D8BB79 /* LaunchAtLogin.swift in Sources */,
 				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
 				60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */,
@@ -488,6 +503,7 @@
 				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
 				160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
+				0D5C609EB39AC81E2A65632B /* QRCodeSheet.swift in Sources */,
 				83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
 				BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */,

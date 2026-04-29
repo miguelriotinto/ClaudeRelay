@@ -25,4 +25,32 @@ final class AppSettings: ObservableObject {
     @AppStorage("com.clauderelay.mac.promptEnhancementEnabled") var promptEnhancementEnabled = false
     @AppStorage("com.clauderelay.mac.bedrockBearerToken") var bedrockBearerToken = ""
     @AppStorage("com.clauderelay.mac.bedrockRegion") var bedrockRegion = "us-east-1"
+
+    @AppStorage("com.clauderelay.mac.recordingShortcutEnabled") var recordingShortcutEnabled = true
+    @AppStorage("com.clauderelay.mac.recordingShortcutModifiers") var recordingShortcutModifiers: Int = Int(NSEvent.ModifierFlags([.command, .option]).rawValue)
+    @AppStorage("com.clauderelay.mac.recordingShortcutKey") var recordingShortcutKey = ""
+}
+
+extension NSEvent.ModifierFlags {
+    var symbolString: String {
+        var parts: [String] = []
+        if contains(.control) { parts.append("⌃") }
+        if contains(.option) { parts.append("⌥") }
+        if contains(.shift) { parts.append("⇧") }
+        if contains(.command) { parts.append("⌘") }
+        return parts.joined()
+    }
+}
+
+extension AppSettings {
+    var shortcutModifierFlags: NSEvent.ModifierFlags {
+        get { NSEvent.ModifierFlags(rawValue: UInt(recordingShortcutModifiers)) }
+        set { recordingShortcutModifiers = Int(newValue.rawValue) }
+    }
+
+    var shortcutDisplayString: String {
+        let mods = shortcutModifierFlags.symbolString
+        let key = recordingShortcutKey.uppercased()
+        return mods + key
+    }
 }

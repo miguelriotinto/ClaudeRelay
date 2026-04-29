@@ -7,6 +7,8 @@ struct SessionSidebarView: View {
     @State private var showAttachSheet = false
     @State private var attachableSessions: [SessionInfo] = []
     @State private var isLoadingAttachable = false
+    @State private var showQRSheet = false
+    @State private var qrSessionId: UUID?
 
     var body: some View {
         List {
@@ -45,6 +47,10 @@ struct SessionSidebarView: View {
                             isActive: session.id == coordinator.activeSessionId,
                             onRename: { newName in
                                 coordinator.setName(newName, for: session.id)
+                            },
+                            onShareQR: {
+                                qrSessionId = session.id
+                                showQRSheet = true
                             }
                         )
                         .contentShape(Rectangle())
@@ -63,6 +69,14 @@ struct SessionSidebarView: View {
             }
         }
         .navigationTitle("Sessions")
+        .sheet(isPresented: $showQRSheet) {
+            if let sessionId = qrSessionId {
+                QRCodeSheet(
+                    sessionId: sessionId,
+                    sessionName: coordinator.name(for: sessionId)
+                )
+            }
+        }
         .refreshable {
             await coordinator.fetchSessions()
         }
@@ -89,6 +103,7 @@ private struct SessionRow: View {
     let shortId: String
     let isActive: Bool
     let onRename: (String) -> Void
+    let onShareQR: () -> Void
 
     @State private var showRenameAlert = false
     @State private var editedName = ""
@@ -132,6 +147,11 @@ private struct SessionRow: View {
                 showRenameAlert = true
             } label: {
                 Label("Rename", systemImage: "pencil")
+            }
+            Button {
+                onShareQR()
+            } label: {
+                Label("Share QR Code", systemImage: "qrcode")
             }
         }
         .alert("Rename Session", isPresented: $showRenameAlert) {

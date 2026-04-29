@@ -4,6 +4,7 @@ import ClaudeRelayClient
 /// Primary screen showing saved servers. Tap to connect, swipe for edit/delete.
 struct ServerListView: View {
     @StateObject private var viewModel = ServerListViewModel()
+    @Binding var pendingSessionId: UUID?
     @State private var showAddSheet = false
     @State private var showSettings = false
     @State private var serverToEdit: ConnectionConfig?
@@ -101,6 +102,7 @@ struct ServerListView: View {
                     WorkspaceView(
                         connection: connection,
                         token: token,
+                        pendingAttachSessionId: consumePendingSession(),
                         showTimeoutAlert: $showTimeoutAlert
                     )
                 }
@@ -114,7 +116,18 @@ struct ServerListView: View {
                 viewModel.refreshServers()
                 viewModel.startPolling()
             }
+            .onChange(of: pendingSessionId) { _, sessionId in
+                guard sessionId != nil, !viewModel.isNavigatingToWorkspace else { return }
+                if let first = viewModel.servers.first {
+                    Task { await viewModel.connect(to: first) }
+                }
+            }
         }
+    }
+
+    private func consumePendingSession() -> UUID? {
+        defer { pendingSessionId = nil }
+        return pendingSessionId
     }
 }
 
@@ -168,5 +181,5 @@ struct ServerRowView: View {
 }
 
 #Preview {
-    ServerListView()
+    ServerListView(pendingSessionId: .constant(nil))
 }

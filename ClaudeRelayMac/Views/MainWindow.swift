@@ -67,6 +67,7 @@ struct MainWindow: View {
             coordinator?.tearDown()
             ActiveCoordinatorRegistry.shared.clear()
         }
+        .preferredColorScheme(.dark)
         .focusedValue(\.sessionCoordinator, coordinator)
     }
 

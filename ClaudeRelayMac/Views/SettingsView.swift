@@ -22,6 +22,9 @@ struct SettingsView: View {
 
 private struct GeneralSettingsTab: View {
     @ObservedObject var settings: AppSettings
+    @State private var isCapturing = false
+    @State private var capturedModifiers: NSEvent.ModifierFlags = []
+    @State private var capturedKey: String = ""
 
     var body: some View {
         Form {
@@ -29,6 +32,52 @@ private struct GeneralSettingsTab: View {
                 Picker("Session naming theme", selection: $settings.sessionNamingTheme) {
                     ForEach(SessionNamingTheme.allCases) { theme in
                         Text(theme.displayName).tag(theme)
+                    }
+                }
+            }
+            Section("Recording Shortcut") {
+                Toggle("Enable shortcut", isOn: $settings.recordingShortcutEnabled)
+                if settings.recordingShortcutEnabled {
+                    if isCapturing {
+                        VStack(spacing: 8) {
+                            Text("Press your shortcut...")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(capturedModifiers.isEmpty && capturedKey.isEmpty
+                                 ? "Waiting..."
+                                 : capturedModifiers.symbolString + capturedKey.uppercased())
+                                .font(.system(.title, design: .rounded, weight: .medium))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 8))
+                            KeyCaptureView(
+                                capturedModifiers: $capturedModifiers,
+                                capturedKey: $capturedKey,
+                                isCapturing: $isCapturing,
+                                onCommit: { modifiers, key in
+                                    settings.shortcutModifierFlags = modifiers
+                                    settings.recordingShortcutKey = key
+                                }
+                            )
+                            .frame(width: 0, height: 0)
+                            Button("Cancel") {
+                                isCapturing = false
+                            }
+                            .font(.subheadline)
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        HStack {
+                            Text("Key Combination")
+                            Spacer()
+                            Text(settings.shortcutDisplayString.isEmpty ? "None" : settings.shortcutDisplayString)
+                                .foregroundStyle(.secondary)
+                            Button("Change") {
+                                capturedModifiers = []
+                                capturedKey = ""
+                                isCapturing = true
+                            }
+                        }
                     }
                 }
             }

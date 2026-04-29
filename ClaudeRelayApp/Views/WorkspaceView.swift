@@ -10,9 +10,11 @@ struct WorkspaceView: View {
     @State private var showSidebarSheet = false
     @Environment(\.dismiss) private var dismiss
     @Binding var showTimeoutAlert: Bool
+    private let pendingAttachSessionId: UUID?
 
-    init(connection: RelayConnection, token: String, showTimeoutAlert: Binding<Bool>) {
+    init(connection: RelayConnection, token: String, pendingAttachSessionId: UUID? = nil, showTimeoutAlert: Binding<Bool>) {
         _showTimeoutAlert = showTimeoutAlert
+        self.pendingAttachSessionId = pendingAttachSessionId
         _coordinator = StateObject(wrappedValue: SessionCoordinator(
             connection: connection,
             token: token
@@ -64,6 +66,9 @@ struct WorkspaceView: View {
             }
         }
         .task {
+            if let sessionId = pendingAttachSessionId {
+                await coordinator.attachRemoteSession(id: sessionId)
+            }
             await coordinator.fetchSessions()
             if coordinator.activeSessionId == nil {
                 if sizeClass == .compact {
