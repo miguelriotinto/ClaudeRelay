@@ -481,14 +481,26 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         isRecovering = true
         defer { isRecovering = false }
 
-        do {
-            try await connection.forceReconnect()
-        } catch {
+        let delays: [UInt64] = [0, 1, 2, 4]
+        for (attempt, delay) in delays.enumerated() {
             guard !isTornDown else { return }
-            if !(error is CancellationError) {
-                connectionTimedOut = true
+            if delay > 0 {
+                try? await Task.sleep(for: .seconds(delay))
+                guard !isTornDown else { return }
             }
-            return
+
+            do {
+                try await connection.forceReconnect()
+                break
+            } catch is CancellationError {
+                return
+            } catch {
+                if attempt == delays.count - 1 {
+                    guard !isTornDown else { return }
+                    connectionTimedOut = true
+                    return
+                }
+            }
         }
 
         guard !isTornDown else { return }

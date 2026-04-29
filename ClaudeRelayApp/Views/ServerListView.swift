@@ -8,7 +8,6 @@ struct ServerListView: View {
     @State private var showSettings = false
     @State private var serverToEdit: ConnectionConfig?
     @State private var showTimeoutAlert = false
-    @State private var didAttemptAutoConnect = false
 
     var body: some View {
         NavigationStack {
@@ -121,7 +120,17 @@ struct ServerListView: View {
             .onAppear {
                 viewModel.refreshServers()
                 viewModel.startPolling()
+            }
+            .task(id: viewModel.isNavigatingToWorkspace) {
+                guard !viewModel.isNavigatingToWorkspace else { return }
                 attemptAutoConnect()
+            }
+            .onChange(of: showTimeoutAlert) { _, timedOut in
+                guard timedOut else { return }
+                if let server = viewModel.autoConnectServerIfNeeded() {
+                    showTimeoutAlert = false
+                    viewModel.startConnect(to: server)
+                }
             }
             .onChange(of: pendingSessionId) { _, sessionId in
                 guard sessionId != nil, !viewModel.isNavigatingToWorkspace else { return }
@@ -133,8 +142,7 @@ struct ServerListView: View {
     }
 
     private func attemptAutoConnect() {
-        guard !didAttemptAutoConnect else { return }
-        didAttemptAutoConnect = true
+        guard !viewModel.isConnecting, !viewModel.isNavigatingToWorkspace else { return }
         if let server = viewModel.autoConnectServerIfNeeded() {
             viewModel.startConnect(to: server)
         }
