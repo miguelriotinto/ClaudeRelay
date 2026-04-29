@@ -1,8 +1,16 @@
 import SwiftUI
 import AppKit
+import ClaudeRelayClient
 
 @main
 struct ClaudeRelayMacApp: App {
+
+    /// Platform-scoped server bookmark storage. No legacy key; Mac app
+    /// shipped with the current key from day one.
+    static let savedConnections = SavedConnectionStore(
+        key: "com.clauderelay.mac.savedConnections"
+    )
+
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {

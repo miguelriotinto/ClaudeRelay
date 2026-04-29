@@ -1,8 +1,17 @@
 import SwiftUI
+import ClaudeRelayClient
 import ClaudeRelaySpeech
 
 @main
 struct ClaudeRelayApp: App {
+
+    /// Platform-scoped server bookmark storage. The legacy key migrates
+    /// existing users from the old `com.coderemote.*` prefix transparently.
+    static let savedConnections = SavedConnectionStore(
+        key: "com.clauderelay.ios.savedConnections",
+        legacyKeys: ["com.coderemote.savedConnections"]
+    )
+
     @State private var showSplash = true
 
     var body: some Scene {

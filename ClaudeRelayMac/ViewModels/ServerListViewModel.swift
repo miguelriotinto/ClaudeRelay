@@ -18,7 +18,7 @@ final class ServerListViewModel: ObservableObject {
     // MARK: - CRUD
 
     func loadConnections() {
-        connections = SavedConnectionStore.loadAll()
+        connections = ClaudeRelayMacApp.savedConnections.loadAll()
         // Select the last-used server if it exists, otherwise the first.
         let lastId = AppSettings.shared.lastServerId
         if let uuid = UUID(uuidString: lastId), connections.contains(where: { $0.id == uuid }) {
@@ -30,7 +30,7 @@ final class ServerListViewModel: ObservableObject {
     }
 
     func addOrUpdate(_ connection: ConnectionConfig) {
-        _ = SavedConnectionStore.add(connection)
+        _ = ClaudeRelayMacApp.savedConnections.add(connection)
         loadConnections()
     }
 
@@ -38,7 +38,7 @@ final class ServerListViewModel: ObservableObject {
         statusCheckers[id]?.stopPolling()
         statusCheckers.removeValue(forKey: id)
         statuses.removeValue(forKey: id)
-        _ = SavedConnectionStore.delete(id: id)
+        _ = ClaudeRelayMacApp.savedConnections.delete(id: id)
         loadConnections()
     }
 

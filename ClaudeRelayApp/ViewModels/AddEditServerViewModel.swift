@@ -71,7 +71,7 @@ final class AddEditServerViewModel: ObservableObject {
             useTLS: useTLS
         )
 
-        SavedConnectionStore.add(config)
+        ClaudeRelayApp.savedConnections.add(config)
 
         if !token.isEmpty {
             try? AuthManager.shared.saveToken(token, for: config.id)

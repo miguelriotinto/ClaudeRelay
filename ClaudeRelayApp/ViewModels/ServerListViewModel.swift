@@ -26,7 +26,7 @@ final class ServerListViewModel: ObservableObject {
     // MARK: - Init
 
     init() {
-        servers = SavedConnectionStore.loadAll()
+        servers = ClaudeRelayApp.savedConnections.loadAll()
         statusChecker.$statuses.assign(to: &$serverStatuses)
     }
 
@@ -43,7 +43,7 @@ final class ServerListViewModel: ObservableObject {
     // MARK: - Actions
 
     func refreshServers() {
-        servers = SavedConnectionStore.loadAll()
+        servers = ClaudeRelayApp.savedConnections.loadAll()
         statusChecker.refresh(connections: servers)
     }
 
@@ -92,14 +92,14 @@ final class ServerListViewModel: ObservableObject {
         for index in offsets {
             let config = servers[index]
             try? AuthManager.shared.deleteToken(for: config.id)
-            servers = SavedConnectionStore.delete(id: config.id)
+            servers = ClaudeRelayApp.savedConnections.delete(id: config.id)
         }
         statusChecker.refresh(connections: servers)
     }
 
     func deleteServer(id: UUID) {
         try? AuthManager.shared.deleteToken(for: id)
-        servers = SavedConnectionStore.delete(id: id)
+        servers = ClaudeRelayApp.savedConnections.delete(id: id)
         statusChecker.refresh(connections: servers)
     }
 
