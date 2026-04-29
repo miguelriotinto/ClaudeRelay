@@ -1,28 +1,27 @@
 import Foundation
-import ClaudeRelayClient
-import ClaudeRelayKit
 
-/// Status of a single saved server connection.
-struct ServerStatus: Equatable {
-    var isLive: Bool = false
-    var sessionCount: Int = 0
+public struct ServerStatus: Equatable {
+    public var isLive: Bool = false
+    public var sessionCount: Int = 0
+    public init(isLive: Bool = false, sessionCount: Int = 0) {
+        self.isLive = isLive
+        self.sessionCount = sessionCount
+    }
 }
 
-/// Periodically probes each saved connection over WebSocket to check
-/// liveness (auth success) and session count (session_list).
 @MainActor
-final class ServerStatusChecker: ObservableObject {
+public final class ServerStatusChecker: ObservableObject {
 
-    @Published var statuses: [UUID: ServerStatus] = [:]
+    @Published public var statuses: [UUID: ServerStatus] = [:]
 
     private var pollTask: Task<Void, Never>?
     private let interval: TimeInterval
 
-    init(interval: TimeInterval = 15) {
+    public init(interval: TimeInterval = 15) {
         self.interval = interval
     }
 
-    func startPolling(connections: [ConnectionConfig]) {
+    public func startPolling(connections: [ConnectionConfig]) {
         pollTask?.cancel()
         guard !connections.isEmpty else { return }
 
@@ -35,19 +34,16 @@ final class ServerStatusChecker: ObservableObject {
         }
     }
 
-    func stopPolling() {
+    public func stopPolling() {
         pollTask?.cancel()
         pollTask = nil
     }
 
-    func refresh(connections: [ConnectionConfig]) {
+    public func refresh(connections: [ConnectionConfig]) {
         startPolling(connections: connections)
     }
 
-    // MARK: - Private
-
     private func checkAll(_ connections: [ConnectionConfig]) async {
-        // Probe all connections concurrently.
         await withTaskGroup(of: (UUID, ServerStatus).self) { group in
             for config in connections {
                 group.addTask {
@@ -55,17 +51,14 @@ final class ServerStatusChecker: ObservableObject {
                     return (config.id, status)
                 }
             }
-
             for await (id, status) in group {
                 statuses[id] = status
             }
         }
     }
 
-    /// Opens a short-lived WebSocket, authenticates, queries session list, then disconnects.
     @MainActor
     static func probe(config: ConnectionConfig) async -> ServerStatus {
-        // Load token from Keychain — without it we can't authenticate.
         guard let token = try? AuthManager.shared.loadToken(for: config.id),
               !token.isEmpty else {
             return ServerStatus()
@@ -74,13 +67,11 @@ final class ServerStatusChecker: ObservableObject {
         let connection = RelayConnection()
         let controller = SessionController(connection: connection)
 
-        // Wrap in a timeout so slow/dead servers don't block the poll cycle.
         let result = await withTaskGroup(of: ServerStatus.self) { group -> ServerStatus in
             group.addTask { @MainActor in
                 do {
                     try await connection.connect(config: config, token: token)
                     try await controller.authenticate(token: token)
-
                     let sessions = try await controller.listSessions()
                     connection.disconnect()
                     return ServerStatus(isLive: true, sessionCount: sessions.count)
@@ -90,19 +81,16 @@ final class ServerStatusChecker: ObservableObject {
                 }
             }
 
-            // Timeout task
             group.addTask {
                 try? await Task.sleep(for: .seconds(5))
                 return ServerStatus()
             }
 
-            // Return whichever finishes first
             let first = await group.next() ?? ServerStatus()
             group.cancelAll()
             return first
         }
 
-        // Ensure connection is cleaned up even if timeout won the race
         connection.disconnect()
         return result
     }

@@ -2,16 +2,17 @@ import Foundation
 import Network
 
 @MainActor
-final class NetworkMonitor: ObservableObject {
-    @Published private(set) var isConnected = true
+public final class NetworkMonitor: ObservableObject {
 
-    static let connectivityRestored = Notification.Name("com.clauderelay.mac.connectivityRestored")
+    public static let connectivityRestored = Notification.Name("com.clauderelay.connectivityRestored")
+
+    @Published public private(set) var isConnected = true
 
     private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "com.clauderelay.mac.networkMonitor")
+    private let queue = DispatchQueue(label: "com.clauderelay.networkMonitor")
     private var wasDisconnected = false
 
-    init() {
+    public init() {
         monitor.pathUpdateHandler = { [weak self] path in
             let connected = path.status == .satisfied
             Task { @MainActor [weak self] in

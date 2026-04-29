@@ -6,12 +6,13 @@ import ClaudeRelayClient
 final class ServerListViewModel: ObservableObject {
 
     @Published private(set) var connections: [ConnectionConfig] = []
-    @Published private(set) var statuses: [UUID: Bool] = [:]
+    @Published private(set) var statuses: [UUID: ServerStatus] = [:]
     @Published var selectedConnectionId: UUID?
 
-    private var statusCheckers: [UUID: ServerStatusChecker] = [:]
+    private let statusChecker = ServerStatusChecker(interval: 5)
 
     init() {
+        statusChecker.$statuses.assign(to: &$statuses)
         loadConnections()
     }
 
@@ -19,14 +20,13 @@ final class ServerListViewModel: ObservableObject {
 
     func loadConnections() {
         connections = ClaudeRelayMacApp.savedConnections.loadAll()
-        // Select the last-used server if it exists, otherwise the first.
         let lastId = AppSettings.shared.lastServerId
         if let uuid = UUID(uuidString: lastId), connections.contains(where: { $0.id == uuid }) {
             selectedConnectionId = uuid
         } else {
             selectedConnectionId = connections.first?.id
         }
-        startAllStatusPolling()
+        statusChecker.refresh(connections: connections)
     }
 
     func addOrUpdate(_ connection: ConnectionConfig) {
@@ -35,9 +35,6 @@ final class ServerListViewModel: ObservableObject {
     }
 
     func delete(id: UUID) {
-        statusCheckers[id]?.stopPolling()
-        statusCheckers.removeValue(forKey: id)
-        statuses.removeValue(forKey: id)
         _ = ClaudeRelayMacApp.savedConnections.delete(id: id)
         loadConnections()
     }
@@ -55,42 +52,7 @@ final class ServerListViewModel: ObservableObject {
 
     // MARK: - Lifecycle
 
-    /// Stops all reachability polling. Call from views when the ViewModel
-    /// goes out of scope (e.g., window closes). Cannot be called from deinit
-    /// because stopPolling is @MainActor-isolated.
     func stopAllPolling() {
-        for checker in statusCheckers.values {
-            checker.stopPolling()
-        }
-        statusCheckers.removeAll()
-    }
-
-    // MARK: - Status Polling
-
-    private func startAllStatusPolling() {
-        // Stop pollers for deleted servers.
-        let currentIds = Set(connections.map { $0.id })
-        for (id, checker) in statusCheckers where !currentIds.contains(id) {
-            checker.stopPolling()
-            statusCheckers.removeValue(forKey: id)
-        }
-
-        // Start polling for new servers.
-        for config in connections where statusCheckers[config.id] == nil {
-            let checker = ServerStatusChecker()
-            checker.startPolling(config)
-            statusCheckers[config.id] = checker
-
-            // Bridge the checker's published state into our statuses map.
-            let serverId = config.id
-            Task { [weak self, weak checker] in
-                guard let checker else { return }
-                for await reachable in checker.$isReachable.values {
-                    await MainActor.run {
-                        self?.statuses[serverId] = reachable
-                    }
-                }
-            }
-        }
+        statusChecker.stopPolling()
     }
 }

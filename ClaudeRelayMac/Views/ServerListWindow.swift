@@ -27,7 +27,7 @@ struct ServerListWindow: View {
                 ForEach(viewModel.connections, id: \.id) { connection in
                     ServerRow(
                         connection: connection,
-                        isReachable: viewModel.statuses[connection.id] ?? false
+                        isReachable: viewModel.statuses[connection.id]?.isLive ?? false
                     )
                     .contextMenu {
                         Button("Connect") { connectTo(connection) }

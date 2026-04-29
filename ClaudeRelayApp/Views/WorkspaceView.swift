@@ -66,6 +66,7 @@ struct WorkspaceView: View {
             }
         }
         .task {
+            coordinator.startNetworkRecovery()
             if let sessionId = pendingAttachSessionId {
                 await coordinator.attachRemoteSession(id: sessionId)
             }

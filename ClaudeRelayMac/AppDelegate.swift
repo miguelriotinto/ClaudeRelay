@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import ClaudeRelayClient
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sleepWakeObserver: SleepWakeObserver?

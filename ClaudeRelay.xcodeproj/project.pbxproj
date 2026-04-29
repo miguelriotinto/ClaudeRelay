@@ -36,17 +36,14 @@
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
 		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
 		83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE15BB470918FEC539F58286 /* QRScannerView.swift */; };
-		9252366AEF0F3FF0490BC949 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 917B2C6A435C6C7A9F0B023F /* NetworkMonitor.swift */; };
 		938D018C46C19AA652D25CBC /* OnDeviceSpeechEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */; };
 		9971C020B99AC4E90062CFBC /* SleepWakeObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DAF1C22B93D5299F03C3F5 /* SleepWakeObserver.swift */; };
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
 		9E41F6BB4D69F89CFE550AE9 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EB2D70760D5EC3165F8E5C /* SessionSidebarView.swift */; };
-		9F969F3A08C0E920D87E7B2A /* ServerStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
 		A9D94F9D30CF4FC923A8C6AB /* ClaudeRelaySpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 6E1855478A9ACA3614582EA5 /* ClaudeRelaySpeech */; };
 		AE20EB3A429DA20B6284117C /* TerminalContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B785672A5F0D293AC7BF84 /* TerminalContainerView.swift */; };
 		AE54E51AD13B1D63E09B1D41 /* QRCodePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94688372C735D9B8D283F7BE /* QRCodePopover.swift */; };
-		B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */; };
 		B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */; };
 		B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */; };
 		BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */; };
@@ -85,7 +82,6 @@
 		36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListView.swift; sourceTree = "<group>"; };
 		42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayMacApp.swift; sourceTree = "<group>"; };
 		477B528B65A3A1F49D31B173 /* Claude Relay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Claude Relay"; path = .; sourceTree = SOURCE_ROOT; };
-		5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		55B2AF59490A10B933D223D7 /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
 		5D747D243348BFF4BE40432F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
@@ -97,14 +93,12 @@
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteHandler.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
-		917B2C6A435C6C7A9F0B023F /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeRelayAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		94688372C735D9B8D283F7BE /* QRCodePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodePopover.swift; sourceTree = "<group>"; };
 		9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachRemoteSessionSheet.swift; sourceTree = "<group>"; };
 		9D717204F74BA58AC8D5C168 /* MenuBarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViewModel.swift; sourceTree = "<group>"; };
 		AAE5CC46536E8CA8C49EB434 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
-		AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		B5B785672A5F0D293AC7BF84 /* TerminalContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalContainerView.swift; sourceTree = "<group>"; };
@@ -157,7 +151,6 @@
 			children = (
 				338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */,
 				2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */,
-				5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */,
 				AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */,
 			);
 			path = ViewModels;
@@ -187,7 +180,6 @@
 				7B9B72D775E497F2FB66C38A /* AppCommands.swift */,
 				8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */,
 				1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */,
-				917B2C6A435C6C7A9F0B023F /* NetworkMonitor.swift */,
 				76DAF1C22B93D5299F03C3F5 /* SleepWakeObserver.swift */,
 			);
 			path = Helpers;
@@ -258,7 +250,6 @@
 				DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */,
 				9D717204F74BA58AC8D5C168 /* MenuBarViewModel.swift */,
 				1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */,
-				AB0950C86A7B866AD4FA2834 /* ServerStatusChecker.swift */,
 				B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */,
 			);
 			path = ViewModels;
@@ -467,12 +458,10 @@
 				3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */,
 				60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */,
 				028D1B51EA464565B380385D /* MenuBarViewModel.swift in Sources */,
-				9252366AEF0F3FF0490BC949 /* NetworkMonitor.swift in Sources */,
 				AE54E51AD13B1D63E09B1D41 /* QRCodePopover.swift in Sources */,
 				208847B59339D16E6FE9C702 /* QRScannerView.swift in Sources */,
 				6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */,
 				63E3BCC85F93A4D12B9436B1 /* ServerListWindow.swift in Sources */,
-				9F969F3A08C0E920D87E7B2A /* ServerStatusChecker.swift in Sources */,
 				0C5F93F50E30A58EF58F5E5F /* SessionCoordinator.swift in Sources */,
 				9E41F6BB4D69F89CFE550AE9 /* SessionSidebarView.swift in Sources */,
 				8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */,
@@ -507,7 +496,6 @@
 				83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
 				BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */,
-				B5376C2F37A692756173FBEE /* ServerStatusChecker.swift in Sources */,
 				9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */,
 				0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */,
 				4644DE3ED2824ABC39E387F8 /* SettingsView.swift in Sources */,
