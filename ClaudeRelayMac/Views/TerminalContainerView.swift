@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftTerm
 import AppKit
+import ClaudeRelayClient
 
 /// Wraps a SwiftTerm TerminalView and intercepts Cmd+V to handle image paste.
 final class PasteAwareTerminalView: TerminalView {
