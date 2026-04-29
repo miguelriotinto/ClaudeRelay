@@ -526,6 +526,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     }
 
     public func handleAutoReconnect() async {
+        guard !isRecovering, !isTornDown,
+              sessionController?.isAuthenticated != true else { return }
         recoveryPhase = .authenticating
         recoveryFailed = false
         isRecovering = true

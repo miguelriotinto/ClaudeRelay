@@ -74,6 +74,7 @@ public final class RelayConnection: ObservableObject {
     private var shouldReconnect = false
     private var isReconnecting = false
     private var connectionGeneration: UInt64 = 0
+    private var reconnectGeneration: UInt64 = 0
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
@@ -154,8 +155,8 @@ public final class RelayConnection: ObservableObject {
         guard let config = config, let token = token else {
             throw ConnectionError.notConnected
         }
-        // Suppress auto-reconnect to avoid racing with our manual reconnect
         shouldReconnect = false
+        reconnectGeneration &+= 1
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
 
@@ -269,9 +270,8 @@ public final class RelayConnection: ObservableObject {
 
     private func attemptReconnect(config: ConnectionConfig, token: String) {
         reconnectAttempt += 1
+        let gen = reconnectGeneration
 
-        // Exponential backoff with jitter: base delay 1s, 2s, 4s, 8s, ...
-        // capped at maxReconnectDelay, plus ±25% random jitter.
         let exponent = min(reconnectAttempt - 1, 30)
         let baseDelay = min(Double(1 << exponent), maxReconnectDelay)
         let jitter = baseDelay * Double.random(in: -0.25...0.25)
@@ -280,7 +280,7 @@ public final class RelayConnection: ObservableObject {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
 
-            guard let self, self.shouldReconnect else {
+            guard let self, self.shouldReconnect, gen == self.reconnectGeneration else {
                 self?.isReconnecting = false
                 return
             }
@@ -288,9 +288,11 @@ public final class RelayConnection: ObservableObject {
             do {
                 try await self.connect(config: config, token: token)
                 self.isReconnecting = false
+                guard gen == self.reconnectGeneration else { return }
                 self.onReconnected?()
             } catch {
                 self.isReconnecting = false
+                guard gen == self.reconnectGeneration else { return }
                 self.handleDisconnection()
             }
         }
