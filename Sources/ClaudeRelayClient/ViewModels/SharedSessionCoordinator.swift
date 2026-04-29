@@ -26,7 +26,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         }
     }
 
-    @Published public private(set) var isRecovering = false
+    @Published public var isRecovering = false
     @Published public var recoveryPhase: RecoveryPhase = .reconnecting
     @Published public private(set) var recoveryFailed = false
     @Published public var errorMessage: String?
