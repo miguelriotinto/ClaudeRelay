@@ -25,6 +25,7 @@
 		3C1FB57BAEEB29070F151C11 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */; };
 		41F39C140085E25466F7428C /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D78DC0EE4B30D251D06A848D /* AddEditServerView.swift */; };
 		4644DE3ED2824ABC39E387F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B48FD6DC9E458119F76B8E /* SettingsView.swift */; };
+		55C2DA5C4B2D81E90A5C16BE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5D747D243348BFF4BE40432F /* Assets.xcassets */; };
 		5696B67E1B61623069D8BB79 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */; };
 		5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BA02853D523E6DAF7B5CD68D /* Assets.xcassets */; };
 		60B5CBCAA01CABA8AC289702 /* MenuBarDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */; };
@@ -88,6 +89,7 @@
 		477B528B65A3A1F49D31B173 /* Claude Relay */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Claude Relay"; path = .; sourceTree = SOURCE_ROOT; };
 		5058C78AD25D1538CC2D57F9 /* ServerStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusChecker.swift; sourceTree = "<group>"; };
 		55B2AF59490A10B933D223D7 /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
+		5D747D243348BFF4BE40432F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
 		700712F6C8FC16A5214C345A /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		76DAF1C22B93D5299F03C3F5 /* SleepWakeObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepWakeObserver.swift; sourceTree = "<group>"; };
@@ -245,6 +247,7 @@
 			isa = PBXGroup;
 			children = (
 				7AD5621F82700100B9C4F53F /* AppDelegate.swift */,
+				5D747D243348BFF4BE40432F /* Assets.xcassets */,
 				D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */,
 				42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */,
 				67648825BC334FE028B1F2D7 /* Helpers */,
@@ -326,6 +329,7 @@
 			buildConfigurationList = 97CCE2D1B4FD6744C923B1D4 /* Build configuration list for PBXNativeTarget "ClaudeRelayMac" */;
 			buildPhases = (
 				1F062DDE80DFCA1BAA53FCD4 /* Sources */,
+				B5AF15ACCB6F03AAA1B1490D /* Resources */,
 				2A53B9E37ADB3358372B75EC /* Frameworks */,
 			);
 			buildRules = (
@@ -430,6 +434,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				5FA509C701D58494DCC05471 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B5AF15ACCB6F03AAA1B1490D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				55C2DA5C4B2D81E90A5C16BE /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
