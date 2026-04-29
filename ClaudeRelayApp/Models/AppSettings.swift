@@ -34,6 +34,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("bedrockBearerToken") var bedrockBearerToken = ""
     @AppStorage("bedrockRegion") var bedrockRegion = "us-east-1"
     @AppStorage("hapticFeedbackEnabled") var hapticFeedbackEnabled = true
+    @AppStorage("autoConnectEnabled") var autoConnectEnabled = false
+    @AppStorage("lastConnectedServerId") var lastConnectedServerId: String = ""
     @AppStorage("sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
     @AppStorage("recordingShortcutEnabled") var recordingShortcutEnabled = true
     @AppStorage("recordingShortcutFlags") var recordingShortcutFlags: Int = Int(UIKeyModifierFlags([.command, .alternate]).rawValue)

@@ -38,6 +38,14 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    Toggle("Auto Connect", isOn: $settings.autoConnectEnabled)
+                } header: {
+                    Text("Connection")
+                } footer: {
+                    Text("Automatically reconnect to the last server on launch.")
+                }
+
                 Section("General") {
                     Toggle("Haptic Feedback", isOn: $settings.hapticFeedbackEnabled)
                     Picker("Session Names", selection: $settings.sessionNamingTheme) {

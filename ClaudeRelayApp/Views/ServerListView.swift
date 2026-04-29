@@ -1,7 +1,6 @@
 import SwiftUI
 import ClaudeRelayClient
 
-/// Primary screen showing saved servers. Tap to connect, swipe for edit/delete.
 struct ServerListView: View {
     @StateObject private var viewModel = ServerListViewModel()
     @Binding var pendingSessionId: UUID?
@@ -9,6 +8,7 @@ struct ServerListView: View {
     @State private var showSettings = false
     @State private var serverToEdit: ConnectionConfig?
     @State private var showTimeoutAlert = false
+    @State private var didAttemptAutoConnect = false
 
     var body: some View {
         NavigationStack {
@@ -27,12 +27,11 @@ struct ServerListView: View {
                     List {
                         ForEach(viewModel.servers) { server in
                             Button {
-                                Task { await viewModel.connect(to: server) }
+                                viewModel.startConnect(to: server)
                             } label: {
                                 ServerRowView(
                                     server: server,
                                     status: viewModel.serverStatuses[server.id],
-                                    isConnecting: viewModel.connectingServerId == server.id,
                                     isConnected: viewModel.connectedServerId == server.id
                                 )
                             }
@@ -89,6 +88,13 @@ struct ServerListView: View {
                     viewModel.deleteServer(id: server.id)
                 })
             }
+            .sheet(isPresented: $viewModel.isConnecting) {
+                ConnectingView(
+                    serverName: viewModel.connectingServerName ?? "Server",
+                    onCancel: { viewModel.cancelConnect() }
+                )
+                .interactiveDismissDisabled()
+            }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -115,13 +121,22 @@ struct ServerListView: View {
             .onAppear {
                 viewModel.refreshServers()
                 viewModel.startPolling()
+                attemptAutoConnect()
             }
             .onChange(of: pendingSessionId) { _, sessionId in
                 guard sessionId != nil, !viewModel.isNavigatingToWorkspace else { return }
                 if let first = viewModel.servers.first {
-                    Task { await viewModel.connect(to: first) }
+                    viewModel.startConnect(to: first)
                 }
             }
+        }
+    }
+
+    private func attemptAutoConnect() {
+        guard !didAttemptAutoConnect else { return }
+        didAttemptAutoConnect = true
+        if let server = viewModel.autoConnectServerIfNeeded() {
+            viewModel.startConnect(to: server)
         }
     }
 
@@ -131,12 +146,46 @@ struct ServerListView: View {
     }
 }
 
+// MARK: - Connecting Modal
+
+struct ConnectingView: View {
+    let serverName: String
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            ProgressView()
+                .scaleEffect(1.5)
+
+            Text("Connecting to \(serverName)...")
+                .font(.headline)
+
+            Text("Establishing secure connection")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button("Cancel", role: .cancel) {
+                onCancel()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .padding(.bottom, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+}
+
 // MARK: - Server Row
 
 struct ServerRowView: View {
     let server: ConnectionConfig
     let status: ServerStatus?
-    var isConnecting: Bool = false
     var isConnected: Bool = false
 
     var body: some View {
@@ -170,9 +219,7 @@ struct ServerRowView: View {
 
             Spacer()
 
-            if isConnecting {
-                ProgressView()
-            } else if isConnected {
+            if isConnected {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
             }

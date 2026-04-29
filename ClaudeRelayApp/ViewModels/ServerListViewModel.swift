@@ -3,7 +3,6 @@ import SwiftUI
 import Combine
 import ClaudeRelayClient
 
-/// Manages the server list, status polling, and connection lifecycle.
 @MainActor
 final class ServerListViewModel: ObservableObject {
 
@@ -14,6 +13,7 @@ final class ServerListViewModel: ObservableObject {
 
     @Published var isConnecting: Bool = false
     @Published var connectingServerId: UUID?
+    @Published var connectingServerName: String?
     @Published var activeConnection: RelayConnection?
     @Published var activeToken: String?
     @Published var connectedServerId: UUID?
@@ -22,6 +22,7 @@ final class ServerListViewModel: ObservableObject {
     @Published var showError: Bool = false
 
     private let statusChecker = ServerStatusChecker()
+    private var connectTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -60,9 +61,11 @@ final class ServerListViewModel: ObservableObject {
 
         isConnecting = true
         connectingServerId = server.id
+        connectingServerName = server.name
         defer {
             isConnecting = false
             connectingServerId = nil
+            connectingServerName = nil
         }
 
         let connection = RelayConnection()
@@ -72,10 +75,27 @@ final class ServerListViewModel: ObservableObject {
             activeConnection = connection
             activeToken = token
             connectedServerId = server.id
+            AppSettings.shared.lastConnectedServerId = server.id.uuidString
             statusChecker.stopPolling()
             isNavigatingToWorkspace = true
         } catch {
-            presentError(error.localizedDescription)
+            if !(error is CancellationError) {
+                presentError(error.localizedDescription)
+            }
+        }
+    }
+
+    func cancelConnect() {
+        connectTask?.cancel()
+        connectTask = nil
+        isConnecting = false
+        connectingServerId = nil
+        connectingServerName = nil
+    }
+
+    func startConnect(to server: ConnectionConfig) {
+        connectTask = Task {
+            await connect(to: server)
         }
     }
 
@@ -101,6 +121,18 @@ final class ServerListViewModel: ObservableObject {
         try? AuthManager.shared.deleteToken(for: id)
         servers = ClaudeRelayApp.savedConnections.delete(id: id)
         statusChecker.refresh(connections: servers)
+    }
+
+    // MARK: - Auto Connect
+
+    func autoConnectServerIfNeeded() -> ConnectionConfig? {
+        let settings = AppSettings.shared
+        guard settings.autoConnectEnabled,
+              let uuid = UUID(uuidString: settings.lastConnectedServerId),
+              let server = servers.first(where: { $0.id == uuid }) else {
+            return nil
+        }
+        return server
     }
 
     // MARK: - Private
