@@ -109,6 +109,7 @@ struct TerminalContainerView: NSViewRepresentable {
         }
 
         func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+            guard newCols > 0, newRows > 0 else { return }
             let cols = UInt16(newCols)
             let rows = UInt16(newRows)
             Task { @MainActor [viewModel] in
