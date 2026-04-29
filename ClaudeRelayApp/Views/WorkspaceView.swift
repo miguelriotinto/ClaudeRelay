@@ -1,6 +1,43 @@
 import SwiftUI
 import ClaudeRelayClient
 
+// MARK: - Recovery Overlay (shown during in-session reconnection)
+
+struct RecoveryOverlay: View {
+    let phase: SharedSessionCoordinator.RecoveryPhase
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            ProgressView()
+                .scaleEffect(1.5)
+
+            Text("Reconnecting")
+                .font(.headline)
+
+            Text(phase.label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .contentTransition(.interpolate)
+                .animation(.easeInOut(duration: 0.25), value: phase.label)
+
+            Spacer()
+
+            Button("Cancel", role: .cancel) {
+                onCancel()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .padding(.bottom, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+}
+
 /// Main workspace: NavigationSplitView with a session sidebar and terminal detail.
 struct WorkspaceView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -96,6 +133,16 @@ struct WorkspaceView: View {
                     await coordinator.handleForegroundTransition()
                 }
             }
+        }
+        .sheet(isPresented: $coordinator.isRecovering) {
+            RecoveryOverlay(
+                phase: coordinator.recoveryPhase,
+                onCancel: {
+                    coordinator.recoveryTask?.cancel()
+                    coordinator.recoveryTask = nil
+                }
+            )
+            .interactiveDismissDisabled()
         }
         .onChange(of: coordinator.connectionTimedOut) { _, timedOut in
             if timedOut {

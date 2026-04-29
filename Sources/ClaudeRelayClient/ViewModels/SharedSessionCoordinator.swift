@@ -14,7 +14,21 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     @Published public var claudeSessions: Set<UUID> = []
     @Published public var sessionsAwaitingInput: Set<UUID> = []
     @Published public var isLoading = false
+    public enum RecoveryPhase {
+        case reconnecting, authenticating, resuming
+
+        public var label: String {
+            switch self {
+            case .reconnecting:   return "Reconnecting to server…"
+            case .authenticating:  return "Authenticating…"
+            case .resuming:       return "Restoring session…"
+            }
+        }
+    }
+
     @Published public private(set) var isRecovering = false
+    @Published public var recoveryPhase: RecoveryPhase = .reconnecting
+    @Published public private(set) var recoveryFailed = false
     @Published public var errorMessage: String?
     @Published public var showError = false
     @Published public var connectionTimedOut = false
@@ -478,62 +492,70 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             return
         }
 
+        recoveryPhase = .reconnecting
+        recoveryFailed = false
         isRecovering = true
-        defer { isRecovering = false }
 
         let delays: [UInt64] = [0, 1, 2, 4]
         for (attempt, delay) in delays.enumerated() {
-            guard !isTornDown else { return }
+            guard !isTornDown else { isRecovering = false; return }
             if delay > 0 {
                 try? await Task.sleep(for: .seconds(delay))
-                guard !isTornDown else { return }
+                guard !isTornDown else { isRecovering = false; return }
             }
 
             do {
                 try await connection.forceReconnect()
                 break
             } catch is CancellationError {
+                isRecovering = false
                 return
             } catch {
                 if attempt == delays.count - 1 {
-                    guard !isTornDown else { return }
+                    guard !isTornDown else { isRecovering = false; return }
+                    recoveryFailed = true
+                    isRecovering = false
                     connectionTimedOut = true
                     return
                 }
             }
         }
 
-        guard !isTornDown else { return }
+        guard !isTornDown else { isRecovering = false; return }
         await restoreSession()
     }
 
     public func handleAutoReconnect() async {
+        recoveryPhase = .authenticating
+        recoveryFailed = false
         isRecovering = true
-        defer { isRecovering = false }
         await restoreSession()
     }
 
     public func restoreSession() async {
+        recoveryPhase = .authenticating
         sessionController?.resetAuth()
         do {
             let controller = try await ensureAuthenticated()
-            guard !isTornDown else { return }
+            guard !isTornDown else { isRecovering = false; return }
             if let activeId = activeSessionId {
+                recoveryPhase = .resuming
                 terminalViewModels[activeId]?.resetForReplay()
                 try await controller.resumeSession(id: activeId)
                 wireTerminalOutput(to: activeId)
             }
         } catch is CancellationError {
+            isRecovering = false
             return
         } catch {
-            guard !isTornDown else { return }
-            if activeSessionId != nil {
-                activeSessionId = nil
-            }
+            guard !isTornDown else { isRecovering = false; return }
+            recoveryFailed = true
+            isRecovering = false
             connectionTimedOut = true
             return
         }
 
+        isRecovering = false
         if !isTornDown {
             await fetchSessions()
         }

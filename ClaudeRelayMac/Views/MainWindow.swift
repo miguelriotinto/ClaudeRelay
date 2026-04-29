@@ -159,6 +159,41 @@ private struct WorkspaceView: View {
         .sheet(isPresented: $coordinator.showQRScanner) {
             QRScannerSheet(coordinator: coordinator)
         }
+        .sheet(isPresented: $coordinator.isRecovering) {
+            RecoverySheet(
+                phase: coordinator.recoveryPhase,
+                onCancel: {
+                    coordinator.recoveryTask?.cancel()
+                    coordinator.recoveryTask = nil
+                }
+            )
+            .interactiveDismissDisabled()
+        }
+    }
+}
+
+private struct RecoverySheet: View {
+    let phase: SharedSessionCoordinator.RecoveryPhase
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Reconnecting")
+                .font(.headline)
+            Text(phase.label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .contentTransition(.interpolate)
+                .animation(.easeInOut(duration: 0.25), value: phase.label)
+            Spacer()
+            Button("Cancel", role: .cancel) { onCancel() }
+                .controlSize(.large)
+                .padding(.bottom, 16)
+        }
+        .frame(width: 280, height: 200)
     }
 }
 
