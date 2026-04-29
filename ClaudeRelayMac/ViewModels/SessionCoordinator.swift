@@ -40,11 +40,6 @@ final class SessionCoordinator: SharedSessionCoordinator {
             registerRecoveryObservers()
             _ = try await ensureAuthenticated()
             await fetchSessions()
-            if activeSessions.isEmpty {
-                await createNewSession()
-            } else if activeSessionId == nil, let first = activeSessions.first {
-                await switchToSession(id: first.id)
-            }
         } catch {
             presentError(error.localizedDescription)
         }

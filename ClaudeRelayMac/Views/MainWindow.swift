@@ -17,8 +17,15 @@ struct MainWindow: View {
             } else if let failure = loadFailure {
                 FailureView(message: failure) { showServerList = true }
             } else {
-                ProgressView("Connecting...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 12) {
+                    Image(systemName: "server.rack")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.secondary)
+                    Text("Select a server to connect")
+                        .foregroundStyle(.secondary)
+                    Button("Choose Server") { showServerList = true }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .toolbar {
@@ -72,11 +79,7 @@ struct MainWindow: View {
     }
 
     private func attemptAutoConnect() async {
-        guard let last = serverList.selectedConnection() else {
-            showServerList = true
-            return
-        }
-        await connect(to: last)
+        showServerList = true
     }
 
     private func connect(to config: ConnectionConfig) async {

@@ -72,9 +72,7 @@ struct WorkspaceView: View {
             }
             await coordinator.fetchSessions()
             if coordinator.activeSessionId == nil {
-                if let first = coordinator.activeSessions.first {
-                    await coordinator.switchToSession(id: first.id)
-                } else if sizeClass == .compact {
+                if sizeClass == .compact {
                     showSidebarSheet = true
                 } else {
                     columnVisibility = .all
