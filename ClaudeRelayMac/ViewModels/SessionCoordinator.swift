@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import IOKit
+
 import ClaudeRelayClient
 import ClaudeRelayKit
 
@@ -163,28 +163,8 @@ final class SessionCoordinator: ObservableObject, SessionCoordinating {
         UserDefaults.standard.set(arr, forKey: Self.claudeSessionsKey)
     }
 
-    /// Device-local ownership key. Uses the Mac's hardware UUID so ownership
-    /// doesn't leak between machines if UserDefaults ever sync.
     private static var ownedKey: String {
-        let deviceId = macDeviceID()
-        return "com.clauderelay.mac.ownedSessions.\(deviceId)"
-    }
-
-    private static func macDeviceID() -> String {
-        let platformExpert = IOServiceGetMatchingService(
-            kIOMainPortDefault,
-            IOServiceMatching("IOPlatformExpertDevice")
-        )
-        defer { IOObjectRelease(platformExpert) }
-        if platformExpert != 0,
-           let serial = IORegistryEntryCreateCFProperty(
-               platformExpert,
-               kIOPlatformUUIDKey as CFString,
-               kCFAllocatorDefault, 0
-           )?.takeUnretainedValue() as? String {
-            return serial
-        }
-        return "unknown"
+        "com.clauderelay.mac.ownedSessions.\(DeviceIdentifier().currentID)"
     }
 
     private static func loadOwned() -> Set<UUID> {

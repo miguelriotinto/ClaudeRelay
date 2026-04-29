@@ -142,8 +142,7 @@ final class SessionCoordinator: ObservableObject, SessionCoordinating {
     private(set) var ownedSessionIds: Set<UUID> = []
 
     private static var ownedKey: String {
-        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
-        return "com.clauderelay.ownedSessions.\(deviceId)"
+        "com.clauderelay.ownedSessions.\(DeviceIdentifier().currentID)"
     }
 
     private static func loadOwned() -> Set<UUID> {
