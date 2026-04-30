@@ -65,6 +65,8 @@ struct ServerListWindow: View {
         .background(.black)
         .frame(minWidth: 500, minHeight: 360)
         .navigationTitle("Servers")
+        .toolbarBackground(.black, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
         .sheet(item: $addEditTarget) { target in
             AddEditServerView(target: target) { newConnection in
                 viewModel.addOrUpdate(newConnection)

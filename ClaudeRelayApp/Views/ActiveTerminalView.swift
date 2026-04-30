@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftTerm
 import ClaudeRelayClient
+import ClaudeRelayKit
 import ClaudeRelaySpeech
 import GameController
 import CoreImage
@@ -90,12 +91,9 @@ struct ActiveTerminalView: View {
                 ToolbarIconButton(icon: "fn", isActive: showKeyBar) { showKeyBar.toggle() }
 
                 // Fixed left: connectivity indicator + session time
-                if let id = coordinator.activeSessionId,
-                   let vm = coordinator.viewModel(for: id) {
-                    Circle()
-                        .fill(statusColor(vm.connectionState))
-                        .frame(width: 8, height: 8)
+                ConnectionQualityDot(quality: coordinator.connection.connectionQuality, size: 8)
 
+                if let id = coordinator.activeSessionId {
                     if let createdAt = coordinator.createdAt(for: id) {
                         SessionUptimeView(since: createdAt)
                     }
@@ -210,14 +208,6 @@ struct ActiveTerminalView: View {
                     onDismiss: { showQROverlay = false }
                 )
             }
-        }
-    }
-
-    private func statusColor(_ state: RelayConnection.ConnectionState) -> SwiftUI.Color {
-        switch state {
-        case .connected: return .green
-        case .connecting, .reconnecting: return .yellow
-        case .disconnected: return .red
         }
     }
 

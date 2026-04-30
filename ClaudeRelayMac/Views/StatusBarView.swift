@@ -7,12 +7,8 @@ struct StatusBarView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Connection state
             HStack(spacing: 6) {
-                Circle()
-                    .fill(connectionColor)
-                    .frame(width: 6, height: 6)
-                    .fixedSize()
+                ConnectionQualityDot(quality: coordinator.connection.connectionQuality, size: 6)
                 Text(connectionLabel)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -20,7 +16,6 @@ struct StatusBarView: View {
 
             Spacer()
 
-            // Activity for active session
             if let id = coordinator.activeSessionId {
                 ActivityDot(activity: activityFor(id), size: 6)
             }
@@ -30,13 +25,15 @@ struct StatusBarView: View {
         .background(Color.black)
     }
 
-    private var connectionColor: Color {
-        if coordinator.isRecovering { return .orange }
-        return coordinator.isConnected ? .green : .red
-    }
     private var connectionLabel: String {
         if coordinator.isRecovering { return "Reconnecting..." }
-        return coordinator.isConnected ? "Connected" : "Disconnected"
+        switch coordinator.connection.connectionQuality {
+        case .excellent: return "Excellent"
+        case .good:      return "Good"
+        case .poor:      return "Poor"
+        case .veryPoor:  return "Very Poor"
+        case .disconnected: return "Disconnected"
+        }
     }
     private func activityFor(_ id: UUID) -> ActivityState {
         if coordinator.isRunningClaude(sessionId: id) {

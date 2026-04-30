@@ -1,4 +1,5 @@
 import SwiftUI
+import ClaudeRelayClient
 import ClaudeRelayKit
 
 /// Sidebar content for the workspace: session list with quick switching.
@@ -45,6 +46,7 @@ struct SessionSidebarView: View {
                             name: coordinator.name(for: session.id),
                             shortId: String(session.id.uuidString.prefix(8)),
                             isActive: session.id == coordinator.activeSessionId,
+                            activity: activityFor(session.id),
                             onRename: { newName in
                                 coordinator.setName(newName, for: session.id)
                             },
@@ -93,6 +95,13 @@ struct SessionSidebarView: View {
             )
         }
     }
+
+    private func activityFor(_ id: UUID) -> ActivityState {
+        if coordinator.isRunningClaude(sessionId: id) {
+            return coordinator.sessionsAwaitingInput.contains(id) ? .claudeIdle : .claudeActive
+        }
+        return coordinator.sessionsAwaitingInput.contains(id) ? .idle : .active
+    }
 }
 
 // MARK: - Session Row
@@ -102,6 +111,7 @@ private struct SessionRow: View {
     let name: String
     let shortId: String
     let isActive: Bool
+    let activity: ActivityState
     let onRename: (String) -> Void
     let onShareQR: () -> Void
 
@@ -110,9 +120,7 @@ private struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(isActive ? .green : .clear)
-                .frame(width: 8, height: 8)
+            ActivityDot(activity: activity, size: 8)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(name)
