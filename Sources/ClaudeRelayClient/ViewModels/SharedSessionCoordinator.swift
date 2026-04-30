@@ -113,6 +113,14 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 self?.handleSessionRenamed(sessionId: sessionId, name: name)
             }
         }
+        connection.onSendFailed = { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, !self.isRecovering, !self.isTornDown else { return }
+                self.recoveryTask = Task {
+                    await self.handleForegroundTransition()
+                }
+            }
+        }
     }
 
     // MARK: - Names

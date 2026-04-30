@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import ClaudeRelayClient
 import ClaudeRelayKit
 
@@ -26,9 +27,16 @@ final class SessionCoordinator: SharedSessionCoordinator {
 
     // MARK: - Init
 
+    private var stateObserver: AnyCancellable?
+
     init(config: ConnectionConfig, token: String) {
         self.config = config
         super.init(connection: RelayConnection(), token: token)
+        stateObserver = connection.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                self?.isConnected = (state == .connected)
+            }
     }
 
     // MARK: - Start
@@ -36,7 +44,6 @@ final class SessionCoordinator: SharedSessionCoordinator {
     func start() async {
         do {
             try await connection.connect(config: config, token: token)
-            isConnected = true
             registerRecoveryObservers()
             _ = try await ensureAuthenticated()
             await fetchSessions()

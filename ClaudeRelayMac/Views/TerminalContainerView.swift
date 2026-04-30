@@ -75,6 +75,7 @@ struct TerminalContainerView: NSViewRepresentable {
         // Appearance: black chrome to match iOS app.
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
+        terminal.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
 
         // Feed buffered output through the ViewModel.
         viewModel.onTerminalOutput = { [weak terminal] data in

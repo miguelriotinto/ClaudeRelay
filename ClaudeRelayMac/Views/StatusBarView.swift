@@ -1,5 +1,6 @@
 import SwiftUI
 import ClaudeRelayClient
+import ClaudeRelayKit
 
 struct StatusBarView: View {
     @ObservedObject var coordinator: SessionCoordinator
@@ -10,9 +11,10 @@ struct StatusBarView: View {
             HStack(spacing: 6) {
                 Circle()
                     .fill(connectionColor)
-                    .frame(width: 8, height: 8)
+                    .frame(width: 6, height: 6)
+                    .fixedSize()
                 Text(connectionLabel)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
 
@@ -20,19 +22,12 @@ struct StatusBarView: View {
 
             // Activity for active session
             if let id = coordinator.activeSessionId {
-                HStack(spacing: 6) {
-                    Image(systemName: activityIcon(id))
-                        .foregroundStyle(activityColor(id))
-                        .font(.caption)
-                    Text(activityLabel(id))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ActivityDot(activity: activityFor(id), size: 6)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
+        .padding(.vertical, 5)
+        .background(Color.black)
     }
 
     private var connectionColor: Color {
@@ -43,24 +38,10 @@ struct StatusBarView: View {
         if coordinator.isRecovering { return "Reconnecting..." }
         return coordinator.isConnected ? "Connected" : "Disconnected"
     }
-    private func activityIcon(_ id: UUID) -> String {
+    private func activityFor(_ id: UUID) -> ActivityState {
         if coordinator.isRunningClaude(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ?
-                "circle.lefthalf.filled" : "circle.fill"
+            return coordinator.sessionsAwaitingInput.contains(id) ? .claudeIdle : .claudeActive
         }
-        return "circle"
-    }
-    private func activityColor(_ id: UUID) -> Color {
-        if coordinator.isRunningClaude(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ? .orange : .green
-        }
-        return .secondary
-    }
-    private func activityLabel(_ id: UUID) -> String {
-        if coordinator.isRunningClaude(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ?
-                "Claude (idle)" : "Claude (active)"
-        }
-        return coordinator.sessionsAwaitingInput.contains(id) ? "Idle" : "Active"
+        return coordinator.sessionsAwaitingInput.contains(id) ? .idle : .active
     }
 }

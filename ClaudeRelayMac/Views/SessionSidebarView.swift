@@ -39,6 +39,7 @@ struct SessionSidebarView: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
 
             Divider()
             HStack {
@@ -60,6 +61,7 @@ struct SessionSidebarView: View {
             }
             .padding(12)
         }
+        .background(.black)
         .sheet(isPresented: $showAttachSheet) {
             AttachRemoteSessionSheet(coordinator: coordinator)
         }
@@ -105,27 +107,9 @@ private struct SessionRow: View {
     let activity: ActivityState
     let createdAt: Date
 
-    private var icon: String {
-        switch activity {
-        case .claudeActive: return "circle.fill"
-        case .claudeIdle:   return "circle.lefthalf.filled"
-        case .idle:         return "circle"
-        case .active:       return "circle"
-        }
-    }
-    private var iconColor: Color {
-        switch activity {
-        case .claudeActive: return .green
-        case .claudeIdle:   return .orange
-        case .idle, .active: return .secondary
-        }
-    }
-
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundStyle(iconColor)
-                .font(.system(size: 10))
+            ActivityDot(activity: activity, size: 6)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name).font(.body)
                 Text(shortId)
@@ -136,5 +120,44 @@ private struct SessionRow: View {
             Spacer()
         }
         .padding(.vertical, 2)
+    }
+}
+
+struct ActivityDot: View {
+    let activity: ActivityState
+    var size: CGFloat = 8
+    @State private var blinkOpacity: Double = 1.0
+
+    private var color: Color {
+        switch activity {
+        case .active, .idle: return .green
+        case .claudeActive, .claudeIdle: return .orange
+        }
+    }
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .fixedSize()
+            .opacity(activity == .claudeIdle ? blinkOpacity : 1.0)
+            .onChange(of: activity) { _, newValue in
+                if newValue == .claudeIdle {
+                    withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                        blinkOpacity = 0.3
+                    }
+                } else {
+                    withAnimation(.default) {
+                        blinkOpacity = 1.0
+                    }
+                }
+            }
+            .onAppear {
+                if activity == .claudeIdle {
+                    withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                        blinkOpacity = 0.3
+                    }
+                }
+            }
     }
 }

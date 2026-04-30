@@ -42,6 +42,7 @@ struct ServerListWindow: View {
                 }
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
 
             Divider()
             HStack {
@@ -61,6 +62,7 @@ struct ServerListWindow: View {
             }
             .padding(12)
         }
+        .background(.black)
         .frame(minWidth: 500, minHeight: 360)
         .navigationTitle("Servers")
         .sheet(item: $addEditTarget) { target in

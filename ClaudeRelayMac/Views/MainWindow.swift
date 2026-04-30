@@ -28,6 +28,7 @@ struct MainWindow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .background(.black)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button {
@@ -69,6 +70,8 @@ struct MainWindow: View {
                     showServerList = false
                 }
             }
+            .background(.black)
+            .presentationBackground(.black)
         }
         .onDisappear {
             coordinator?.tearDown()
@@ -137,6 +140,7 @@ private struct WorkspaceView: View {
                 if let activeId = coordinator.activeSessionId,
                    let vm = coordinator.viewModel(for: activeId) {
                     TerminalContainerView(viewModel: vm)
+                        .padding(.leading, 6)
                         .id(activeId)
                 } else {
                     VStack(spacing: 12) {
@@ -154,7 +158,10 @@ private struct WorkspaceView: View {
                 Divider()
                 StatusBarView(coordinator: coordinator)
             }
+            .background(.black)
         }
+        .toolbarBackground(.black, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
         .focusedValue(\.sidebarVisibility, $columnVisibility)
         .sheet(isPresented: $coordinator.showQRScanner) {
             QRScannerSheet(coordinator: coordinator)

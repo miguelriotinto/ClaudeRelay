@@ -63,6 +63,10 @@ public final class RelayConnection: ObservableObject {
     /// NOTE: Callers should capture [weak coordinator] in the closure to avoid retain cycles.
     public var onReconnected: (() -> Void)?
 
+    /// Called when a send operation fails, indicating the connection is dead.
+    /// Use this to trigger recovery in the coordinator.
+    public var onSendFailed: (() -> Void)?
+
     // MARK: - Private Properties
 
     private var webSocketTask: URLSessionWebSocketTask?
@@ -77,6 +81,8 @@ public final class RelayConnection: ObservableObject {
     private var reconnectGeneration: UInt64 = 0
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private var keepaliveTask: Task<Void, Never>?
+    private let keepaliveInterval: TimeInterval = 30
 
     // MARK: - Init
 
@@ -108,11 +114,14 @@ public final class RelayConnection: ObservableObject {
 
         state = .connected
         receiveLoop(generation: generation)
+        startKeepalive(generation: generation)
     }
 
     /// Disconnects from the server. Does not attempt reconnection.
     public func disconnect() {
         shouldReconnect = false
+        keepaliveTask?.cancel()
+        keepaliveTask = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         urlSession?.invalidateAndCancel()
@@ -157,6 +166,8 @@ public final class RelayConnection: ObservableObject {
         }
         shouldReconnect = false
         reconnectGeneration &+= 1
+        keepaliveTask?.cancel()
+        keepaliveTask = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
 
@@ -175,7 +186,12 @@ public final class RelayConnection: ObservableObject {
             throw ConnectionError.encodingFailed
         }
 
-        try await task.send(.string(jsonString))
+        do {
+            try await task.send(.string(jsonString))
+        } catch {
+            onSendFailed?()
+            throw error
+        }
     }
 
     /// Sends raw terminal input as a binary WebSocket frame.
@@ -184,7 +200,12 @@ public final class RelayConnection: ObservableObject {
             throw ConnectionError.notConnected
         }
 
-        try await task.send(.data(data))
+        do {
+            try await task.send(.data(data))
+        } catch {
+            onSendFailed?()
+            throw error
+        }
     }
 
     /// Sends a terminal resize command to the server.
@@ -195,6 +216,28 @@ public final class RelayConnection: ObservableObject {
     /// Sends base64-encoded image data to be pasted on the server's clipboard.
     public func sendPasteImage(base64Data: String) async throws {
         try await send(.pasteImage(data: base64Data))
+    }
+
+    // MARK: - Keepalive
+
+    private func startKeepalive(generation: UInt64) {
+        keepaliveTask?.cancel()
+        keepaliveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(30 * 1_000_000_000))
+                guard !Task.isCancelled,
+                      let self,
+                      generation == self.connectionGeneration,
+                      self.state == .connected else { return }
+                let alive = await self.isAlive()
+                guard !Task.isCancelled, generation == self.connectionGeneration else { return }
+                if !alive {
+                    logger.warning("Keepalive ping failed — connection dead")
+                    self.handleDisconnection()
+                    return
+                }
+            }
+        }
     }
 
     // MARK: - Receive Loop
@@ -256,6 +299,8 @@ public final class RelayConnection: ObservableObject {
     // MARK: - Reconnection
 
     private func handleDisconnection() {
+        keepaliveTask?.cancel()
+        keepaliveTask = nil
         webSocketTask = nil
 
         guard !isReconnecting, shouldReconnect, let config = config, let token = token else {

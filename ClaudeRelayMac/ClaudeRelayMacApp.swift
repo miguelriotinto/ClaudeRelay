@@ -22,7 +22,7 @@ struct ClaudeRelayMacApp: App {
                 }
         }
         .windowResizability(.contentMinSize)
-        .windowToolbarStyle(.unified)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .commands {
             AppCommands()
         }

@@ -5,6 +5,7 @@ import ClaudeRelayClient
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sleepWakeObserver: SleepWakeObserver?
     private var networkMonitor: NetworkMonitor?
+    private var windowObserver: Any?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
@@ -24,9 +25,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sleepWakeObserver = SleepWakeObserver()
         networkMonitor = NetworkMonitor()
 
+        windowObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeMainNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let window = notification.object as? NSWindow else { return }
+            window.titlebarAppearsTransparent = true
+            window.backgroundColor = .black
+        }
+
         Task { @MainActor in
-            if !AppSettings.shared.showWindowOnLaunch {
-                for window in NSApp.windows where window.canBecomeMain {
+            for window in NSApp.windows where window.canBecomeMain {
+                window.titlebarAppearsTransparent = true
+                window.backgroundColor = .black
+                if !AppSettings.shared.showWindowOnLaunch {
                     window.close()
                 }
             }
