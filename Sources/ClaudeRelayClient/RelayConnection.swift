@@ -233,7 +233,15 @@ public final class RelayConnection: ObservableObject {
                 guard !Task.isCancelled, generation == self.connectionGeneration else { return }
                 if !alive {
                     logger.warning("Keepalive ping failed — connection dead")
-                    self.handleDisconnection()
+                    self.keepaliveTask = nil
+                    self.shouldReconnect = false
+                    self.connectionGeneration &+= 1
+                    self.webSocketTask?.cancel(with: .goingAway, reason: nil)
+                    self.webSocketTask = nil
+                    self.urlSession?.invalidateAndCancel()
+                    self.urlSession = nil
+                    self.state = .disconnected
+                    self.onSendFailed?()
                     return
                 }
             }
