@@ -85,6 +85,11 @@ struct TerminalContainerView: NSViewRepresentable {
         }
 
         viewModel.terminalReady()
+
+        DispatchQueue.main.async {
+            terminal.window?.makeFirstResponder(terminal)
+        }
+
         return terminal
     }
 
