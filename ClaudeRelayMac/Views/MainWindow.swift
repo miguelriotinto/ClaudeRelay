@@ -218,16 +218,9 @@ private struct MacMicButton: View {
         } label: {
             Group {
                 if let progress = engine.modelStore.downloadProgress {
-                    ZStack {
-                        Circle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 2)
-                        Circle()
-                            .trim(from: 0, to: progress)
-                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                            .animation(.linear(duration: 0.3), value: progress)
-                    }
-                    .frame(width: 16, height: 16)
+                    progressRing(progress)
+                } else if engine.state == .loadingModel, let progress = engine.modelLoadProgress {
+                    progressRing(progress)
                 } else {
                     Image(systemName: buttonIcon)
                         .font(.system(size: 12, weight: .medium))
@@ -249,6 +242,19 @@ private struct MacMicButton: View {
         } message: {
             Text("On-device voice recognition requires a one-time download (~1 GB). This enables offline, private speech-to-text.")
         }
+    }
+
+    private func progressRing(_ progress: Double) -> some View {
+        ZStack {
+            Circle()
+                .stroke(Color.gray.opacity(0.3), lineWidth: 2)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.linear(duration: 0.3), value: progress)
+        }
+        .frame(width: 16, height: 16)
     }
 
     private func handleTap() {
@@ -303,7 +309,8 @@ private struct MacMicButton: View {
 
     private var buttonColor: Color {
         switch engine.state {
-        case .idle, .loadingModel: return Color.gray.opacity(0.5)
+        case .idle: return Color.gray.opacity(0.5)
+        case .loadingModel: return Color.blue.opacity(0.6)
         case .recording: return Color.red.opacity(0.8)
         case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
         case .error: return Color.red.opacity(0.8)

@@ -36,7 +36,6 @@ struct ClaudeRelayMacApp: App {
 
         Settings {
             SettingsView()
-                .frame(width: 600, height: 400)
         }
     }
 

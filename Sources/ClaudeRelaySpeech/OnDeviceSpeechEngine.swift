@@ -1,4 +1,6 @@
 import Foundation
+import Combine
+import AVFoundation
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -29,6 +31,8 @@ public final class OnDeviceSpeechEngine: ObservableObject {
     private let textCleaner: TextCleaner?
 
     private var processingTask: Task<Result<String, Error>, Never>?
+
+    private var modelStoreSubscription: AnyCancellable?
 
     #if canImport(UIKit)
     private var memoryWarningObserver: NSObjectProtocol?
@@ -70,6 +74,12 @@ public final class OnDeviceSpeechEngine: ObservableObject {
         self.whisperTranscriber = whisperTranscriber
         self.textCleaner = textCleaner
         self.modelsReady = modelStore.modelsReady
+        modelStoreSubscription = modelStore.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.modelsReady = self.modelStore.modelsReady
+            }
+        }
         #if canImport(UIKit)
         observeMemoryWarnings()
         #endif
@@ -100,6 +110,18 @@ public final class OnDeviceSpeechEngine: ObservableObject {
 
     public func startRecording() async {
         guard state == .idle else { return }
+
+        #if os(macOS)
+        let micAccess = await AVCaptureDevice.requestAccess(for: .audio)
+        guard micAccess else {
+            state = .error("Microphone access denied — grant permission in System Settings > Privacy")
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                if case .error = self.state { self.state = .idle }
+            }
+            return
+        }
+        #endif
 
         do {
             // Load models into memory if cached but not yet loaded (e.g. after app relaunch)
