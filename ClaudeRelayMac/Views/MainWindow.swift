@@ -52,21 +52,13 @@ struct MainWindow: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    Task { await toggleRecording() }
-                } label: {
-                    Label(
-                        speechEngine.state.isActive ? "Stop Recording" : "Record",
-                        systemImage: speechEngine.state.isActive ? "stop.circle.fill" : "mic"
-                    )
-                }
-                .disabled(coordinator?.activeSessionId == nil)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 } label: {
                     Label("Settings", systemImage: "gear")
                 }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                MacMicButton(engine: speechEngine, coordinator: coordinator)
             }
         }
         .task { await attemptAutoConnect() }
@@ -113,25 +105,6 @@ struct MainWindow: View {
         }
     }
 
-    private func toggleRecording() async {
-        if speechEngine.state.isActive {
-            let settings = AppSettings.shared
-            let text = await speechEngine.stopAndProcess(
-                smartCleanup: settings.smartCleanupEnabled,
-                promptEnhancement: settings.promptEnhancementEnabled,
-                bearerToken: settings.bedrockBearerToken,
-                region: settings.bedrockRegion
-            )
-            if let text, !text.isEmpty,
-               let coordinator,
-               let id = coordinator.activeSessionId,
-               let vm = coordinator.viewModel(for: id) {
-                vm.sendInput(text)
-            }
-        } else {
-            await speechEngine.startRecording()
-        }
-    }
 }
 
 private struct WorkspaceView: View {
@@ -229,5 +202,83 @@ private struct FailureView: View {
             Button("Choose Server") { onChooseServer() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Mic Button (matches iOS styling)
+
+private struct MacMicButton: View {
+    @ObservedObject var engine: OnDeviceSpeechEngine
+    let coordinator: SessionCoordinator?
+
+    var body: some View {
+        Button {
+            handleTap()
+        } label: {
+            Image(systemName: buttonIcon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 26, height: 26)
+                .background(buttonColor)
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .help(engine.state.description)
+    }
+
+    private func handleTap() {
+        switch engine.state {
+        case .idle:
+            Task { await engine.startRecording() }
+        case .recording:
+            Task {
+                let settings = AppSettings.shared
+                let text = await engine.stopAndProcess(
+                    smartCleanup: settings.smartCleanupEnabled,
+                    promptEnhancement: settings.promptEnhancementEnabled,
+                    bearerToken: settings.bedrockBearerToken,
+                    region: settings.bedrockRegion
+                )
+                if let text, !text.isEmpty,
+                   let coordinator,
+                   let id = coordinator.activeSessionId,
+                   let vm = coordinator.viewModel(for: id) {
+                    vm.sendInput(text)
+                }
+            }
+        case .error:
+            engine.cancel()
+        default:
+            break
+        }
+    }
+
+    private var isDisabled: Bool {
+        switch engine.state {
+        case .loadingModel, .transcribing, .cleaning:
+            return true
+        default:
+            return coordinator?.activeSessionId == nil
+        }
+    }
+
+    private var buttonIcon: String {
+        switch engine.state {
+        case .idle, .loadingModel: return "mic"
+        case .recording: return "mic.fill"
+        case .transcribing: return "waveform"
+        case .cleaning: return "sparkles"
+        case .error: return "mic"
+        }
+    }
+
+    private var buttonColor: Color {
+        switch engine.state {
+        case .idle, .loadingModel: return Color.gray.opacity(0.5)
+        case .recording: return Color.red.opacity(0.8)
+        case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
+        case .error: return Color.red.opacity(0.8)
+        }
     }
 }

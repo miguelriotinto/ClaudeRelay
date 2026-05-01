@@ -80,12 +80,12 @@ struct ActiveTerminalView: View {
         }
         .safeAreaInset(edge: .top) {
             HStack(spacing: 6) {
-                ToolbarIconButton(icon: "chevron.left") { onDisconnect() }
                 ToolbarIconButton(icon: "sidebar.left") {
                     withAnimation {
                         columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
                     }
                 }
+                ToolbarIconButton(icon: "server.rack") { onDisconnect() }
                 ToolbarIconButton(icon: "fn", isActive: showKeyBar) { showKeyBar.toggle() }
 
                 ConnectionQualityDot(quality: coordinator.connection.connectionQuality, size: 8)
