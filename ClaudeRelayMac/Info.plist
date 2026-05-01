@@ -36,5 +36,9 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>ClaudeDock uses the camera to scan QR codes for session sharing.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ClaudeDock needs microphone access for voice-to-text input.</string>
 </dict>
 </plist>
