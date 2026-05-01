@@ -19,15 +19,6 @@ struct StatusBarView: View {
             if let id = coordinator.activeSessionId {
                 ActivityDot(activity: activityFor(id), size: 6)
             }
-
-            Button {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-            } label: {
-                Image(systemName: "gear")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
