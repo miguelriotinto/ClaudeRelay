@@ -27,34 +27,51 @@ struct KeyCaptureView: NSViewRepresentable {
 
     final class Coordinator: KeyCaptureDelegate {
         let parent: KeyCaptureView
-        private var lastModifiers: NSEvent.ModifierFlags = []
-        private var lastKey: String = ""
+        private var committedModifiers: NSEvent.ModifierFlags = []
+        private var committedKey: String = ""
+        private var didCommit = false
 
         init(_ parent: KeyCaptureView) {
             self.parent = parent
         }
 
         func keysChanged(modifiers: NSEvent.ModifierFlags, key: String) {
-            lastModifiers = modifiers
-            lastKey = key
+            guard !didCommit else { return }
             parent.capturedModifiers = modifiers
             parent.capturedKey = key
+            if !key.isEmpty {
+                committedModifiers = modifiers
+                committedKey = key
+            }
         }
 
-        func committed() {
-            guard !lastModifiers.isEmpty else {
+        func committed(view: KeyCaptureNSView) {
+            guard !didCommit else { return }
+            didCommit = true
+            view.stopCapturing()
+
+            guard !committedModifiers.isEmpty, !committedKey.isEmpty else {
                 parent.isCapturing = false
                 return
             }
-            parent.onCommit(lastModifiers, lastKey)
+            parent.capturedModifiers = committedModifiers
+            parent.capturedKey = committedKey
+            parent.onCommit(committedModifiers, committedKey)
             parent.isCapturing = false
+        }
+
+        func reset() {
+            didCommit = false
+            committedModifiers = []
+            committedKey = ""
         }
     }
 }
 
 protocol KeyCaptureDelegate: AnyObject {
     func keysChanged(modifiers: NSEvent.ModifierFlags, key: String)
-    func committed()
+    func committed(view: KeyCaptureNSView)
+    func reset()
 }
 
 final class KeyCaptureNSView: NSView {
@@ -68,6 +85,7 @@ final class KeyCaptureNSView: NSView {
 
     func startCapturing() {
         guard keyMonitor == nil else { return }
+        delegate?.reset()
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleKeyDown(event)
@@ -90,21 +108,17 @@ final class KeyCaptureNSView: NSView {
     private func handleKeyDown(_ event: NSEvent) {
         let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        guard !key.isEmpty, !mods.isEmpty else { return }
         currentModifiers = mods
         currentKey = key
         delegate?.keysChanged(modifiers: mods, key: key)
-        delegate?.committed()
+        delegate?.committed(view: self)
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
         let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])
         currentModifiers = mods
-        if mods.isEmpty && !currentKey.isEmpty {
-            delegate?.committed()
-            currentKey = ""
-        } else {
-            delegate?.keysChanged(modifiers: mods, key: currentKey)
-        }
+        delegate?.keysChanged(modifiers: mods, key: currentKey)
     }
 
     deinit {

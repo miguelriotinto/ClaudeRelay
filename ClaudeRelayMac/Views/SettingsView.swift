@@ -95,16 +95,18 @@ private struct GeneralSettingsTab: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 SettingsSectionHeader(title: "Appearance")
-                SettingsRow {
-                    Text("Session naming theme")
-                    Spacer()
-                    Picker("", selection: $settings.sessionNamingTheme) {
-                        ForEach(SessionNamingTheme.allCases) { theme in
-                            Text(theme.displayName).tag(theme)
+                SettingsGroup {
+                    SettingsGroupRow(showDivider: false) {
+                        Text("Session naming theme")
+                        Spacer()
+                        Picker("", selection: $settings.sessionNamingTheme) {
+                            ForEach(SessionNamingTheme.allCases) { theme in
+                                Text(theme.displayName).tag(theme)
+                            }
                         }
+                        .labelsHidden()
+                        .fixedSize()
                     }
-                    .labelsHidden()
-                    .frame(maxWidth: 200)
                 }
 
                 SettingsSectionHeader(title: "Recording Shortcut")

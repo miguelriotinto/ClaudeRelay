@@ -138,7 +138,7 @@ private struct WorkspaceView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                MacMicButton(engine: speechEngine, coordinator: coordinator)
+                MacMicButton(engine: speechEngine, coordinator: coordinator, hasActiveSession: coordinator.activeSessionId != nil)
             }
         }
         .toolbarBackground(.black, for: .windowToolbar)
@@ -211,6 +211,7 @@ private struct FailureView: View {
 private struct MacMicButton: View {
     @ObservedObject var engine: OnDeviceSpeechEngine
     let coordinator: SessionCoordinator?
+    let hasActiveSession: Bool
     @State private var showDownloadAlert = false
 
     var body: some View {
@@ -294,7 +295,7 @@ private struct MacMicButton: View {
         case .loadingModel, .transcribing, .cleaning:
             return true
         default:
-            return coordinator?.activeSessionId == nil || engine.modelStore.downloadProgress != nil
+            return !hasActiveSession || engine.modelStore.downloadProgress != nil
         }
     }
 
