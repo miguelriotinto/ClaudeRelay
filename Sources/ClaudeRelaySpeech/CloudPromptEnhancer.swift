@@ -40,6 +40,16 @@ public final class CloudPromptEnhancer: Sendable {
     ///   - bearerToken: AWS Bedrock bearer token.
     ///   - region: AWS region (e.g. "us-east-1").
     /// - Returns: The enhanced prompt string.
+    private static let refusalPrefixes = [
+        "I cannot enhance",
+        "I can't enhance",
+        "I'm unable to enhance",
+        "This is not",
+        "This isn't",
+        "If you have a task",
+        "Please provide",
+    ]
+
     public func enhance(_ text: String, bearerToken: String, region: String) async throws -> String {
         guard !bearerToken.isEmpty else {
             throw EnhancerError.missingBearerToken
@@ -86,7 +96,16 @@ public final class CloudPromptEnhancer: Sendable {
             throw EnhancerError.bedrockError(statusCode: httpResponse.statusCode, message: body)
         }
 
-        return try parseResponse(data)
+        let enhanced = try parseResponse(data)
+
+        let lowered = enhanced.lowercased()
+        for prefix in Self.refusalPrefixes {
+            if lowered.hasPrefix(prefix.lowercased()) {
+                return text
+            }
+        }
+
+        return enhanced
     }
 
     /// Parse the Bedrock Converse API response to extract the assistant's text.
