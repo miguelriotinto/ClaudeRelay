@@ -88,10 +88,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.claude.relay.mac
+        PRODUCT_NAME: ClaudeDock
         INFOPLIST_FILE: ClaudeRelayMac/Info.plist
-        INFOPLIST_KEY_CFBundleDisplayName: "Claude Relay"
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Claude Relay needs microphone access for voice-to-text input."
-        INFOPLIST_KEY_NSCameraUsageDescription: "Claude Relay uses the camera to scan QR codes for session sharing."
+        INFOPLIST_KEY_CFBundleDisplayName: ClaudeDock
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "ClaudeDock needs microphone access for voice-to-text input."
+        INFOPLIST_KEY_NSCameraUsageDescription: "ClaudeDock uses the camera to scan QR codes for session sharing."
         INFOPLIST_KEY_LSUIElement: NO
         SWIFT_VERSION: "5.9"
         DEVELOPMENT_TEAM: T9WF95GC9T

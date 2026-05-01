@@ -33,10 +33,10 @@ Note: Service commands are top-level (`claude-relay stop`), while token/session/
 Six SPM targets + iOS app + macOS app (both XcodeGen-managed via `project.yml`):
 
 - **CPTYShim** — C shim for `forkpty` used by PTYSession.
-- **ClaudeRelayKit** — Shared library: protocol models (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), `SessionInfo`, `TokenInfo`, `RelayConfig`, `ConfigManager`. Used by all other targets.
+- **ClaudeRelayKit** — Shared library: protocol models (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), `SessionInfo`, `TokenInfo`, `RelayConfig`, `ConfigManager`, `ConnectionQuality`, `ActivityState`, `SessionState`. Used by all other targets.
 - **ClaudeRelayServer** — NIO-based server: `WebSocketServer` (port 9200, optional TLS via NIO-SSL) + `AdminHTTPServer` (port 9100, localhost-only). Uses actors: `SessionManager`, `TokenStore`, `PTYSession`. Rate-limited via `RateLimiter` actor.
 - **ClaudeRelayCLI** — ArgumentParser CLI (`claude-relay`): token/session/config/service/log management. Talks to admin HTTP API.
-- **ClaudeRelayClient** — URLSessionWebSocketTask client: `RelayConnection` (WebSocket transport), `SessionController` (session lifecycle), `AuthManager` (auth flow). Also hosts cross-platform `SessionCoordinating` protocol and `SessionNaming` helpers used by both apps.
+- **ClaudeRelayClient** — URLSessionWebSocketTask client: `RelayConnection` (WebSocket transport + connection quality monitoring), `SessionController` (session lifecycle), `SharedSessionCoordinator` (cross-platform coordinator with recovery), `AuthManager` (auth flow). Also hosts `SessionCoordinating` protocol, `SessionNaming` helpers, `NetworkMonitor`, and `ConnectionConfig` used by both apps.
 - **ClaudeRelaySpeech** — Cross-platform on-device speech pipeline shared by both apps: `OnDeviceSpeechEngine`, `WhisperTranscriber` (WhisperKit), `TextCleaner` (LLM.swift), `CloudPromptEnhancer` (Bedrock Haiku), `AudioCaptureSession`, `SpeechModelStore`. iOS-only APIs (`AVAudioSession`, `UIApplication` memory-warning observer) are guarded by `#if canImport(UIKit)`; storage paths/keys are `#if os(iOS)`-branched to preserve existing user downloads.
 - **ClaudeRelayApp/** — iOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + ClaudeRelaySpeech + SwiftTerm.
 - **ClaudeRelayMac/** — macOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + ClaudeRelaySpeech + SwiftTerm. Menu-bar persistent, single-window with sidebar + native tab support, full iOS feature parity.
@@ -71,14 +71,25 @@ The WebSocket server uses default `JSONEncoder` (Double timestamps). The Admin H
 
 `AdminRoutes.applyConfigValue()` validates all config updates: ports must be 1024–65535, `scrollbackSize` >= 1024, `detachTimeout` >= 0, `logLevel` must be one of trace/debug/info/warning/error. The CLI's `ConfigValue.infer(from:)` handles type coercion from string arguments.
 
-### iOS App Architecture
+### App Architecture (iOS + macOS)
 
-- **ServerListView** — Primary screen: tap server to connect directly, swipe for edit/delete
+Both apps share `SharedSessionCoordinator` (in ClaudeRelayClient) for session lifecycle, recovery, naming, and ownership. Platform subclasses add only platform-specific glue (e.g., macOS registers `SleepWakeObserver`; iOS uses `scenePhase`).
+
+- **ServerListView** — Primary screen: tap/click server to connect, swipe/right-click for edit/delete
 - **AddEditServerView** — Modal sheet for server configuration (add/edit modes, with delete)
-- **WorkspaceView** — NavigationSplitView: sidebar (sessions) + detail (terminal), presented as fullScreenCover
-- **SessionCoordinator** — Manages auth, session lifecycle, caches TerminalViewModels, routes I/O
-- **Foreground recovery** — On `scenePhase` `.active`: pings WebSocket, reconnects if dead, re-authenticates, resumes session
+- **WorkspaceView** (iOS) / **MainWindow** (macOS) — NavigationSplitView: sidebar (sessions) + detail (terminal)
+- **SharedSessionCoordinator** — Cross-platform: manages auth, session lifecycle, caches TerminalViewModels, routes I/O, handles recovery
+- **SessionCoordinator** (per platform) — Thin subclass: iOS uses default; macOS adds sleep/wake recovery and tab navigation
 - **OnDeviceSpeechEngine** — Offline speech-to-text via WhisperKit (CoreML/ANE), with LLM-based text cleanup and optional cloud prompt enhancement via Anthropic Haiku
+
+### Connection Health & Quality Monitoring
+
+`RelayConnection` maintains connection health via application-level ping/pong (`ClientMessage.ping` → `ServerMessage.pong`) on a 10-second interval. This exercises the full JSON message path rather than relying on WebSocket-level pings (opcode 0x9), which are silently dropped by some network configurations.
+
+- **RTT tracking**: Sliding window of 6 measurements → `ConnectionQuality` enum (excellent/good/poor/veryPoor/disconnected) based on median RTT + success rate
+- **Death detection**: 3 consecutive ping failures triggers `onSendFailed`, which the coordinator handles via `handleForegroundTransition`
+- **Recovery ownership**: Only the coordinator (`SharedSessionCoordinator`) drives recovery. `forceReconnect()` deliberately does NOT enable auto-reconnect to prevent competing recovery loops
+- **Pong routing**: Pongs are intercepted via a dedicated `pendingPongContinuation` in `handleWebSocketMessage`, not through `onServerMessage`, so they don't conflict with `SessionController.sendAndWaitForResponse`
 
 ### Server-Side Activity Monitoring
 

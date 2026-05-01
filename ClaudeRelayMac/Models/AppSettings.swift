@@ -21,6 +21,8 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("com.clauderelay.mac.launchAtLogin") var launchAtLoginEnabled = false
 
+    @AppStorage("com.clauderelay.mac.autoConnectEnabled") var autoConnectEnabled = false
+
     @AppStorage("com.clauderelay.mac.smartCleanupEnabled") var smartCleanupEnabled = true
     @AppStorage("com.clauderelay.mac.promptEnhancementEnabled") var promptEnhancementEnabled = false
     @AppStorage("com.clauderelay.mac.bedrockBearerToken") var bedrockBearerToken = ""

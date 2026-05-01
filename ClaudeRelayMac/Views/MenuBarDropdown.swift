@@ -52,10 +52,10 @@ struct MenuBarDropdown: View {
                         return
                     }
                 }
-                MenuButton(label: "Preferences...") {
-                    NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+                MenuButton(label: "Settings...") {
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 }
-                MenuButton(label: "Quit Claude Relay") {
+                MenuButton(label: "Quit ClaudeDock") {
                     NSApp.terminate(nil)
                 }
             }

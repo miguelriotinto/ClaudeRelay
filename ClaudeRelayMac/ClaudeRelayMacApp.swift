@@ -14,7 +14,7 @@ struct ClaudeRelayMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        WindowGroup("Claude Relay") {
+        WindowGroup("ClaudeDock") {
             MainWindow()
                 .frame(minWidth: 800, minHeight: 500)
                 .onOpenURL { url in
@@ -22,7 +22,7 @@ struct ClaudeRelayMacApp: App {
                 }
         }
         .windowResizability(.contentMinSize)
-        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             AppCommands()
         }
@@ -47,7 +47,6 @@ struct ClaudeRelayMacApp: App {
               let uuid = UUID(uuidString: uuidString) else {
             return
         }
-        // Route to active coordinator.
         Task { @MainActor in
             if let coordinator = ActiveCoordinatorRegistry.shared.coordinator {
                 await coordinator.attachRemoteSession(id: uuid)

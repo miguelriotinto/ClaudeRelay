@@ -4,10 +4,10 @@ import ClaudeRelayKit
 
 private let logger = Logger(subsystem: "com.claude.relay.client", category: "RelayConnection")
 
-/// Manages a WebSocket connection to a ClaudeRelay server.
+/// Manages a WebSocket connection to a ClaudeRelay server with connection quality monitoring.
 ///
-/// Uses `URLSessionWebSocketTask` for transport, which works on both macOS and iOS.
-/// Handles connection lifecycle including automatic reconnection with exponential backoff.
+/// Uses `URLSessionWebSocketTask` for transport. Monitors health via application-level
+/// ping/pong on a 10-second interval. Recovery is owned by `SharedSessionCoordinator`.
 @MainActor
 public final class RelayConnection: ObservableObject {
 
@@ -59,9 +59,7 @@ public final class RelayConnection: ObservableObject {
     /// Push callback: server renamed a session (another device renamed it).
     public var onSessionRenamed: ((UUID, String) -> Void)?
 
-    /// Called after a successful auto-reconnect (exponential backoff).
-    /// Use this to re-authenticate and resume the active session.
-    /// NOTE: Callers should capture [weak coordinator] in the closure to avoid retain cycles.
+    /// Called after a successful auto-reconnect so the coordinator can re-authenticate.
     public var onReconnected: (() -> Void)?
 
     /// Called when a send operation fails, indicating the connection is dead.

@@ -23,7 +23,6 @@ struct ActiveTerminalView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 0) {
-                // Terminal or placeholder
                 if let id = coordinator.activeSessionId,
                    let vm = coordinator.viewModel(for: id) {
                     SwiftTermView(viewModel: vm, isKeyboardVisible: $isKeyboardVisible)
@@ -81,7 +80,6 @@ struct ActiveTerminalView: View {
         }
         .safeAreaInset(edge: .top) {
             HStack(spacing: 6) {
-                // Fixed left: icon buttons
                 ToolbarIconButton(icon: "chevron.left") { onDisconnect() }
                 ToolbarIconButton(icon: "sidebar.left") {
                     withAnimation {
@@ -90,7 +88,6 @@ struct ActiveTerminalView: View {
                 }
                 ToolbarIconButton(icon: "fn", isActive: showKeyBar) { showKeyBar.toggle() }
 
-                // Fixed left: connectivity indicator + session time
                 ConnectionQualityDot(quality: coordinator.connection.connectionQuality, size: 8)
 
                 if let id = coordinator.activeSessionId {
@@ -99,7 +96,6 @@ struct ActiveTerminalView: View {
                     }
                 }
 
-                // Scrollable middle: session tabs
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
@@ -124,14 +120,12 @@ struct ActiveTerminalView: View {
                     }
                 }
 
-                // QR code button
                 if coordinator.activeSessionId != nil {
                     ToolbarIconButton(icon: "qrcode") {
                         showQROverlay = true
                     }
                 }
 
-                // Fixed right: session name pill
                 if let id = coordinator.activeSessionId {
                     Text(coordinator.name(for: id))
                         .font(.system(.caption, design: .rounded))

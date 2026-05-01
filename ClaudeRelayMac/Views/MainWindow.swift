@@ -61,6 +61,13 @@ struct MainWindow: View {
                 }
                 .disabled(coordinator?.activeSessionId == nil)
             }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                } label: {
+                    Label("Settings", systemImage: "gear")
+                }
+            }
         }
         .task { await attemptAutoConnect() }
         .sheet(isPresented: $showServerList) {

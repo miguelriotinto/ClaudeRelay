@@ -3,11 +3,9 @@ import ClaudeRelayClient
 import ClaudeRelaySpeech
 
 struct SettingsView: View {
-    @StateObject private var settings = AppSettings.shared
-
     var body: some View {
         TabView {
-            GeneralSettingsTab(settings: settings)
+            GeneralSettingsTab()
                 .tabItem { Label("General", systemImage: "gear") }
 
             SpeechSettingsTab()
@@ -15,27 +13,36 @@ struct SettingsView: View {
 
             ServersSettingsTab()
                 .tabItem { Label("Servers", systemImage: "server.rack") }
+
+            AboutSettingsTab()
+                .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 600, height: 420)
+        .frame(width: 560, height: 460)
+        .preferredColorScheme(.dark)
     }
 }
 
+// MARK: - General
+
 private struct GeneralSettingsTab: View {
-    @ObservedObject var settings: AppSettings
+    @StateObject private var settings = AppSettings.shared
     @State private var isCapturing = false
     @State private var capturedModifiers: NSEvent.ModifierFlags = []
     @State private var capturedKey: String = ""
 
     var body: some View {
         Form {
-            Section("Appearance") {
+            Section {
                 Picker("Session naming theme", selection: $settings.sessionNamingTheme) {
                     ForEach(SessionNamingTheme.allCases) { theme in
                         Text(theme.displayName).tag(theme)
                     }
                 }
+            } header: {
+                Text("Appearance")
             }
-            Section("Recording Shortcut") {
+
+            Section {
                 Toggle("Enable shortcut", isOn: $settings.recordingShortcutEnabled)
                 if settings.recordingShortcutEnabled {
                     if isCapturing {
@@ -60,10 +67,8 @@ private struct GeneralSettingsTab: View {
                                 }
                             )
                             .frame(width: 0, height: 0)
-                            Button("Cancel") {
-                                isCapturing = false
-                            }
-                            .font(.subheadline)
+                            Button("Cancel") { isCapturing = false }
+                                .font(.subheadline)
                         }
                         .padding(.vertical, 4)
                     } else {
@@ -80,8 +85,20 @@ private struct GeneralSettingsTab: View {
                         }
                     }
                 }
+            } header: {
+                Text("Recording Shortcut")
+            } footer: {
+                if settings.recordingShortcutEnabled && !isCapturing {
+                    if settings.recordingShortcutKey.isEmpty {
+                        Text("Click Change and press a modifier + letter combination (e.g. ⌘⌥R).")
+                    } else {
+                        Text("Press \(settings.shortcutDisplayString) to toggle speech recording.")
+                    }
+                }
             }
-            Section("Launch") {
+
+            Section {
+                Toggle("Auto connect on launch", isOn: $settings.autoConnectEnabled)
                 Toggle("Show window on launch", isOn: $settings.showWindowOnLaunch)
                 Toggle("Launch at login", isOn: Binding(
                     get: { settings.launchAtLoginEnabled },
@@ -94,20 +111,26 @@ private struct GeneralSettingsTab: View {
                         }
                     }
                 ))
+            } header: {
+                Text("Launch")
+            } footer: {
+                Text("Automatically reconnect to the last server on launch.")
             }
         }
         .formStyle(.grouped)
-        .padding()
     }
 }
+
+// MARK: - Speech
 
 private struct SpeechSettingsTab: View {
     @StateObject private var settings = AppSettings.shared
     @StateObject private var store = SpeechModelStore.shared
+    @State private var showTokenRequired = false
 
     var body: some View {
         Form {
-            Section("Models") {
+            Section {
                 if store.modelsReady {
                     Label("Models downloaded", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -127,26 +150,78 @@ private struct SpeechSettingsTab: View {
                         }
                     }
                 }
+            } header: {
+                Text("Models")
             }
-            Section("Transcription") {
+
+            Section {
                 Toggle("Smart cleanup (local LLM)", isOn: $settings.smartCleanupEnabled)
                 Toggle("Prompt enhancement (Bedrock Haiku)", isOn: $settings.promptEnhancementEnabled)
-                if settings.promptEnhancementEnabled {
-                    SecureField("Bedrock Bearer Token", text: $settings.bedrockBearerToken)
+            } header: {
+                Text("Speech to Text")
+            } footer: {
+                Text(speechFooterText)
+            }
+
+            if settings.promptEnhancementEnabled {
+                Section {
+                    SecureField("Bearer Token", text: $settings.bedrockBearerToken)
                         .textContentType(.password)
-                    TextField("AWS Region", text: $settings.bedrockRegion)
+                    TextField("Region", text: $settings.bedrockRegion)
+                } header: {
+                    Text("AWS Bedrock")
+                } footer: {
+                    Text("Prompt Enhancement uses Claude Haiku on AWS Bedrock. Paste your bearer token to enable cloud-based prompt rewriting.")
                 }
             }
         }
         .formStyle(.grouped)
-        .padding()
+        .alert("Bearer Token Required", isPresented: $showTokenRequired) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Prompt Enhancement requires an AWS Bedrock bearer token. Paste your token or disable Prompt Enhancement.")
+        }
+    }
+
+    private var speechFooterText: String {
+        if settings.promptEnhancementEnabled {
+            return "Transcribed speech is sent to Claude Haiku on AWS Bedrock and rewritten as an optimized prompt."
+        } else if settings.smartCleanupEnabled {
+            return "Filler words are removed and punctuation is fixed locally on-device before pasting into the terminal."
+        } else {
+            return "Raw transcription is pasted directly into the terminal with no processing."
+        }
     }
 }
 
+// MARK: - Servers
+
 private struct ServersSettingsTab: View {
     var body: some View {
-        ServerListWindow { _ in
-            // No connect action from settings — just manage the list.
+        ServerListWindow { _ in }
+    }
+}
+
+// MARK: - About
+
+private struct AboutSettingsTab: View {
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Version", value: appVersion)
+                LabeledContent("Build", value: buildNumber)
+            } header: {
+                Text("ClaudeDock")
+            }
         }
+        .formStyle(.grouped)
+    }
+
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–"
+    }
+
+    private var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "–"
     }
 }
