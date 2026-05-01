@@ -8,12 +8,11 @@ struct MainWindow: View {
     @State private var coordinator: SessionCoordinator?
     @State private var showServerList = false
     @State private var loadFailure: String?
-    @State private var showQRPopover = false
 
     var body: some View {
         Group {
             if let coordinator {
-                WorkspaceView(coordinator: coordinator)
+                WorkspaceView(coordinator: coordinator, speechEngine: speechEngine)
             } else if let failure = loadFailure {
                 FailureView(message: failure) { showServerList = true }
             } else {
@@ -38,27 +37,9 @@ struct MainWindow: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showQRPopover = true
-                } label: {
-                    Label("Share via QR Code", systemImage: "qrcode")
-                }
-                .disabled(coordinator?.activeSessionId == nil)
-                .popover(isPresented: $showQRPopover, arrowEdge: .bottom) {
-                    if let coordinator, let id = coordinator.activeSessionId {
-                        QRCodePopover(sessionId: id, sessionName: coordinator.name(for: id))
-                    }
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                } label: {
+                SettingsLink {
                     Label("Settings", systemImage: "gear")
                 }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                MacMicButton(engine: speechEngine, coordinator: coordinator)
             }
         }
         .task { await attemptAutoConnect() }
@@ -109,7 +90,9 @@ struct MainWindow: View {
 
 private struct WorkspaceView: View {
     @ObservedObject var coordinator: SessionCoordinator
+    @ObservedObject var speechEngine: OnDeviceSpeechEngine
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var showQRPopover = false
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -139,6 +122,24 @@ private struct WorkspaceView: View {
                 StatusBarView(coordinator: coordinator)
             }
             .background(.black)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showQRPopover = true
+                } label: {
+                    Label("Share via QR Code", systemImage: "qrcode")
+                }
+                .disabled(coordinator.activeSessionId == nil)
+                .popover(isPresented: $showQRPopover, arrowEdge: .bottom) {
+                    if let id = coordinator.activeSessionId {
+                        QRCodePopover(sessionId: id, sessionName: coordinator.name(for: id))
+                    }
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                MacMicButton(engine: speechEngine, coordinator: coordinator)
+            }
         }
         .toolbarBackground(.black, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)

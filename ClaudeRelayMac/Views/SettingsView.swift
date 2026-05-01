@@ -45,11 +45,13 @@ private struct SettingsSectionFooter: View {
 private struct SettingsRow<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
-        content
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.white.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        HStack {
+            content
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -69,9 +71,11 @@ private struct SettingsGroupRow<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
         VStack(spacing: 0) {
-            content
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+            HStack {
+                content
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             if showDivider {
                 Divider().padding(.leading, 12)
             }
@@ -92,17 +96,25 @@ private struct GeneralSettingsTab: View {
             VStack(alignment: .leading, spacing: 8) {
                 SettingsSectionHeader(title: "Appearance")
                 SettingsRow {
-                    Picker("Session naming theme", selection: $settings.sessionNamingTheme) {
+                    Text("Session naming theme")
+                    Spacer()
+                    Picker("", selection: $settings.sessionNamingTheme) {
                         ForEach(SessionNamingTheme.allCases) { theme in
                             Text(theme.displayName).tag(theme)
                         }
                     }
+                    .labelsHidden()
+                    .frame(maxWidth: 200)
                 }
 
                 SettingsSectionHeader(title: "Recording Shortcut")
                 SettingsGroup {
                     SettingsGroupRow {
-                        Toggle("Enable shortcut", isOn: $settings.recordingShortcutEnabled)
+                        Text("Enable shortcut")
+                        Spacer()
+                        Toggle("", isOn: $settings.recordingShortcutEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
                     if settings.recordingShortcutEnabled {
                         if isCapturing {
@@ -135,16 +147,14 @@ private struct GeneralSettingsTab: View {
                             }
                         } else {
                             SettingsGroupRow(showDivider: false) {
-                                HStack {
-                                    Text("Key Combination")
-                                    Spacer()
-                                    Text(settings.shortcutDisplayString.isEmpty ? "None" : settings.shortcutDisplayString)
-                                        .foregroundStyle(.secondary)
-                                    Button("Change") {
-                                        capturedModifiers = []
-                                        capturedKey = ""
-                                        isCapturing = true
-                                    }
+                                Text("Key Combination")
+                                Spacer()
+                                Text(settings.shortcutDisplayString.isEmpty ? "None" : settings.shortcutDisplayString)
+                                    .foregroundStyle(.secondary)
+                                Button("Change") {
+                                    capturedModifiers = []
+                                    capturedKey = ""
+                                    isCapturing = true
                                 }
                             }
                         }
@@ -161,13 +171,23 @@ private struct GeneralSettingsTab: View {
                 SettingsSectionHeader(title: "Launch")
                 SettingsGroup {
                     SettingsGroupRow {
-                        Toggle("Auto connect on launch", isOn: $settings.autoConnectEnabled)
+                        Text("Auto connect on launch")
+                        Spacer()
+                        Toggle("", isOn: $settings.autoConnectEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
                     SettingsGroupRow {
-                        Toggle("Show window on launch", isOn: $settings.showWindowOnLaunch)
+                        Text("Show window on launch")
+                        Spacer()
+                        Toggle("", isOn: $settings.showWindowOnLaunch)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
                     SettingsGroupRow(showDivider: false) {
-                        Toggle("Launch at login", isOn: Binding(
+                        Text("Launch at login")
+                        Spacer()
+                        Toggle("", isOn: Binding(
                             get: { settings.launchAtLoginEnabled },
                             set: { newValue in
                                 do {
@@ -178,6 +198,8 @@ private struct GeneralSettingsTab: View {
                                 }
                             }
                         ))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
                     }
                 }
                 SettingsSectionFooter(text: "Automatically reconnect to the last server on launch.")
@@ -204,11 +226,13 @@ private struct SpeechSettingsTab: View {
                         SettingsGroupRow {
                             Label("Models downloaded", systemImage: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
+                            Spacer()
                         }
                         SettingsGroupRow(showDivider: false) {
                             Button("Delete Models") {
                                 store.deleteModels()
                             }
+                            Spacer()
                         }
                     } else {
                         SettingsGroupRow(showDivider: false) {
@@ -223,6 +247,7 @@ private struct SpeechSettingsTab: View {
                                     ProgressView(value: progress)
                                 }
                             }
+                            Spacer()
                         }
                     }
                 }
@@ -230,10 +255,18 @@ private struct SpeechSettingsTab: View {
                 SettingsSectionHeader(title: "Speech to Text")
                 SettingsGroup {
                     SettingsGroupRow {
-                        Toggle("Smart cleanup (local LLM)", isOn: $settings.smartCleanupEnabled)
+                        Text("Smart cleanup (local LLM)")
+                        Spacer()
+                        Toggle("", isOn: $settings.smartCleanupEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
                     SettingsGroupRow(showDivider: false) {
-                        Toggle("Prompt enhancement (Bedrock Haiku)", isOn: $settings.promptEnhancementEnabled)
+                        Text("Prompt enhancement (Bedrock Haiku)")
+                        Spacer()
+                        Toggle("", isOn: $settings.promptEnhancementEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
                 }
                 SettingsSectionFooter(text: speechFooterText)
@@ -242,21 +275,17 @@ private struct SpeechSettingsTab: View {
                     SettingsSectionHeader(title: "AWS Bedrock")
                     SettingsGroup {
                         SettingsGroupRow {
-                            HStack {
-                                Text("Bearer Token")
-                                Spacer()
-                                SecureField("", text: $settings.bedrockBearerToken)
-                                    .textContentType(.password)
-                                    .frame(maxWidth: 250)
-                            }
+                            Text("Bearer Token")
+                            Spacer()
+                            SecureField("", text: $settings.bedrockBearerToken)
+                                .textContentType(.password)
+                                .frame(maxWidth: 250)
                         }
                         SettingsGroupRow(showDivider: false) {
-                            HStack {
-                                Text("Region")
-                                Spacer()
-                                TextField("", text: $settings.bedrockRegion)
-                                    .frame(maxWidth: 250)
-                            }
+                            Text("Region")
+                            Spacer()
+                            TextField("", text: $settings.bedrockRegion)
+                                .frame(maxWidth: 250)
                         }
                     }
                     SettingsSectionFooter(text: "Prompt Enhancement uses Claude Haiku on AWS Bedrock. Paste your bearer token to enable cloud-based prompt rewriting.")
@@ -288,18 +317,14 @@ private struct AboutSettingsTab: View {
                 SettingsSectionHeader(title: "ClaudeDock")
                 SettingsGroup {
                     SettingsGroupRow {
-                        HStack {
-                            Text("Version")
-                            Spacer()
-                            Text(appVersion).foregroundStyle(.secondary)
-                        }
+                        Text("Version")
+                        Spacer()
+                        Text(appVersion).foregroundStyle(.secondary)
                     }
                     SettingsGroupRow(showDivider: false) {
-                        HStack {
-                            Text("Build")
-                            Spacer()
-                            Text(buildNumber).foregroundStyle(.secondary)
-                        }
+                        Text("Build")
+                        Spacer()
+                        Text(buildNumber).foregroundStyle(.secondary)
                     }
                 }
             }
