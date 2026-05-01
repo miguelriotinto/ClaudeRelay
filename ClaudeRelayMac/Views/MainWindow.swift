@@ -210,26 +210,54 @@ private struct FailureView: View {
 private struct MacMicButton: View {
     @ObservedObject var engine: OnDeviceSpeechEngine
     let coordinator: SessionCoordinator?
+    @State private var showDownloadAlert = false
 
     var body: some View {
         Button {
             handleTap()
         } label: {
-            Image(systemName: buttonIcon)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
-                .background(buttonColor)
-                .clipShape(Circle())
+            Group {
+                if let progress = engine.modelStore.downloadProgress {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 2)
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .animation(.linear(duration: 0.3), value: progress)
+                    }
+                    .frame(width: 16, height: 16)
+                } else {
+                    Image(systemName: buttonIcon)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+            }
+            .frame(width: 26, height: 26)
+            .background(buttonColor)
+            .clipShape(Circle())
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
         .help(engine.state.description)
+        .alert("Download Speech Models?", isPresented: $showDownloadAlert) {
+            Button("Download") {
+                Task { await engine.prepareModels() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("On-device voice recognition requires a one-time download (~1 GB). This enables offline, private speech-to-text.")
+        }
     }
 
     private func handleTap() {
         switch engine.state {
         case .idle:
+            guard engine.modelsReady else {
+                showDownloadAlert = true
+                return
+            }
             Task { await engine.startRecording() }
         case .recording:
             Task {
@@ -259,7 +287,7 @@ private struct MacMicButton: View {
         case .loadingModel, .transcribing, .cleaning:
             return true
         default:
-            return coordinator?.activeSessionId == nil
+            return coordinator?.activeSessionId == nil || engine.modelStore.downloadProgress != nil
         }
     }
 
