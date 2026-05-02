@@ -29,6 +29,7 @@ actor MockPTYSession: PTYSessionProtocol {
         activityHandler = handler
     }
     func recordInput() {}
+    func setPollCadence(_ seconds: TimeInterval) {}
 }
 
 // MARK: - SessionManagerTests

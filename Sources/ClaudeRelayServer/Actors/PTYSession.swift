@@ -17,6 +17,8 @@ public protocol PTYSessionProtocol: Actor {
     func getActivityState() -> ActivityState
     func setActivityHandler(_ handler: @escaping @Sendable (ActivityState) -> Void)
     func recordInput()
+    /// 1.0 for attached (responsive entry detection); 5.0 for detached.
+    func setPollCadence(_ seconds: TimeInterval)
 }
 
 // MARK: - PTYError
@@ -185,6 +187,14 @@ public actor PTYSession: PTYSessionProtocol {
         }
         timer.resume()
         foregroundPollTimer = timer
+    }
+
+    /// Adjust the foreground-process polling interval. Attached sessions use
+    /// 1.0 s for responsive Claude-entry detection; detached sessions use 5.0 s
+    /// so many-session deployments don't pay the full poll cost per second.
+    public func setPollCadence(_ seconds: TimeInterval) {
+        guard let timer = foregroundPollTimer else { return }
+        timer.schedule(deadline: .now() + seconds, repeating: seconds)
     }
 
     /// Walks the process tree from `startingPid` up through parents (max 5 hops)
