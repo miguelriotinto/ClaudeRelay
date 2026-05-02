@@ -10,39 +10,50 @@ struct SessionSidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            List(selection: Binding(
-                get: { coordinator.activeSessionId },
-                set: { newId in
-                    if let id = newId {
-                        Task { await coordinator.switchToSession(id: id) }
+            ScrollViewReader { proxy in
+                List(selection: Binding(
+                    get: { coordinator.activeSessionId },
+                    set: { newId in
+                        if let id = newId {
+                            Task { await coordinator.switchToSession(id: id) }
+                        }
+                    }
+                )) {
+                    ForEach(coordinator.activeSessions, id: \.id) { session in
+                        SessionRow(
+                            name: coordinator.name(for: session.id),
+                            shortId: String(session.id.uuidString.prefix(8)),
+                            activity: activityFor(session.id),
+                            createdAt: session.createdAt
+                        )
+                        .contextMenu {
+                            Button("Rename") {
+                                renameText = coordinator.name(for: session.id)
+                                renameTarget = session.id
+                            }
+                            Divider()
+                            Button("Terminate", role: .destructive) {
+                                terminateTarget = session.id
+                            }
+                        }
+                        .tag(session.id)
                     }
                 }
-            )) {
-                ForEach(coordinator.activeSessions, id: \.id) { session in
-                    SessionRow(
-                        name: coordinator.name(for: session.id),
-                        shortId: String(session.id.uuidString.prefix(8)),
-                        activity: activityFor(session.id),
-                        createdAt: session.createdAt
-                    )
-                    .contextMenu {
-                        Button("Rename") {
-                            renameText = coordinator.name(for: session.id)
-                            renameTarget = session.id
-                        }
-                        Divider()
-                        Button("Terminate", role: .destructive) {
-                            terminateTarget = session.id
+                .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
+                // SwiftUI's default List(selection:) auto-scroll on selection
+                // change can place the selected row partially under the window
+                // titlebar on macOS. Re-anchor it to the vertical center after
+                // the built-in scroll settles so the row lands fully visible.
+                .onChange(of: coordinator.activeSessionId) { _, newId in
+                    guard let newId else { return }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(newId, anchor: .center)
                         }
                     }
-                    .tag(session.id)
                 }
             }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            // Small top inset so the selected row's highlight never renders
-            // underneath the window titlebar / toolbar boundary.
-            .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
 
             Divider()
             HStack {
