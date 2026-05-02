@@ -5,7 +5,11 @@ public enum ClientMessage: Equatable, Sendable {
     case authRequest(token: String, protocolVersion: Int? = nil)
     case sessionCreate(name: String? = nil)
     case sessionAttach(sessionId: UUID)
-    case sessionResume(sessionId: UUID)
+    /// Resume a detached session. `skipReplay` (defaults to false) lets the
+    /// client opt out of receiving the server's ring-buffer replay when it
+    /// already has a live terminal with full scrollback for this session —
+    /// e.g. when switching between tabs on the same device.
+    case sessionResume(sessionId: UUID, skipReplay: Bool = false)
     case sessionDetach
     case sessionTerminate(sessionId: UUID)
     case sessionList
@@ -46,7 +50,7 @@ public enum ClientMessage: Equatable, Sendable {
 
 extension ClientMessage: Codable {
     private enum PayloadCodingKeys: String, CodingKey {
-        case token, sessionId, cols, rows, name, data, protocolVersion
+        case token, sessionId, cols, rows, name, data, protocolVersion, skipReplay
     }
 
     public func encodePayload(to encoder: Encoder) throws {
@@ -59,8 +63,11 @@ extension ClientMessage: Codable {
             try container.encodeIfPresent(name, forKey: .name)
         case .sessionAttach(let sessionId):
             try container.encode(sessionId, forKey: .sessionId)
-        case .sessionResume(let sessionId):
+        case .sessionResume(let sessionId, let skipReplay):
             try container.encode(sessionId, forKey: .sessionId)
+            if skipReplay {
+                try container.encode(true, forKey: .skipReplay)
+            }
         case .sessionDetach:
             break
         case .sessionTerminate(let sessionId):
@@ -97,7 +104,8 @@ extension ClientMessage: Codable {
             return .sessionAttach(sessionId: sessionId)
         case "session_resume":
             let sessionId = try container.decode(UUID.self, forKey: .sessionId)
-            return .sessionResume(sessionId: sessionId)
+            let skipReplay = try container.decodeIfPresent(Bool.self, forKey: .skipReplay) ?? false
+            return .sessionResume(sessionId: sessionId, skipReplay: skipReplay)
         case "session_detach":
             return .sessionDetach
         case "session_terminate":

@@ -70,6 +70,15 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     /// the same attempt instead of racing to send duplicate `auth_request`s (which
     /// the server rejects with "Already authenticated" on the second one).
     private var authTask: Task<SessionController, Error>?
+    /// Sessions whose terminal view has already received the initial ring-buffer
+    /// replay on first attach. On subsequent resume (tab switch back), the client
+    /// asks the server to skip the replay so scrollback isn't duplicated/truncated.
+    private var sessionsWithLiveTerminal: Set<UUID> = []
+    /// Platform-specific cache of native terminal views (NSView on macOS, UIView
+    /// on iOS). Kept alive across session switches so SwiftTerm's internal
+    /// scrollback persists. The coordinator owns these; platform hosts look up
+    /// or install entries via `terminalViewForSession`.
+    public var cachedTerminalViews: [UUID: AnyObject] = [:]
 
     // MARK: - Recovery Control
 
@@ -362,6 +371,10 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 ownedSessionIds.subtract(staleOwned)
                 saveOwned()
             }
+            // Evict cached terminal views for sessions that no longer exist
+            // on the server (exited, terminated elsewhere, server restarted).
+            let staleCached = Set(cachedTerminalViews.keys).subtracting(serverIds)
+            for id in staleCached { evictTerminal(for: id) }
             let staleNames = Set(sessionNames.keys).subtracting(serverIds)
             if !staleNames.isEmpty {
                 for id in staleNames { sessionNames.removeValue(forKey: id) }
@@ -426,19 +439,29 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     public func switchToSession(id: UUID) async {
         guard !isRecovering, id != activeSessionId else { return }
         let previousId = activeSessionId
+        let haveLiveTerminal = sessionsWithLiveTerminal.contains(id)
         do {
             try await withAuth { controller in
                 if previousId != nil {
                     try? await controller.detach()
                 }
-                try await controller.resumeSession(id: id)
+                // If we already have a live terminal with full scrollback for
+                // this session, ask the server to skip its ring-buffer replay —
+                // otherwise output gets duplicated (or truncated to the last
+                // `scrollbackSize` bytes, losing history from before the cap).
+                try await controller.resumeSession(id: id, skipReplay: haveLiveTerminal)
             }
 
+            // Keep the previous session's view model alive so its cached native
+            // terminal view retains scrollback. prepareForSwitch clears pending
+            // output + callbacks so the detached VM stops receiving live data.
             if let currentId = previousId, currentId != id {
                 terminalViewModels[currentId]?.prepareForSwitch()
-                terminalViewModels[currentId] = nil
             }
 
+            // For the incoming session: create the VM if missing, or reset its
+            // buffering state so a freshly-built terminal view (on platforms
+            // that rebuild on session change) can re-drain pending output.
             if terminalViewModels[id] == nil {
                 terminalViewModels[id] = TerminalViewModel(sessionId: id, connection: connection)
             } else {
@@ -558,8 +581,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             try await connection.send(.sessionTerminate(sessionId: id))
             if activeSessionId == id {
                 activeSessionId = nil
-                terminalViewModels[id] = nil
             }
+            evictTerminal(for: id)
             claudeSessions.remove(id)
             unclaimSession(id)
             sessionNames.removeValue(forKey: id)
@@ -603,9 +626,9 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         let shortId = String(sessionId.uuidString.prefix(8))
 
         if activeSessionId == sessionId {
-            terminalViewModels[sessionId] = nil
             activeSessionId = nil
         }
+        evictTerminal(for: sessionId)
         claudeSessions.remove(sessionId)
         sessionsAwaitingInput.remove(sessionId)
 
@@ -633,6 +656,29 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         terminalViewModels[sessionId]?.onTitleChanged = { [weak self] title in
             self?.terminalTitles[sessionId] = title
         }
+    }
+
+    // MARK: - Terminal View Cache
+
+    /// Called by the platform host when it creates (or retrieves) a native
+    /// terminal view for a session. After the first call for a given id, any
+    /// subsequent `switchToSession` will ask the server to skip the replay.
+    public func registerLiveTerminal(for sessionId: UUID, view: AnyObject) {
+        cachedTerminalViews[sessionId] = view
+        sessionsWithLiveTerminal.insert(sessionId)
+    }
+
+    /// Lookup the cached native view for a session, if any.
+    public func cachedTerminalView(for sessionId: UUID) -> AnyObject? {
+        cachedTerminalViews[sessionId]
+    }
+
+    /// Drop all cached state tied to a single session. Used when a session is
+    /// terminated, stolen, or the workspace is torn down.
+    public func evictTerminal(for sessionId: UUID) {
+        cachedTerminalViews.removeValue(forKey: sessionId)
+        sessionsWithLiveTerminal.remove(sessionId)
+        terminalViewModels.removeValue(forKey: sessionId)
     }
 
     public func presentError(_ message: String) {
@@ -765,7 +811,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 // itself is fine — clear the active session and surface a recoverable
                 // error. Don't tear the workspace down via connectionTimedOut.
                 if let activeId = activeSessionId {
-                    terminalViewModels[activeId] = nil
+                    evictTerminal(for: activeId)
                     activeSessionId = nil
                 }
                 sessionAttachError = friendlyAttachErrorMessage(error)
@@ -817,6 +863,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         if activeSessionId != nil {
             Task { try? await sessionController?.detach() }
         }
+        cachedTerminalViews.removeAll()
+        sessionsWithLiveTerminal.removeAll()
         connection.disconnect()
     }
 }

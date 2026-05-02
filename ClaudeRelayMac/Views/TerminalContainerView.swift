@@ -58,98 +58,148 @@ final class PasteAwareTerminalView: TerminalView {
     }
 }
 
+/// Holds a PasteAwareTerminalView alongside its SwiftTerm delegate (coordinator)
+/// so the delegate's strong reference outlives any single SwiftUI render.
+final class CachedTerminal {
+    let view: PasteAwareTerminalView
+    let delegate: TerminalCoordinator
+
+    init(view: PasteAwareTerminalView, delegate: TerminalCoordinator) {
+        self.view = view
+        self.delegate = delegate
+    }
+}
+
+/// A SwiftUI-hosted container that reuses cached terminal views across session
+/// switches. The active session's terminal is shown; others are hidden subviews
+/// preserving their SwiftTerm scrollback for instant swap-back.
 struct TerminalContainerView: NSViewRepresentable {
-    @ObservedObject var viewModel: TerminalViewModel
+    @ObservedObject var coordinator: SessionCoordinator
     var fontSize: CGFloat
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(viewModel: viewModel)
+    func makeNSView(context: Context) -> NSView {
+        let host = NSView(frame: .zero)
+        host.wantsLayer = true
+        host.layer?.backgroundColor = NSColor.black.cgColor
+        return host
     }
 
-    func makeNSView(context: Context) -> PasteAwareTerminalView {
-        let terminal = PasteAwareTerminalView(frame: .zero)
-        terminal.terminalDelegate = context.coordinator
+    func updateNSView(_ host: NSView, context: Context) {
+        guard let activeId = coordinator.activeSessionId,
+              let viewModel = coordinator.viewModel(for: activeId) else {
+            // No active session — hide everything.
+            for subview in host.subviews { subview.isHidden = true }
+            return
+        }
+
+        let cached = cachedOrMake(for: activeId, viewModel: viewModel, host: host)
+
+        // Add to view hierarchy once; subsequent swaps just toggle visibility.
+        if cached.view.superview !== host {
+            host.addSubview(cached.view)
+            cached.view.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                cached.view.topAnchor.constraint(equalTo: host.topAnchor),
+                cached.view.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+                cached.view.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+                cached.view.trailingAnchor.constraint(equalTo: host.trailingAnchor)
+            ])
+        }
+
+        // Hide every other cached terminal, show the active one.
+        for subview in host.subviews {
+            subview.isHidden = (subview !== cached.view)
+        }
+
+        let newFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        if cached.view.font != newFont {
+            cached.view.font = newFont
+        }
+
+        // Ensure the delegate observes the current view model (it may have been
+        // recreated on recovery), and that live output feeds this terminal.
+        cached.delegate.viewModel = viewModel
+        viewModel.onTerminalOutput = { [weak view = cached.view] data in
+            guard let view else { return }
+            view.feed(byteArray: Array(data)[...])
+        }
+        viewModel.terminalReady()
+
+        DispatchQueue.main.async { [weak view = cached.view] in
+            view?.window?.makeFirstResponder(view)
+        }
+    }
+
+    // MARK: - Cache Lookup
+
+    private func cachedOrMake(
+        for sessionId: UUID,
+        viewModel: TerminalViewModel,
+        host: NSView
+    ) -> CachedTerminal {
+        if let existing = coordinator.cachedTerminalView(for: sessionId) as? CachedTerminal {
+            return existing
+        }
+        let delegate = TerminalCoordinator(viewModel: viewModel)
+        let terminal = PasteAwareTerminalView(frame: host.bounds)
+        terminal.terminalDelegate = delegate
         terminal.onImagePaste = { [weak viewModel] data in
             viewModel?.sendPasteImage(data)
         }
-
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
         terminal.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
 
-        viewModel.onTerminalOutput = { [weak terminal] data in
-            guard let terminal else { return }
-            let bytes = Array(data)
-            terminal.feed(byteArray: bytes[...])
-        }
+        let cached = CachedTerminal(view: terminal, delegate: delegate)
+        coordinator.registerLiveTerminal(for: sessionId, view: cached)
+        return cached
+    }
+}
 
-        viewModel.terminalReady()
+// MARK: - SwiftTerm Delegate
 
-        DispatchQueue.main.async {
-            terminal.window?.makeFirstResponder(terminal)
-        }
+/// Handles callbacks from SwiftTerm. Kept outside the representable so its
+/// lifetime matches the cached terminal view, not the SwiftUI render cycle.
+final class TerminalCoordinator: NSObject, TerminalViewDelegate {
+    weak var viewModel: TerminalViewModel?
 
-        return terminal
+    init(viewModel: TerminalViewModel) {
+        self.viewModel = viewModel
     }
 
-    func updateNSView(_ nsView: PasteAwareTerminalView, context: Context) {
-        let newFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        if nsView.font != newFont {
-            nsView.font = newFont
+    func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        let bytes = Data(data)
+        Task { @MainActor [weak self] in
+            self?.viewModel?.sendInput(bytes)
         }
     }
 
-    // MARK: - Coordinator
-
-    final class Coordinator: NSObject, TerminalViewDelegate {
-        let viewModel: TerminalViewModel
-
-        init(viewModel: TerminalViewModel) {
-            self.viewModel = viewModel
-        }
-
-        // Called by SwiftTerm when the user types or pastes.
-        func send(source: TerminalView, data: ArraySlice<UInt8>) {
-            let bytes = Data(data)
-            Task { @MainActor [viewModel] in
-                viewModel.sendInput(bytes)
-            }
-        }
-
-        func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
-            guard newCols > 0, newRows > 0 else { return }
-            let cols = UInt16(newCols)
-            let rows = UInt16(newRows)
-            Task { @MainActor [viewModel] in
-                viewModel.sendResize(cols: cols, rows: rows)
-                viewModel.terminalReady()
-            }
-        }
-
-        func setTerminalTitle(source: TerminalView, title: String) {
-            Task { @MainActor [viewModel] in
-                viewModel.terminalTitle = title
-                viewModel.onTitleChanged?(title)
-            }
-        }
-
-        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
-            // Not used.
-        }
-
-        func scrolled(source: TerminalView, position: Double) {
-            // Not used.
-        }
-
-        func clipboardCopy(source: TerminalView, content: Data) {
-            if let str = String(data: content, encoding: .utf8) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(str, forType: .string)
-            }
-        }
-
-        func rangeChanged(source: TerminalView, startY: Int, endY: Int) {
-            // Not used.
+    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+        guard newCols > 0, newRows > 0 else { return }
+        let cols = UInt16(newCols)
+        let rows = UInt16(newRows)
+        Task { @MainActor [weak self] in
+            self?.viewModel?.sendResize(cols: cols, rows: rows)
+            self?.viewModel?.terminalReady()
         }
     }
+
+    func setTerminalTitle(source: TerminalView, title: String) {
+        Task { @MainActor [weak self] in
+            self?.viewModel?.terminalTitle = title
+            self?.viewModel?.onTitleChanged?(title)
+        }
+    }
+
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+    func scrolled(source: TerminalView, position: Double) {}
+
+    func clipboardCopy(source: TerminalView, content: Data) {
+        if let str = String(data: content, encoding: .utf8) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(str, forType: .string)
+        }
+    }
+
+    func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
 }

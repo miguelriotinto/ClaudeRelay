@@ -130,11 +130,11 @@ private struct WorkspaceView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } detail: {
             VStack(spacing: 0) {
-                if let activeId = coordinator.activeSessionId,
-                   let vm = coordinator.viewModel(for: activeId) {
-                    TerminalContainerView(viewModel: vm, fontSize: CGFloat(settings.terminalFontSize))
+                if coordinator.activeSessionId != nil {
+                    // Single host reused across session switches so each
+                    // terminal's SwiftTerm scrollback survives the swap.
+                    TerminalContainerView(coordinator: coordinator, fontSize: CGFloat(settings.terminalFontSize))
                         .padding(.leading, 6)
-                        .id(activeId)
                 } else {
                     VStack(spacing: 12) {
                         Image(systemName: "terminal")

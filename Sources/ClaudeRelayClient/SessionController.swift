@@ -129,8 +129,13 @@ public final class SessionController: ObservableObject {
     }
 
     /// Resumes an existing session by its identifier.
-    public func resumeSession(id: UUID) async throws {
-        let response = try await sendAndWaitForResponse(.sessionResume(sessionId: id))
+    /// - Parameter skipReplay: When true, the server skips the ring-buffer
+    ///   replay. Use this when the client is swapping between locally-cached
+    ///   terminals and already has the full scrollback on screen.
+    public func resumeSession(id: UUID, skipReplay: Bool = false) async throws {
+        let response = try await sendAndWaitForResponse(
+            .sessionResume(sessionId: id, skipReplay: skipReplay)
+        )
 
         switch response {
         case .sessionResumed(let resumedId):

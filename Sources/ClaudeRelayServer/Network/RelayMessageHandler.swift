@@ -135,8 +135,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             handleSessionCreate(name: name, context: context)
         case .sessionAttach(let sessionId):
             handleSessionAttach(sessionId: sessionId, context: context)
-        case .sessionResume(let sessionId):
-            handleSessionResume(sessionId: sessionId, context: context)
+        case .sessionResume(let sessionId, let skipReplay):
+            handleSessionResume(sessionId: sessionId, skipReplay: skipReplay, context: context)
         case .sessionDetach:
             handleSessionDetach(context: context)
         case .sessionTerminate(let sessionId):
@@ -350,7 +350,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     // MARK: - Session Resume
 
-    private func handleSessionResume(sessionId: UUID, context: ChannelHandlerContext) {
+    private func handleSessionResume(sessionId: UUID, skipReplay: Bool, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
         let sessionManager = self.sessionManager
         let ctx = UnsafeTransfer(context)
@@ -358,10 +358,10 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             do {
                 await self?.autoDetachIfNeeded()
                 let (_, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
-                RelayLogger.log(category: "session", "Session resumed: \(sessionId)")
-                // Read scrollback history to send to client
-                let buffered = await pty.readBuffer()
-                // Filter out stale escape sequence responses that may have accumulated
+                RelayLogger.log(category: "session", "Session resumed: \(sessionId) (skipReplay=\(skipReplay))")
+                // Read scrollback history to send to client, unless the client
+                // already has a live terminal with full scrollback (tab switch).
+                let buffered = skipReplay ? Data() : await pty.readBuffer()
                 let filtered = Self.filterEscapeResponses(buffered)
                 let activity = await pty.getActivityState()
                 ctx.value.eventLoop.execute {
