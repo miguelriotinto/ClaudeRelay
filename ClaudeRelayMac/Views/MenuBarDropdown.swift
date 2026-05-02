@@ -52,6 +52,17 @@ struct MenuBarDropdown: View {
                         return
                     }
                 }
+                MenuButton(label: "New Session") {
+                    if let coordinator = ActiveCoordinatorRegistry.shared.coordinator {
+                        Task { await coordinator.createNewSession() }
+                    }
+                    NSApp.activate(ignoringOtherApps: true)
+                    for window in NSApp.windows where window.canBecomeMain {
+                        window.makeKeyAndOrderFront(nil)
+                        return
+                    }
+                }
+                .disabled(ActiveCoordinatorRegistry.shared.coordinator == nil)
                 MenuButton(label: "Settings...") {
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 }

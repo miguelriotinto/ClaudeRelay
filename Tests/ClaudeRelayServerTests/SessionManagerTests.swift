@@ -458,4 +458,343 @@ final class SessionManagerTests: XCTestCase {
         XCTAssertEqual(attachedInfo.state, .activeAttached)
         XCTAssertEqual(attachedInfo.tokenId, tokenB.id)
     }
+
+    // MARK: - Attach / Reattach Edge Cases
+
+    func testAttachToTerminatedSessionFails() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+        try await manager.terminateSession(id: session.id, tokenId: tokenInfo.id)
+
+        do {
+            _ = try await manager.attachSession(id: session.id, tokenId: tokenInfo.id)
+            XCTFail("Expected invalidTransition error")
+        } catch let error as SessionError {
+            if case .invalidTransition(let from, let to) = error {
+                XCTAssertEqual(from, .terminated)
+                XCTAssertEqual(to, .activeAttached)
+            } else {
+                XCTFail("Expected invalidTransition, got \(error)")
+            }
+        }
+    }
+
+    func testAttachToNonexistentSessionFails() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        do {
+            _ = try await manager.attachSession(id: UUID(), tokenId: tokenInfo.id)
+            XCTFail("Expected notFound error")
+        } catch let error as SessionError {
+            if case .notFound = error {
+                // expected
+            } else {
+                XCTFail("Expected notFound, got \(error)")
+            }
+        }
+    }
+
+    func testAttachFromAttachedTransfersOwnership() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "device-b")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id)
+        XCTAssertEqual(session.tokenId, tokenA.id)
+
+        let (attachedInfo, _) = try await manager.attachSession(id: session.id, tokenId: tokenB.id)
+        XCTAssertEqual(attachedInfo.tokenId, tokenB.id)
+
+        let inspected = try await manager.inspectSession(id: session.id)
+        XCTAssertEqual(inspected.tokenId, tokenB.id)
+    }
+
+    func testChainStealAcrossThreeDevices() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "device-b")
+        let (_, tokenC) = try await tokenStore.create(label: "device-c")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id)
+
+        // Observer for token A (original owner)
+        let stealExpA = XCTestExpectation(description: "steal from A")
+        let observerA = await manager.addStealObserver(tokenId: tokenA.id) { sessionId in
+            XCTAssertEqual(sessionId, session.id)
+            stealExpA.fulfill()
+        }
+
+        // Device B steals from A — observer A should fire
+        _ = try await manager.attachSession(id: session.id, tokenId: tokenB.id)
+        await fulfillment(of: [stealExpA], timeout: 1.0)
+        await manager.removeStealObserver(id: observerA)
+
+        // Observer for token B (new owner)
+        let stealExpB = XCTestExpectation(description: "steal from B")
+        let observerB = await manager.addStealObserver(tokenId: tokenB.id) { sessionId in
+            XCTAssertEqual(sessionId, session.id)
+            stealExpB.fulfill()
+        }
+
+        // Device C steals from B — observer B should fire
+        _ = try await manager.attachSession(id: session.id, tokenId: tokenC.id)
+        await fulfillment(of: [stealExpB], timeout: 1.0)
+        await manager.removeStealObserver(id: observerB)
+
+        let inspected = try await manager.inspectSession(id: session.id)
+        XCTAssertEqual(inspected.tokenId, tokenC.id)
+    }
+
+    func testStealObserverMultipleObserversOnlyNonExcludedFire() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+
+        var observer1Calls = 0
+        var observer2Calls = 0
+        let exp2 = XCTestExpectation(description: "observer2 fires")
+
+        let id1 = await manager.addStealObserver(tokenId: tokenInfo.id) { _ in
+            observer1Calls += 1
+        }
+        _ = await manager.addStealObserver(tokenId: tokenInfo.id) { _ in
+            observer2Calls += 1
+            exp2.fulfill()
+        }
+
+        // Exclude observer 1 — only observer 2 should fire
+        _ = try await manager.attachSession(id: session.id, tokenId: tokenInfo.id, excludeObserver: id1)
+        await fulfillment(of: [exp2], timeout: 1.0)
+        XCTAssertEqual(observer1Calls, 0, "Excluded observer should not fire")
+        XCTAssertEqual(observer2Calls, 1, "Non-excluded observer should fire once")
+    }
+
+    // MARK: - Resume Edge Cases
+
+    func testResumeFromAttachedImplicitlyDetaches() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+        // Session starts activeAttached from createSession.
+        let info = try await manager.inspectSession(id: session.id)
+        XCTAssertEqual(info.state, .activeAttached)
+
+        // Resume without explicit detach — should succeed via implicit detach.
+        let (resumed, _, _) = try await manager.resumeSession(id: session.id, tokenId: tokenInfo.id)
+        XCTAssertEqual(resumed.state, .activeAttached)
+    }
+
+    func testResumeEnforcesOwnership() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "other")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id)
+        try await manager.detachSession(id: session.id)
+
+        do {
+            _ = try await manager.resumeSession(id: session.id, tokenId: tokenB.id)
+            XCTFail("Expected ownership violation")
+        } catch let error as SessionError {
+            if case .ownershipViolation = error {
+                // expected
+            } else {
+                XCTFail("Expected ownershipViolation, got \(error)")
+            }
+        }
+    }
+
+    func testResumeTerminatedSessionFails() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+        try await manager.terminateSession(id: session.id, tokenId: tokenInfo.id)
+
+        do {
+            _ = try await manager.resumeSession(id: session.id, tokenId: tokenInfo.id)
+            XCTFail("Expected error for terminated session")
+        } catch {
+            // Any error is acceptable (notFound if PTY nil, or invalidTransition)
+        }
+    }
+
+    func testResumeNonexistentSessionFails() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        do {
+            _ = try await manager.resumeSession(id: UUID(), tokenId: tokenInfo.id)
+            XCTFail("Expected notFound error")
+        } catch let error as SessionError {
+            if case .notFound = error {
+                // expected
+            } else {
+                XCTFail("Expected notFound, got \(error)")
+            }
+        }
+    }
+
+    // MARK: - Detach Edge Cases
+
+    func testDetachAlreadyDetachedFails() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenInfo.id)
+        try await manager.detachSession(id: session.id)
+
+        do {
+            try await manager.detachSession(id: session.id)
+            XCTFail("Expected invalidTransition error")
+        } catch let error as SessionError {
+            if case .invalidTransition(let from, let to) = error {
+                XCTAssertEqual(from, .activeDetached)
+                XCTAssertEqual(to, .activeDetached)
+            } else {
+                XCTFail("Expected invalidTransition, got \(error)")
+            }
+        }
+    }
+
+    func testDetachNonexistentSessionFails() async throws {
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        do {
+            try await manager.detachSession(id: UUID())
+            XCTFail("Expected notFound error")
+        } catch let error as SessionError {
+            if case .notFound = error {
+                // expected
+            } else {
+                XCTFail("Expected notFound, got \(error)")
+            }
+        }
+    }
+
+    // MARK: - Cross-Token Session Listing
+
+    func testListAllSessionsCrossToken() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "other")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let sessionA = try await manager.createSession(tokenId: tokenA.id, name: "Alpha")
+        let sessionB = try await manager.createSession(tokenId: tokenB.id, name: "Bravo")
+
+        let allSessions = await manager.listAllSessions()
+        XCTAssertEqual(allSessions.count, 2)
+
+        let ids = Set(allSessions.map { $0.id })
+        XCTAssertTrue(ids.contains(sessionA.id))
+        XCTAssertTrue(ids.contains(sessionB.id))
+    }
+
+    func testListAllSessionsExcludesTerminated() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "other")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let sessionA = try await manager.createSession(tokenId: tokenA.id)
+        _ = try await manager.createSession(tokenId: tokenB.id)
+        try await manager.terminateSession(id: sessionA.id, tokenId: tokenA.id)
+
+        let allSessions = await manager.listAllSessions()
+        let nonTerminal = allSessions.filter { !$0.state.isTerminal }
+        XCTAssertEqual(nonTerminal.count, 1)
+    }
+
+    // MARK: - Detach-Resume Round Trip with Multiple Sessions
+
+    func testDetachResumeMultipleSessions() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session1 = try await manager.createSession(tokenId: tokenInfo.id, name: "S1")
+        let session2 = try await manager.createSession(tokenId: tokenInfo.id, name: "S2")
+
+        // Detach session 1, then resume it while session 2 is still attached
+        try await manager.detachSession(id: session1.id)
+        let info1 = try await manager.inspectSession(id: session1.id)
+        XCTAssertEqual(info1.state, .activeDetached)
+
+        let (resumed, _, _) = try await manager.resumeSession(id: session1.id, tokenId: tokenInfo.id)
+        XCTAssertEqual(resumed.state, .activeAttached)
+
+        // Session 2 should still be in its original state
+        let info2 = try await manager.inspectSession(id: session2.id)
+        XCTAssertEqual(info2.state, .activeAttached)
+    }
+
+    // MARK: - Cross-Device Attach Steals Then Resume by New Owner
+
+    func testCrossDeviceAttachThenResume() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "device-b")
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id, name: "Shared")
+
+        // Device B attaches (steals from A)
+        let (attached, _) = try await manager.attachSession(id: session.id, tokenId: tokenB.id)
+        XCTAssertEqual(attached.tokenId, tokenB.id)
+
+        // Device B detaches
+        try await manager.detachSession(id: session.id)
+        let detached = try await manager.inspectSession(id: session.id)
+        XCTAssertEqual(detached.state, .activeDetached)
+        XCTAssertEqual(detached.tokenId, tokenB.id)
+
+        // Device B resumes — should succeed since B is now the owner
+        let (resumed, _, _) = try await manager.resumeSession(id: session.id, tokenId: tokenB.id)
+        XCTAssertEqual(resumed.state, .activeAttached)
+
+        // Device A should no longer be able to resume (ownership transferred)
+        try await manager.detachSession(id: session.id)
+        do {
+            _ = try await manager.resumeSession(id: session.id, tokenId: tokenA.id)
+            XCTFail("Expected ownership violation")
+        } catch let error as SessionError {
+            if case .ownershipViolation = error {
+                // expected — A no longer owns this session
+            } else {
+                XCTFail("Expected ownershipViolation, got \(error)")
+            }
+        }
+    }
 }
