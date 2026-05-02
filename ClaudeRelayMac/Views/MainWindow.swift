@@ -193,6 +193,11 @@ private struct WorkspaceView: View {
         } message: {
             Text(coordinator.sessionAttachError ?? "Unable to attach to this session.")
         }
+        .alert("Connection Lost", isPresented: $coordinator.connectionTimedOut) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Unable to reconnect to the server. Check your network and try reconnecting.")
+        }
     }
 }
 

@@ -27,7 +27,9 @@ public final class SessionController: ObservableObject {
         }
 
         var isNotAuthenticated: Bool {
-            if case .unexpectedResponse(let msg) = self { return msg == "Not authenticated" }
+            if case .unexpectedResponse(let msg) = self {
+                return msg.localizedCaseInsensitiveContains("not authenticated")
+            }
             return false
         }
     }

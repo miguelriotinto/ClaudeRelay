@@ -310,7 +310,7 @@ public final class RelayConnection: ObservableObject {
     // MARK: - Receive Loop
 
     private func receiveLoop(generation: UInt64) {
-        guard let task = webSocketTask, generation == generation else { return }
+        guard let task = webSocketTask, generation == self.generation else { return }
 
         task.receive { [weak self] result in
             Task { @MainActor in

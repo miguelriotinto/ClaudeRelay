@@ -85,6 +85,9 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     /// `await isAlive()`). Prevents concurrent recovery dispatches from racing
     /// across the suspension point at the top of `handleForegroundTransition`.
     private var isRecoveryDispatched = false
+    /// Timestamp set by `cancelRecovery`. `triggerUserRecovery` ignores calls
+    /// within 1 s of a cancel to avoid sheet-dismiss → scenePhase → re-trigger.
+    private var lastCancelledAt: Date = .distantPast
 
     // MARK: - Subclass Hooks
 
@@ -185,6 +188,10 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         guard !isTornDown else { return }
         guard !isRecoveryDispatched else {
             recoveryLog.debug("triggerUserRecovery: already dispatched, ignoring")
+            return
+        }
+        if Date().timeIntervalSince(lastCancelledAt) < 1 {
+            recoveryLog.debug("triggerUserRecovery: within cancel debounce, ignoring")
             return
         }
         autoRecoverySuspended = false
@@ -292,6 +299,19 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         return controller
     }
 
+    /// Runs a closure that requires an authenticated controller. If the server
+    /// replies "Not authenticated" (stale auth), resets auth and retries once.
+    public func withAuth<T>(_ body: (SessionController) async throws -> T) async throws -> T {
+        let controller = try await ensureAuthenticated()
+        do {
+            return try await body(controller)
+        } catch let error as SessionController.SessionError where error.isNotAuthenticated {
+            sessionController?.resetAuth()
+            let retryController = try await ensureAuthenticated()
+            return try await body(retryController)
+        }
+    }
+
     // MARK: - Session List
 
     public func fetchSessions() async {
@@ -303,8 +323,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         defer { isLoading = false }
 
         do {
-            let controller = try await ensureAuthenticated()
-            sessions = try await controller.listSessions()
+            sessions = try await withAuth { try await $0.listSessions() }
 
             for session in sessions {
                 if let serverName = session.name {
@@ -358,17 +377,22 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     public func createNewSession() async {
         guard !isRecovering else { return }
+        let previousId = activeSessionId
         do {
-            let controller = try await ensureAuthenticated()
+            let (name, sessionId) = try await withAuth { controller in
+                if previousId != nil {
+                    try? await controller.detach()
+                }
+                let name = self.pickDefaultName()
+                let sessionId = try await controller.createSession(name: name)
+                return (name, sessionId)
+            }
 
-            if let currentId = activeSessionId {
-                try? await controller.detach()
+            if let currentId = previousId {
                 terminalViewModels[currentId]?.prepareForSwitch()
                 terminalViewModels[currentId] = nil
             }
 
-            let name = pickDefaultName()
-            let sessionId = try await controller.createSession(name: name)
             claimSession(sessionId)
             sessionNames[sessionId] = name
             Self.saveNames(sessionNames)
@@ -388,49 +412,40 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     public func switchToSession(id: UUID) async {
         guard !isRecovering, id != activeSessionId else { return }
+        let previousId = activeSessionId
         do {
-            try await performSessionSwitch(to: id)
-        } catch let error as SessionController.SessionError where error.isNotAuthenticated {
-            sessionController?.resetAuth()
-            do {
-                try await performSessionSwitch(to: id)
-            } catch {
-                presentError(error.localizedDescription)
+            try await withAuth { controller in
+                if previousId != nil {
+                    try? await controller.detach()
+                }
+                try await controller.resumeSession(id: id)
             }
+
+            if let currentId = previousId, currentId != id {
+                terminalViewModels[currentId]?.prepareForSwitch()
+                terminalViewModels[currentId] = nil
+            }
+
+            if terminalViewModels[id] == nil {
+                terminalViewModels[id] = TerminalViewModel(sessionId: id, connection: connection)
+            } else {
+                terminalViewModels[id]?.prepareForSwitch()
+            }
+
+            wireTerminalOutput(to: id)
+            activeSessionId = id
+
+            await fetchSessions()
         } catch {
             presentError(error.localizedDescription)
         }
-    }
-
-    private func performSessionSwitch(to id: UUID) async throws {
-        let controller = try await ensureAuthenticated()
-
-        if let currentId = activeSessionId {
-            try? await controller.detach()
-            terminalViewModels[currentId]?.prepareForSwitch()
-            terminalViewModels[currentId] = nil
-        }
-
-        try await controller.resumeSession(id: id)
-
-        if terminalViewModels[id] == nil {
-            terminalViewModels[id] = TerminalViewModel(sessionId: id, connection: connection)
-        } else {
-            terminalViewModels[id]?.prepareForSwitch()
-        }
-
-        wireTerminalOutput(to: id)
-        activeSessionId = id
-
-        await fetchSessions()
     }
 
     // MARK: - Attach
 
     public func fetchAttachableSessions() async -> [SessionInfo] {
         do {
-            let controller = try await ensureAuthenticated()
-            let all = try await controller.listAllSessions()
+            let all = try await withAuth { try await $0.listAllSessions() }
             return all.filter { session in
                 !session.state.isTerminal && !ownedSessionIds.contains(session.id)
             }
@@ -443,13 +458,13 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         guard !isRecovering else { return }
         let previousId = activeSessionId
         do {
-            let controller = try await ensureAuthenticated()
-
-            if previousId != nil {
-                try? await controller.detach()
+            let controller = try await withAuth { controller in
+                if previousId != nil {
+                    try? await controller.detach()
+                }
+                try await controller.attachSession(id: id)
+                return controller
             }
-
-            try await controller.attachSession(id: id)
 
             if let currentId = previousId, currentId != id {
                 terminalViewModels[currentId]?.prepareForSwitch()
@@ -479,11 +494,6 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 try? await sessionController?.resumeSession(id: previousId)
                 wireTerminalOutput(to: previousId)
             }
-            // Classify: application-level server error (session gone, invalid
-            // transition, etc.) vs connection-dead. Server errors surface through
-            // `sessionAttachError` so the workspace can show an alert and stay.
-            // Connection errors are left to the recovery flow (triggered via
-            // onSendFailed) and the `connectionTimedOut` timeout alert.
             if Self.isApplicationLevelError(error) {
                 sessionAttachError = friendlyAttachErrorMessage(error)
                 sessionAttachFailed = true
@@ -766,12 +776,6 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         await fetchSessions()
     }
 
-    /// Back-compat shim. Uses the current `recoveryGeneration` and treats the call
-    /// as not user-initiated. Prefer `restoreSession(generation:userInitiated:)`.
-    public func restoreSession() async {
-        await restoreSession(generation: recoveryGeneration, userInitiated: false)
-    }
-
     /// Cancels any in-flight recovery and clears recovery UI state.
     /// Bumps the generation so in-flight tasks bail at their next checkpoint.
     public func cancelRecovery() {
@@ -782,7 +786,9 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         isRecovering = false
         isRecoveryDispatched = false
         recoveryFailed = true
-        lastRecoveryEndedAt = Date()
+        let now = Date()
+        lastRecoveryEndedAt = now
+        lastCancelledAt = now
         // Explicit cancel means the user doesn't want us re-entering auto-recovery
         // immediately on the next send failure — let them re-enter via scenePhase
         // or a fresh network restore.

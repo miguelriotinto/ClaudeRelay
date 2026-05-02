@@ -118,8 +118,9 @@ final class SessionCoordinator: SharedSessionCoordinator {
         guard let activeId = activeSessionId else { return }
         terminalViewModels[activeId]?.resetForReplay()
         do {
-            let controller = try await ensureAuthenticated()
-            try await controller.resumeSession(id: activeId)
+            try await withAuth { controller in
+                try await controller.resumeSession(id: activeId)
+            }
             wireTerminalOutput(to: activeId)
         } catch {
             presentError(error.localizedDescription)
@@ -128,9 +129,12 @@ final class SessionCoordinator: SharedSessionCoordinator {
 
     func detachSession(id: UUID) async {
         do {
-            let controller = try await ensureAuthenticated()
+            try await withAuth { controller in
+                if self.activeSessionId == id {
+                    try await controller.detach()
+                }
+            }
             if activeSessionId == id {
-                try await controller.detach()
                 terminalViewModels[id]?.prepareForSwitch()
                 terminalViewModels[id] = nil
                 activeSessionId = nil
