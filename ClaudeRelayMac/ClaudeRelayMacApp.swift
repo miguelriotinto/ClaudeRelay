@@ -35,7 +35,7 @@ struct ClaudeRelayMacApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView()
+            EmptyView()
         }
     }
 

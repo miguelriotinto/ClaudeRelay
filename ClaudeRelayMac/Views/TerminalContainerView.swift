@@ -60,6 +60,7 @@ final class PasteAwareTerminalView: TerminalView {
 
 struct TerminalContainerView: NSViewRepresentable {
     @ObservedObject var viewModel: TerminalViewModel
+    var fontSize: CGFloat
 
     func makeCoordinator() -> Coordinator {
         Coordinator(viewModel: viewModel)
@@ -72,12 +73,10 @@ struct TerminalContainerView: NSViewRepresentable {
             viewModel?.sendPasteImage(data)
         }
 
-        // Appearance: black chrome to match iOS app.
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
-        terminal.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+        terminal.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
 
-        // Feed buffered output through the ViewModel.
         viewModel.onTerminalOutput = { [weak terminal] data in
             guard let terminal else { return }
             let bytes = Array(data)
@@ -94,7 +93,10 @@ struct TerminalContainerView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: PasteAwareTerminalView, context: Context) {
-        // No-op — updates are driven by the ViewModel callbacks.
+        let newFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        if nsView.font != newFont {
+            nsView.font = newFont
+        }
     }
 
     // MARK: - Coordinator

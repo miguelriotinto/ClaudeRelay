@@ -37,6 +37,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("autoConnectEnabled") var autoConnectEnabled = false
     @AppStorage("lastConnectedServerId") var lastConnectedServerId: String = ""
     @AppStorage("sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
+    @AppStorage("terminalFontSize") var terminalFontSize: Double = 12
+
     @AppStorage("recordingShortcutEnabled") var recordingShortcutEnabled = true
     @AppStorage("recordingShortcutFlags") var recordingShortcutFlags: Int = Int(UIKeyModifierFlags([.command, .alternate]).rawValue)
     @AppStorage("recordingShortcutKey") var recordingShortcutKey = ""

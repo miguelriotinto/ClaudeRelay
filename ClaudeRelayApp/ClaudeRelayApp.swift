@@ -44,9 +44,13 @@ struct ClaudeRelayApp: App {
         pendingSessionId = sessionId
     }
 
-    /// Load speech models in the background on launch so the first mic tap is instant.
     private func preloadSpeechModels() async {
         let store = SpeechModelStore.shared
+
+        if !store.modelsReady {
+            try? await store.downloadAllModels()
+        }
+
         guard store.modelsReady else { return }
 
         let transcriber = WhisperTranscriber.shared

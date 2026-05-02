@@ -7,6 +7,7 @@ struct MainWindow: View {
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @State private var coordinator: SessionCoordinator?
     @State private var showServerList = false
+    @State private var showSettings = false
     @State private var loadFailure: String?
 
     var body: some View {
@@ -37,12 +38,15 @@ struct MainWindow: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                SettingsLink {
+                Button {
+                    showSettings = true
+                } label: {
                     Label("Settings", systemImage: "gear")
                 }
             }
         }
         .task { await attemptAutoConnect() }
+        .task { await preloadSpeechModels() }
         .sheet(isPresented: $showServerList) {
             NavigationStack {
                 ServerListWindow { config in
@@ -52,6 +56,10 @@ struct MainWindow: View {
             }
             .background(.black)
             .presentationBackground(.black)
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .presentationBackground(.black)
         }
         .onDisappear {
             coordinator?.tearDown()
@@ -63,6 +71,27 @@ struct MainWindow: View {
 
     private func attemptAutoConnect() async {
         showServerList = true
+    }
+
+    private func preloadSpeechModels() async {
+        let store = SpeechModelStore.shared
+
+        if !store.modelsReady {
+            try? await store.downloadAllModels()
+        }
+
+        guard store.modelsReady else { return }
+
+        let transcriber = WhisperTranscriber.shared
+        if !transcriber.isLoaded {
+            try? await transcriber.loadModel()
+        }
+
+        let cleaner = TextCleaner.shared
+        if !cleaner.isLoaded {
+            cleaner.modelPath = store.llmModelPath
+            try? cleaner.loadModel(from: store.llmModelPath)
+        }
     }
 
     private func connect(to config: ConnectionConfig) async {
@@ -91,6 +120,7 @@ struct MainWindow: View {
 private struct WorkspaceView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @ObservedObject var speechEngine: OnDeviceSpeechEngine
+    @StateObject private var settings = AppSettings.shared
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showQRPopover = false
 
@@ -102,7 +132,7 @@ private struct WorkspaceView: View {
             VStack(spacing: 0) {
                 if let activeId = coordinator.activeSessionId,
                    let vm = coordinator.viewModel(for: activeId) {
-                    TerminalContainerView(viewModel: vm)
+                    TerminalContainerView(viewModel: vm, fontSize: CGFloat(settings.terminalFontSize))
                         .padding(.leading, 6)
                         .id(activeId)
                 } else {
@@ -244,15 +274,19 @@ private struct MacMicButton: View {
         } message: {
             Text("On-device voice recognition requires a one-time download (~1 GB). This enables offline, private speech-to-text.")
         }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleSpeechRecording)) { _ in
+            guard !isDisabled else { return }
+            handleTap()
+        }
     }
 
     private func progressRing(_ progress: Double) -> some View {
         ZStack {
             Circle()
-                .stroke(Color.gray.opacity(0.3), lineWidth: 2)
+                .stroke(Color.gray.opacity(0.4), lineWidth: 2)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .stroke(Color.white, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 0.3), value: progress)
         }
@@ -311,8 +345,7 @@ private struct MacMicButton: View {
 
     private var buttonColor: Color {
         switch engine.state {
-        case .idle: return Color.gray.opacity(0.5)
-        case .loadingModel: return Color.blue.opacity(0.6)
+        case .idle, .loadingModel: return Color.gray.opacity(0.5)
         case .recording: return Color.red.opacity(0.8)
         case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
         case .error: return Color.red.opacity(0.8)

@@ -53,6 +53,15 @@ struct SettingsView: View {
                             Text(theme.displayName).tag(theme)
                         }
                     }
+                    HStack {
+                        Text("Terminal Font Size")
+                        Spacer()
+                        Text("\(Int(settings.terminalFontSize)) pt")
+                            .foregroundStyle(.secondary)
+                        Stepper("", value: $settings.terminalFontSize, in: 8...16, step: 1)
+                            .labelsHidden()
+                            .fixedSize()
+                    }
                 }
 
                 Section {

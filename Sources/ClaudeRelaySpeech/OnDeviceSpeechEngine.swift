@@ -235,8 +235,13 @@ public final class OnDeviceSpeechEngine: ObservableObject {
             state = .idle
             return text
         case .failure(let error):
-            // Silence detected — just reset, no error shown.
-            if error is CancellationError || (error as? TranscriberError) == .emptyTranscription {
+            // Silent-reset cases: cancelled, silence detected, or Haiku refusal.
+            // In each case we emit nothing and just return to idle.
+            let isRefusal: Bool
+            if case .refused = (error as? EnhancerError) { isRefusal = true } else { isRefusal = false }
+            if error is CancellationError
+                || (error as? TranscriberError) == .emptyTranscription
+                || isRefusal {
                 state = .idle
                 return nil
             }

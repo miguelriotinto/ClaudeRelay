@@ -22,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        KeyCaptureSwizzle.install()
+        RecordingShortcutMonitor.shared.start()
         sleepWakeObserver = SleepWakeObserver()
         networkMonitor = NetworkMonitor()
 

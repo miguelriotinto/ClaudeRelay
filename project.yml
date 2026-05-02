@@ -97,8 +97,8 @@ targets:
         SWIFT_VERSION: "5.9"
         DEVELOPMENT_TEAM: T9WF95GC9T
         SUPPORTED_PLATFORMS: "macosx"
-        MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "12"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "13"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         CODE_SIGN_ENTITLEMENTS: ClaudeRelayMac/ClaudeRelayMac.entitlements
     info:

@@ -3,18 +3,33 @@ import ClaudeRelayClient
 import ClaudeRelaySpeech
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        TabView {
-            GeneralSettingsTab()
-                .tabItem { Label("General", systemImage: "gear") }
+        VStack(spacing: 0) {
+            HStack {
+                Text("Settings")
+                    .font(.headline)
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
 
-            SpeechSettingsTab()
-                .tabItem { Label("Speech", systemImage: "mic") }
+            TabView {
+                GeneralSettingsTab()
+                    .tabItem { Label("General", systemImage: "gear") }
 
-            AboutSettingsTab()
-                .tabItem { Label("About", systemImage: "info.circle") }
+                SpeechSettingsTab()
+                    .tabItem { Label("Speech", systemImage: "mic") }
+
+                AboutSettingsTab()
+                    .tabItem { Label("About", systemImage: "info.circle") }
+            }
         }
-        .frame(width: 560, height: 500)
+        .frame(width: 560, height: 520)
         .background(.black)
         .preferredColorScheme(.dark)
     }
@@ -96,7 +111,7 @@ private struct GeneralSettingsTab: View {
             VStack(alignment: .leading, spacing: 8) {
                 SettingsSectionHeader(title: "Appearance")
                 SettingsGroup {
-                    SettingsGroupRow(showDivider: false) {
+                    SettingsGroupRow {
                         Text("Session naming theme")
                         Spacer()
                         Picker("", selection: $settings.sessionNamingTheme) {
@@ -106,6 +121,16 @@ private struct GeneralSettingsTab: View {
                         }
                         .labelsHidden()
                         .fixedSize()
+                    }
+                    SettingsGroupRow(showDivider: false) {
+                        Text("Terminal font size")
+                        Spacer()
+                        Text("\(Int(settings.terminalFontSize)) pt")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, alignment: .trailing)
+                        Stepper("", value: $settings.terminalFontSize, in: 8...16, step: 1)
+                            .labelsHidden()
+                            .fixedSize()
                     }
                 }
 
@@ -119,55 +144,48 @@ private struct GeneralSettingsTab: View {
                             .toggleStyle(.switch)
                     }
                     if settings.recordingShortcutEnabled {
-                        if isCapturing {
-                            SettingsGroupRow(showDivider: false) {
-                                VStack(spacing: 8) {
-                                    Text("Press your shortcut...")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                    Text(capturedModifiers.isEmpty && capturedKey.isEmpty
-                                         ? "Waiting..."
-                                         : capturedModifiers.symbolString + capturedKey.uppercased())
-                                        .font(.system(.title, design: .rounded, weight: .medium))
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 12)
-                                        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 8))
-                                    KeyCaptureView(
-                                        capturedModifiers: $capturedModifiers,
-                                        capturedKey: $capturedKey,
-                                        isCapturing: $isCapturing,
-                                        onCommit: { modifiers, key in
-                                            settings.shortcutModifierFlags = modifiers
-                                            settings.recordingShortcutKey = key
-                                        }
-                                    )
-                                    .frame(width: 0, height: 0)
-                                    Button("Cancel") { isCapturing = false }
-                                        .font(.subheadline)
+                        SettingsGroupRow(showDivider: false) {
+                            Text("Key Combination")
+                            Spacer()
+                            if isCapturing {
+                                Text(capturedDisplayString)
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Button("Set") {
+                                    settings.shortcutModifierFlags = capturedModifiers
+                                    settings.recordingShortcutKey = capturedKey
+                                    isCapturing = false
                                 }
-                                .padding(.vertical, 4)
-                            }
-                        } else {
-                            SettingsGroupRow(showDivider: false) {
-                                Text("Key Combination")
-                                Spacer()
-                                Text(settings.shortcutDisplayString.isEmpty ? "None" : settings.shortcutDisplayString)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .disabled(capturedKey.isEmpty)
+                                Button("Cancel") {
+                                    isCapturing = false
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            } else {
+                                Text(savedDisplayString)
+                                    .font(.system(.body, design: .rounded))
                                     .foregroundStyle(.secondary)
                                 Button("Change") {
+                                    NSLog("[KeyCapture] Change button tapped")
                                     capturedModifiers = []
                                     capturedKey = ""
                                     isCapturing = true
                                 }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                         }
                     }
                 }
-                if settings.recordingShortcutEnabled && !isCapturing {
-                    if settings.recordingShortcutKey.isEmpty {
-                        SettingsSectionFooter(text: "Click Change and press a modifier + letter combination (e.g. ⌘⌥R).")
-                    } else {
-                        SettingsSectionFooter(text: "Press \(settings.shortcutDisplayString) to toggle speech recording.")
-                    }
+                if settings.recordingShortcutEnabled {
+                    SettingsSectionFooter(text: isCapturing
+                        ? "Press a modifier + letter combination (e.g. ⌘⌥R), then click Set."
+                        : settings.recordingShortcutKey.isEmpty
+                            ? "Click Change to assign a shortcut."
+                            : "Press \(settings.shortcutDisplayString) to toggle speech recording.")
                 }
 
                 SettingsSectionHeader(title: "Launch")
@@ -210,6 +228,57 @@ private struct GeneralSettingsTab: View {
             .padding(.bottom, 20)
         }
         .background(.black)
+        .onChange(of: isCapturing) { _, capturing in
+            if capturing {
+                installKeyMonitor()
+            } else {
+                removeKeyMonitor()
+            }
+        }
+        .onDisappear {
+            removeKeyMonitor()
+            isCapturing = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            if isCapturing {
+                NSLog("[KeyCapture] window resigned key — cancelling capture")
+                isCapturing = false
+            }
+        }
+    }
+
+    private func installKeyMonitor() {
+        KeyCaptureInterceptor.shared.begin { mods, key in
+            DispatchQueue.main.async {
+                if !key.isEmpty {
+                    // keyDown — freeze the full combo (modifiers + letter).
+                    capturedModifiers = mods
+                    capturedKey = key
+                } else if capturedKey.isEmpty {
+                    // flagsChanged with no letter yet — track live modifier state
+                    // so the user sees what they're pressing.
+                    capturedModifiers = mods
+                }
+                // If capturedKey is set, ignore further flagsChanged (don't erase
+                // the frozen combo when the user releases modifier keys).
+            }
+        }
+    }
+
+    private func removeKeyMonitor() {
+        KeyCaptureInterceptor.shared.end()
+    }
+
+    private var savedDisplayString: String {
+        settings.recordingShortcutKey.isEmpty ? "None" : settings.shortcutDisplayString
+    }
+
+    private var capturedDisplayString: String {
+        let mods = capturedModifiers.intersection([.command, .option, .shift, .control]).symbolString
+        if capturedKey.isEmpty {
+            return mods.isEmpty ? "Press keys..." : mods + "..."
+        }
+        return mods + capturedKey.uppercased()
     }
 }
 

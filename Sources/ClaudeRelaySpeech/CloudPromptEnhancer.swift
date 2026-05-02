@@ -44,10 +44,32 @@ public final class CloudPromptEnhancer: Sendable {
         "I cannot enhance",
         "I can't enhance",
         "I'm unable to enhance",
+        "I need actual",
+        "I need more",
+        "Need actual",
+        "Need more",
         "This is not",
         "This isn't",
+        "This doesn't appear",
+        "This does not appear",
         "If you have a task",
         "Please provide",
+        "I'd need",
+        "I would need",
+        "Could you clarify",
+        "Can you clarify",
+        "What specifically",
+    ]
+
+    /// Substrings that reveal Haiku is asking the user clarifying questions
+    /// instead of producing a rewritten prompt.
+    private static let refusalPhrases = [
+        "could you clarify",
+        "is unclear",
+        "what is \"this\"",
+        "provide those details",
+        "need more context",
+        "need more details",
     ]
 
     public func enhance(_ text: String, bearerToken: String, region: String) async throws -> String {
@@ -101,7 +123,12 @@ public final class CloudPromptEnhancer: Sendable {
         let lowered = enhanced.lowercased()
         for prefix in Self.refusalPrefixes {
             if lowered.hasPrefix(prefix.lowercased()) {
-                return text
+                throw EnhancerError.refused
+            }
+        }
+        for phrase in Self.refusalPhrases {
+            if lowered.contains(phrase) {
+                throw EnhancerError.refused
             }
         }
 
@@ -125,6 +152,7 @@ public final class CloudPromptEnhancer: Sendable {
 public enum EnhancerError: Error, LocalizedError {
     case missingBearerToken
     case invalidResponse
+    case refused
     case bedrockError(statusCode: Int, message: String)
 
     public var errorDescription: String? {
@@ -133,6 +161,8 @@ public enum EnhancerError: Error, LocalizedError {
             return "Bearer token not configured. Add it in Settings."
         case .invalidResponse:
             return "Invalid response from Bedrock"
+        case .refused:
+            return "Could not enhance — input was unclear."
         case .bedrockError(let code, let message):
             let truncated = message.prefix(200)
             return "Bedrock error \(code): \(truncated)"

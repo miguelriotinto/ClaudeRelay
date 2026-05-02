@@ -18,6 +18,7 @@ struct ActiveTerminalView: View {
     @State private var showRenameAlert = false
     @State private var renameText = ""
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
+    @ObservedObject private var settings = AppSettings.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -25,7 +26,7 @@ struct ActiveTerminalView: View {
             VStack(spacing: 0) {
                 if let id = coordinator.activeSessionId,
                    let vm = coordinator.viewModel(for: id) {
-                    SwiftTermView(viewModel: vm, isKeyboardVisible: $isKeyboardVisible)
+                    SwiftTermView(viewModel: vm, fontSize: CGFloat(settings.terminalFontSize), isKeyboardVisible: $isKeyboardVisible)
                         .id(id)
 
                     if showKeyBar {
@@ -341,10 +342,10 @@ private struct MicButton: View {
                 if let progress = engine.modelStore.downloadProgress {
                     ZStack {
                         Circle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 3)
+                            .stroke(Color.gray.opacity(0.4), lineWidth: 3)
                         Circle()
                             .trim(from: 0, to: progress)
-                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                             .rotationEffect(.degrees(-90))
                             .animation(.linear(duration: 0.3), value: progress)
                     }
@@ -438,10 +439,10 @@ private struct MicButton: View {
 
     private var buttonColor: SwiftUI.Color {
         switch engine.state {
-        case .idle, .loadingModel: return Color.gray.opacity(0.5)
-        case .recording: return Color.red.opacity(0.8)
-        case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
-        case .error: return Color.red.opacity(0.8)
+        case .idle, .loadingModel: return SwiftUI.Color.gray.opacity(0.5)
+        case .recording: return SwiftUI.Color.red.opacity(0.8)
+        case .transcribing, .cleaning: return SwiftUI.Color.yellow.opacity(0.8)
+        case .error: return SwiftUI.Color.red.opacity(0.8)
         }
     }
 }
@@ -587,6 +588,7 @@ private class RelayTerminalView: TerminalView {
 
 struct SwiftTermView: UIViewRepresentable {
     let viewModel: TerminalViewModel
+    var fontSize: CGFloat
     @Binding var isKeyboardVisible: Bool
 
     func makeUIView(context: Context) -> TerminalView {
@@ -594,6 +596,7 @@ struct SwiftTermView: UIViewRepresentable {
         terminal.terminalDelegate = context.coordinator
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
+        terminal.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         terminal.changeScrollback(10_000)
 
         viewModel.onTerminalOutput = { data in
@@ -642,7 +645,12 @@ struct SwiftTermView: UIViewRepresentable {
         return terminal
     }
 
-    func updateUIView(_ uiView: TerminalView, context: Context) {}
+    func updateUIView(_ uiView: TerminalView, context: Context) {
+        let newFont = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        if uiView.font != newFont {
+            uiView.font = newFont
+        }
+    }
 
     static func dismantleUIView(_ uiView: TerminalView, coordinator: Coordinator) {
         if let observer = coordinator.focusObserver {

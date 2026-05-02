@@ -28,6 +28,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("com.clauderelay.mac.bedrockBearerToken") var bedrockBearerToken = ""
     @AppStorage("com.clauderelay.mac.bedrockRegion") var bedrockRegion = "us-east-1"
 
+    @AppStorage("com.clauderelay.mac.terminalFontSize") var terminalFontSize: Double = 12
+
     @AppStorage("com.clauderelay.mac.recordingShortcutEnabled") var recordingShortcutEnabled = true
     @AppStorage("com.clauderelay.mac.recordingShortcutModifiers") var recordingShortcutModifiers: Int = Int(NSEvent.ModifierFlags([.command, .option]).rawValue)
     @AppStorage("com.clauderelay.mac.recordingShortcutKey") var recordingShortcutKey = ""
