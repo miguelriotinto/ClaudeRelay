@@ -138,8 +138,8 @@ public actor SessionManager {
         managed.info = newInfo
         sessions[id] = managed
 
-        // Attached: bump to 1 s poll for responsive Claude entry/exit.
-        Task { await pty.setPollCadence(1.0) }
+        // Attached: bump to the fast poll cadence for responsive Claude entry/exit.
+        Task { await pty.setPollCadence(PTYSession.attachedPollCadence) }
 
         return (newInfo, pty)
     }
@@ -173,12 +173,9 @@ public actor SessionManager {
             Task {
                 await pty.clearOutputHandler()
             }
-        }
-
-        // Detached: slow the poll to 5 s — we still need activity for background
-        // iOS tabs, but 1 s resolution is only needed for the user's foreground session.
-        if let pty = managed.ptySession {
-            Task { await pty.setPollCadence(5.0) }
+            // Detached: slow the poll — we still need activity for background
+            // iOS tabs, but 1 s resolution is only needed for the user's foreground session.
+            Task { await pty.setPollCadence(PTYSession.detachedPollCadence) }
         }
 
         // Start detach timeout timer (0 = never expire).

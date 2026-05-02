@@ -40,6 +40,14 @@ private final class ActivityCallbackBox: @unchecked Sendable {
 // MARK: - PTYSession Actor
 
 public actor PTYSession: PTYSessionProtocol {
+    /// Poll cadence used while a client is attached — fast enough for responsive
+    /// Claude entry/exit detection.
+    public static let attachedPollCadence: TimeInterval = 1.0
+    /// Poll cadence used while detached — slow enough that many-session deployments
+    /// don't pay 1 Hz of per-session walker cost, but fast enough that background
+    /// iOS tabs still reflect Claude state changes within a few seconds.
+    public static let detachedPollCadence: TimeInterval = 5.0
+
     public let sessionId: UUID
 
     private let masterFD: Int32
@@ -190,8 +198,14 @@ public actor PTYSession: PTYSessionProtocol {
     }
 
     /// Adjust the foreground-process polling interval. Attached sessions use
-    /// 1.0 s for responsive Claude-entry detection; detached sessions use 5.0 s
-    /// so many-session deployments don't pay the full poll cost per second.
+    /// `attachedPollCadence` (1.0 s) for responsive Claude-entry detection;
+    /// detached sessions use `detachedPollCadence` (5.0 s) so many-session
+    /// deployments don't pay the full poll cost per second.
+    ///
+    /// No-op if the poll timer hasn't been created yet (before `startReading()`
+    /// has been called). Today every production path calls `startReading()` from
+    /// `SessionManager.createSession` before the session is reachable by
+    /// attach/detach, so this guard is defensive rather than load-bearing.
     public func setPollCadence(_ seconds: TimeInterval) {
         guard let timer = foregroundPollTimer else { return }
         timer.schedule(deadline: .now() + seconds, repeating: seconds)
