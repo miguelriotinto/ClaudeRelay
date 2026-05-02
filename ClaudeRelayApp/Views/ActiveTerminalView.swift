@@ -635,6 +635,8 @@ struct TerminalHostView: UIViewRepresentable {
             return
         }
 
+        let isFirstTimeForSession = coordinator.cachedTerminalView(for: activeId) == nil
+        let sessionChanged = context.coordinator.lastFocusedSessionId != activeId
         let cached = cachedOrMake(for: activeId, viewModel: viewModel, host: host)
 
         if cached.view.superview !== host {
@@ -681,11 +683,23 @@ struct TerminalHostView: UIViewRepresentable {
         }
         viewModel.terminalReady()
 
-        // Make the newly-visible terminal the first responder.
-        _ = cached.view.becomeFirstResponder()
-        cached.view.inputAccessoryView?.isHidden = true
-        cached.view.inputAccessoryView?.frame.size.height = 0
-        cached.view.reloadInputViews()
+        // Hide the built-in input accessory once per terminal (idempotent, but
+        // not needed on every updateUIView).
+        if isFirstTimeForSession {
+            cached.view.inputAccessoryView?.isHidden = true
+            cached.view.inputAccessoryView?.frame.size.height = 0
+            cached.view.reloadInputViews()
+        }
+
+        // Only focus the terminal when the active session actually changes.
+        // updateUIView fires on every @ObservedObject publish (activity updates,
+        // connection quality, etc.), and forcing first-responder on each call
+        // would override user dismisses — the keyboard would pop back up every
+        // time a coordinator property changes.
+        if sessionChanged {
+            context.coordinator.lastFocusedSessionId = activeId
+            _ = cached.view.becomeFirstResponder()
+        }
     }
 
     static func dismantleUIView(_ uiView: UIView, coordinator: HostCoordinator) {
@@ -731,6 +745,10 @@ final class HostCoordinator: NSObject {
     private var resignObserver: Any?
     private var keyboardShowObserver: Any?
     private var keyboardHideObserver: Any?
+    /// Tracks which session was most recently focused so we only force-focus
+    /// the terminal on actual session switches, not on every coordinator
+    /// property publish.
+    var lastFocusedSessionId: UUID?
 
     init(isKeyboardVisible: Binding<Bool>) {
         self.isKeyboardVisible = isKeyboardVisible
