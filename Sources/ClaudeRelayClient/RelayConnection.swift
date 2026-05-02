@@ -125,6 +125,7 @@ public final class RelayConnection: ObservableObject {
         let session = URLSession(configuration: .default)
         self.urlSession = session
         let task = session.webSocketTask(with: config.wsURL)
+        task.maximumMessageSize = 10 * 1024 * 1024
         self.webSocketTask = task
         task.resume()
 

@@ -334,7 +334,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     self.attachedPTY = pty
                     self.sendServerMessage(.sessionAttached(sessionId: sessionId, state: info.state.rawValue), context: ctx.value)
                     if !filtered.isEmpty {
-                        self.sendBinaryData(filtered, context: ctx.value)
+                        self.sendChunkedBinaryData(filtered, context: ctx.value)
                     }
                     self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity), context: ctx.value)
                     self.wirePTYOutput(pty: pty, context: ctx.value)
@@ -369,9 +369,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     self.attachedSessionId = sessionId
                     self.attachedPTY = pty
                     self.sendServerMessage(.sessionResumed(sessionId: sessionId), context: ctx.value)
-                    // Send buffered data as binary
                     if !filtered.isEmpty {
-                        self.sendBinaryData(filtered, context: ctx.value)
+                        self.sendChunkedBinaryData(filtered, context: ctx.value)
                     }
                     self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity), context: ctx.value)
                     self.wirePTYOutput(pty: pty, context: ctx.value)
@@ -602,6 +601,39 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         } catch {
             RelayLogger.log(.error, category: "connection", "JSON encode failed for \(message): \(error)")
         }
+    }
+
+    /// Chunk size for ring-buffer replays. Mobile WebSocket stacks (URLSession
+    /// on iOS in particular) drop large single frames — at ~1.7 MB we observed
+    /// consistent I/O-on-closed-channel failures. 64 KB frames sit well inside
+    /// every platform's buffers and still keep overhead low.
+    private static let replayChunkSize = 64 * 1024
+
+    /// Send a potentially-large binary payload as a series of small frames.
+    /// Uses `write` (no flush) on each chunk and a single `flush` at the end
+    /// so NIO can coalesce where possible. All chunks share a single failure
+    /// promise so we don't spam the log with one error per chunk on closure.
+    private func sendChunkedBinaryData(_ data: Data, context: ChannelHandlerContext) {
+        guard !data.isEmpty else { return }
+        guard context.channel.isActive else { return }
+        let totalBytes = data.count
+        var offset = data.startIndex
+        while offset < data.endIndex {
+            let end = min(offset + Self.replayChunkSize, data.endIndex)
+            let slice = data[offset..<end]
+            var buffer = context.channel.allocator.buffer(capacity: slice.count)
+            buffer.writeBytes(slice)
+            let frame = WebSocketFrame(fin: true, opcode: .binary, data: buffer)
+            context.write(wrapOutboundOut(frame), promise: nil)
+            offset = end
+        }
+        let flushPromise = context.eventLoop.makePromise(of: Void.self)
+        flushPromise.futureResult.whenFailure { error in
+            RelayLogger.log(.error, category: "connection",
+                "Chunked binary write failed (\(totalBytes) bytes): \(error)")
+        }
+        context.channel.flush()
+        flushPromise.succeed(())
     }
 
     private func sendBinaryData(_ data: Data, context: ChannelHandlerContext) {
