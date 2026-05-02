@@ -24,10 +24,10 @@ final class RelayConnectionTests: XCTestCase {
     func testCallbacksAreNilByDefault() {
         let connection = RelayConnection()
         XCTAssertNil(connection.onTerminalOutput)
-        XCTAssertNil(connection.onReconnected)
         XCTAssertNil(connection.onSessionActivity)
         XCTAssertNil(connection.onSessionStolen)
         XCTAssertNil(connection.onSessionRenamed)
+        XCTAssertNil(connection.onSendFailed)
     }
 }
 

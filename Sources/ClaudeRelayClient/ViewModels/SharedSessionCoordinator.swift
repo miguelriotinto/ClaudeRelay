@@ -34,6 +34,9 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     @Published public private(set) var recoveryFailed = false
     @Published public var errorMessage: String?
     @Published public var showError = false
+    /// True when recovery could not restore the connection itself (reconnect attempts
+    /// all failed). Distinct from `sessionAttachFailed`, which covers the case where
+    /// the connection is fine but the session is gone or unusable on the server.
     @Published public var connectionTimedOut = false
     @Published public var stolenSessionName: String?
     @Published public var stolenSessionShortId: String?
@@ -61,6 +64,10 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     private var lastFetchTime: Date = .distantPast
     private var networkMonitor: NetworkMonitor?
     private var networkObserver: NSObjectProtocol?
+    /// Shared in-flight auth task. Concurrent callers to `ensureAuthenticated` await
+    /// the same attempt instead of racing to send duplicate `auth_request`s (which
+    /// the server rejects with "Already authenticated" on the second one).
+    private var authTask: Task<SessionController, Error>?
 
     // MARK: - Recovery Control
 
@@ -128,11 +135,6 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         ownedSessionIds = Self.loadOwned()
         claudeSessions = Self.loadClaudeSessions()
 
-        connection.onReconnected = { [weak self] in
-            Task { @MainActor [weak self] in
-                await self?.handleAutoReconnect()
-            }
-        }
         connection.onSessionActivity = { [weak self] sessionId, activity in
             Task { @MainActor [weak self] in
                 self?.handleActivityUpdate(sessionId: sessionId, activity: activity)
@@ -292,11 +294,20 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         if let controller = sessionController, controller.isAuthValid {
             return controller
         }
-        let controller = sessionController ?? SessionController(connection: connection)
-        try await controller.authenticate(token: token)
-        sessionController = controller
-        didAuthenticate()
-        return controller
+        if let existing = authTask {
+            return try await existing.value
+        }
+        let task = Task<SessionController, Error> { [weak self] in
+            guard let self else { throw SessionController.SessionError.timeout }
+            let controller = self.sessionController ?? SessionController(connection: self.connection)
+            try await controller.authenticate(token: self.token)
+            self.sessionController = controller
+            self.didAuthenticate()
+            return controller
+        }
+        authTask = task
+        defer { if authTask == task { authTask = nil } }
+        return try await task.value
     }
 
     /// Runs a closure that requires an authenticated controller. If the server
@@ -725,24 +736,6 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         }
     }
 
-    public func handleAutoReconnect() async {
-        guard !isRecovering, !isTornDown, !isRecoveryDispatched,
-              sessionController?.isAuthValid != true else { return }
-        isRecoveryDispatched = true
-        defer { isRecoveryDispatched = false }
-        recoveryGeneration &+= 1
-        let myGeneration = recoveryGeneration
-        recoveryLog.info("AutoReconnect start gen=\(myGeneration)")
-        recoveryPhase = .authenticating
-        recoveryFailed = false
-        isRecovering = true
-        defer {
-            isRecovering = false
-            lastRecoveryEndedAt = Date()
-        }
-        await restoreSession(generation: myGeneration, userInitiated: false)
-    }
-
     /// Restores auth + active session on the current connection.
     /// Caller is responsible for setting/clearing `isRecovering` around this call.
     public func restoreSession(generation: UInt64, userInitiated: Bool) async {
@@ -765,7 +758,19 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             recoveryLog.error("restoreSession failed (gen=\(generation)): \(error.localizedDescription, privacy: .public)")
             guard !isTornDown, generation == recoveryGeneration else { return }
             recoveryFailed = true
-            connectionTimedOut = true
+            if Self.isApplicationLevelError(error) {
+                // Session no longer exists / invalid transition / etc. The socket
+                // itself is fine — clear the active session and surface a recoverable
+                // error. Don't tear the workspace down via connectionTimedOut.
+                if let activeId = activeSessionId {
+                    terminalViewModels[activeId] = nil
+                    activeSessionId = nil
+                }
+                sessionAttachError = friendlyAttachErrorMessage(error)
+                sessionAttachFailed = true
+            } else {
+                connectionTimedOut = true
+            }
             recordAutoRecoveryOutcome(success: false, userInitiated: userInitiated)
             return
         }
@@ -783,6 +788,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         recoveryGeneration &+= 1
         recoveryTask?.cancel()
         recoveryTask = nil
+        authTask?.cancel()
+        authTask = nil
         isRecovering = false
         isRecoveryDispatched = false
         recoveryFailed = true
@@ -803,6 +810,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         stopNetworkRecovery()
         recoveryTask?.cancel()
         recoveryTask = nil
+        authTask?.cancel()
+        authTask = nil
         if activeSessionId != nil {
             Task { try? await sessionController?.detach() }
         }

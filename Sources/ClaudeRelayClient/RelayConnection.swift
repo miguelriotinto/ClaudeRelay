@@ -7,7 +7,9 @@ private let logger = Logger(subsystem: "com.claude.relay.client", category: "Rel
 /// Manages a WebSocket connection to a ClaudeRelay server with connection quality monitoring.
 ///
 /// Uses `URLSessionWebSocketTask` for transport. Monitors health via application-level
-/// ping/pong on a 10-second interval. Recovery is owned by `SharedSessionCoordinator`.
+/// ping/pong on a 10-second interval. Recovery is owned exclusively by
+/// `SharedSessionCoordinator` — this class never auto-reconnects on its own.
+/// When the socket dies, it fires `onSendFailed` and lets the coordinator drive recovery.
 @MainActor
 public final class RelayConnection: ObservableObject {
 
@@ -17,7 +19,6 @@ public final class RelayConnection: ObservableObject {
         case disconnected
         case connecting
         case connected
-        case reconnecting
     }
 
     public enum ConnectionError: Error, LocalizedError {
@@ -59,11 +60,10 @@ public final class RelayConnection: ObservableObject {
     /// Push callback: server renamed a session (another device renamed it).
     public var onSessionRenamed: ((UUID, String) -> Void)?
 
-    /// Called after a successful auto-reconnect so the coordinator can re-authenticate.
-    public var onReconnected: (() -> Void)?
-
-    /// Called when a send operation fails, indicating the connection is dead.
-    /// Use this to trigger recovery in the coordinator.
+    /// Called when a user-visible send operation fails or the receive loop ends,
+    /// indicating the connection is likely dead. The coordinator drives recovery.
+    /// Internal pings (keepalive / liveness probes) do NOT trigger this — only
+    /// user-initiated commands and the explicit death detector in the quality monitor.
     public var onSendFailed: (() -> Void)?
 
     // MARK: - Private Properties
@@ -72,14 +72,10 @@ public final class RelayConnection: ObservableObject {
     private var urlSession: URLSession?
     private var config: ConnectionConfig?
     private var token: String?
-    private var reconnectAttempt = 0
-    private let maxReconnectDelay: TimeInterval = 30
-    private var shouldReconnect = false
-    private var isReconnecting = false
     /// Monotonically increasing counter bumped each time a new WebSocket connection is established.
-    /// Used by SessionController to detect stale auth state after reconnection.
+    /// Used by SessionController to detect stale auth state after reconnection, and by the
+    /// receive loop / quality monitor to ignore callbacks from superseded connections.
     public private(set) var generation: UInt64 = 0
-    private var reconnectGeneration: UInt64 = 0
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private var keepaliveTask: Task<Void, Never>?
@@ -87,7 +83,13 @@ public final class RelayConnection: ObservableObject {
     private let windowSize = 6
     private var rttWindow: [TimeInterval?] = []
     private var consecutiveFailures = 0
-    private var pendingPongContinuation: CheckedContinuation<Void, Never>?
+
+    // Ping/pong plumbing — single slot, protected by activePing dedup.
+    private var pendingPongContinuation: CheckedContinuation<Bool, Never>?
+    /// Dedups concurrent `measurePingRTT()` callers onto a single in-flight ping.
+    /// Overlapping pings would otherwise race for the single pong slot and leak
+    /// non-cancellable continuations.
+    private var activePing: Task<TimeInterval?, Never>?
 
     // MARK: - Init
 
@@ -96,16 +98,25 @@ public final class RelayConnection: ObservableObject {
     // MARK: - Public API
 
     /// Connects to the ClaudeRelay server described by the given configuration.
+    /// Does NOT enable any auto-reconnect behaviour — the coordinator owns recovery.
     public func connect(config: ConnectionConfig, token: String) async throws {
         self.config = config
         self.token = token
-        self.shouldReconnect = true
-        self.reconnectAttempt = 0
 
-        // Invalidate previous URLSession to free resources.
+        // Resume any stale pong continuation from a previous connection before
+        // we tear the socket down (pongs from the old socket will never arrive
+        // after cancel, so we must not leave a continuation dangling).
+        resolvePendingPong(gotPong: false)
+
+        // Cancel old transport if any.
         urlSession?.invalidateAndCancel()
+        urlSession = nil
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+        keepaliveTask?.cancel()
+        keepaliveTask = nil
 
-        // Bump generation so stale receive-loop callbacks become no-ops.
+        // Bump generation so stale receive-loop / keepalive callbacks become no-ops.
         generation &+= 1
         let gen = generation
 
@@ -124,13 +135,11 @@ public final class RelayConnection: ObservableObject {
 
     /// Disconnects from the server. Does not attempt reconnection.
     public func disconnect() {
-        shouldReconnect = false
         keepaliveTask?.cancel()
         keepaliveTask = nil
-        if let c = pendingPongContinuation {
-            pendingPongContinuation = nil
-            c.resume()
-        }
+        resolvePendingPong(gotPong: false)
+        activePing?.cancel()
+        activePing = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         urlSession?.invalidateAndCancel()
@@ -144,67 +153,47 @@ public final class RelayConnection: ObservableObject {
         return await measurePingRTT() != nil
     }
 
-    /// Sends an application-level ping (ClientMessage.ping → ServerMessage.pong)
-    /// and returns the round-trip time, or nil on failure.
-    /// Uses a dedicated pong callback so it doesn't interfere with
-    /// onServerMessage (used by SessionController for request/response).
+    /// Sends an application-level ping and returns the round-trip time, or nil on failure.
+    ///
+    /// Concurrent callers share a single in-flight ping. This prevents the single
+    /// `pendingPongContinuation` slot from being stomped by overlapping pings (which
+    /// would leak non-cancellable continuations and hang the keepalive task).
     public func measurePingRTT() async -> TimeInterval? {
-        guard webSocketTask != nil, state == .connected else { return nil }
-        let start = CFAbsoluteTimeGetCurrent()
-
-        do {
-            try await send(.ping)
-        } catch {
-            return nil
+        if let existing = activePing {
+            return await existing.value
         }
-
-        let gotPong = await withTaskGroup(of: Bool.self) { group in
-            group.addTask { @MainActor [weak self] in
-                guard let self else { return false }
-                await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
-                    self.pendingPongContinuation = c
-                }
-                return true
-            }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-                return false
-            }
-            let result = await group.next() ?? false
-            group.cancelAll()
-            return result
+        let task = Task<TimeInterval?, Never> { [weak self] in
+            await self?.performPing() ?? nil
         }
-
-        if !gotPong {
-            if let c = pendingPongContinuation {
-                pendingPongContinuation = nil
-                c.resume()
-            }
-        }
-
-        return gotPong ? CFAbsoluteTimeGetCurrent() - start : nil
+        activePing = task
+        let result = await task.value
+        if activePing == task { activePing = nil }
+        return result
     }
 
     /// Tears down the current connection and establishes a fresh one immediately.
-    /// Preserves the stored config/token. Use this for foreground recovery.
-    /// Does NOT enable auto-reconnect — the coordinator owns recovery decisions.
+    /// Preserves the stored config/token. Used by the coordinator during foreground recovery.
     public func forceReconnect() async throws {
         guard let config = config, let token = token else {
             throw ConnectionError.notConnected
         }
-        shouldReconnect = false
-        reconnectGeneration &+= 1
-        keepaliveTask?.cancel()
-        keepaliveTask = nil
-        webSocketTask?.cancel(with: .goingAway, reason: nil)
-        webSocketTask = nil
-
         try await connect(config: config, token: token)
-        shouldReconnect = false
     }
 
-    /// Sends a control message (JSON text frame) to the server.
+    /// Sends a user-initiated control message (JSON text frame). Fires `onSendFailed`
+    /// on transport error so the coordinator can start recovery.
     public func send(_ message: ClientMessage) async throws {
+        try await sendClientMessage(message, notifyOnFailure: true)
+    }
+
+    /// Internal send that does NOT fire `onSendFailed` on transport error.
+    /// Used for liveness probes (pings) so a failed probe doesn't itself schedule
+    /// recovery — the quality monitor aggregates failures and decides when to fire.
+    private func sendInternal(_ message: ClientMessage) async throws {
+        try await sendClientMessage(message, notifyOnFailure: false)
+    }
+
+    private func sendClientMessage(_ message: ClientMessage, notifyOnFailure: Bool) async throws {
         guard let task = webSocketTask else {
             throw ConnectionError.notConnected
         }
@@ -218,7 +207,9 @@ public final class RelayConnection: ObservableObject {
         do {
             try await task.send(.string(jsonString))
         } catch {
-            onSendFailed?()
+            if notifyOnFailure {
+                onSendFailed?()
+            }
             throw error
         }
     }
@@ -245,6 +236,63 @@ public final class RelayConnection: ObservableObject {
     /// Sends base64-encoded image data to be pasted on the server's clipboard.
     public func sendPasteImage(base64Data: String) async throws {
         try await send(.pasteImage(data: base64Data))
+    }
+
+    // MARK: - Ping Implementation
+
+    /// Performs a single ping/pong exchange. Called only from `measurePingRTT` —
+    /// callers must not invoke this directly (dedup is enforced by `activePing`).
+    private func performPing() async -> TimeInterval? {
+        guard webSocketTask != nil, state == .connected else { return nil }
+        let start = CFAbsoluteTimeGetCurrent()
+
+        do {
+            try await sendInternal(.ping)
+        } catch {
+            return nil
+        }
+
+        let gotPong = await waitForPong(timeout: .seconds(5))
+        return gotPong ? CFAbsoluteTimeGetCurrent() - start : nil
+    }
+
+    /// Awaits a pong within the given timeout. Uses `withTaskCancellationHandler` so
+    /// the continuation is resolved promptly when the task is cancelled, avoiding the
+    /// classic "continuation leak on cancel" trap with `withCheckedContinuation`.
+    private func waitForPong(timeout: Duration) async -> Bool {
+        // Racing timer: resolves the continuation with `false` if no pong arrives.
+        let timerTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: timeout)
+            guard !Task.isCancelled else { return }
+            self?.resolvePendingPong(gotPong: false)
+        }
+
+        let result = await withTaskCancellationHandler {
+            await withCheckedContinuation { (c: CheckedContinuation<Bool, Never>) in
+                // Evict any prior continuation (shouldn't happen because of activePing
+                // dedup, but defensive — resume it with false so it doesn't leak).
+                if let existing = pendingPongContinuation {
+                    pendingPongContinuation = nil
+                    existing.resume(returning: false)
+                }
+                pendingPongContinuation = c
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.resolvePendingPong(gotPong: false)
+            }
+        }
+
+        timerTask.cancel()
+        return result
+    }
+
+    /// Resolves the pending pong continuation with the given result.
+    /// Safe to call multiple times — becomes a no-op if there's no pending continuation.
+    private func resolvePendingPong(gotPong: Bool) {
+        guard let c = pendingPongContinuation else { return }
+        pendingPongContinuation = nil
+        c.resume(returning: gotPong)
     }
 
     // MARK: - Connection Quality Monitor
@@ -279,22 +327,32 @@ public final class RelayConnection: ObservableObject {
 
                 if self.consecutiveFailures >= 3 {
                     logger.warning("Three consecutive pings failed — connection dead, notifying coordinator")
-                    self.keepaliveTask = nil
-                    self.shouldReconnect = false
-                    self.generation &+= 1
-                    self.webSocketTask?.cancel(with: .goingAway, reason: nil)
-                    self.webSocketTask = nil
-                    self.urlSession?.invalidateAndCancel()
-                    self.urlSession = nil
-                    self.state = .disconnected
-                    self.connectionQuality = .disconnected
-                    self.onSendFailed?()
+                    self.markConnectionDead()
                     return
                 }
 
                 self.connectionQuality = self.computeQuality()
             }
         }
+    }
+
+    /// Marks the current connection as dead: cancels the websocket, bumps generation
+    /// so stale callbacks are rejected, and notifies the coordinator. The coordinator
+    /// owns recovery — this class never self-reconnects.
+    private func markConnectionDead() {
+        keepaliveTask?.cancel()
+        keepaliveTask = nil
+        resolvePendingPong(gotPong: false)
+        activePing?.cancel()
+        activePing = nil
+        generation &+= 1
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
+        state = .disconnected
+        connectionQuality = .disconnected
+        onSendFailed?()
     }
 
     private func computeQuality() -> ConnectionQuality {
@@ -319,12 +377,11 @@ public final class RelayConnection: ObservableObject {
 
                 switch result {
                 case .success(let message):
-                    self.reconnectAttempt = 0
                     self.handleWebSocketMessage(message)
                     self.receiveLoop(generation: generation)
 
                 case .failure:
-                    self.handleDisconnection()
+                    self.handleReceiveFailure()
                 }
             }
         }
@@ -337,9 +394,8 @@ public final class RelayConnection: ObservableObject {
             do {
                 let envelope = try decoder.decode(MessageEnvelope.self, from: data)
                 if case .server(let serverMessage) = envelope {
-                    if case .pong = serverMessage, let c = pendingPongContinuation {
-                        pendingPongContinuation = nil
-                        c.resume()
+                    if case .pong = serverMessage {
+                        resolvePendingPong(gotPong: true)
                         return
                     }
 
@@ -368,54 +424,18 @@ public final class RelayConnection: ObservableObject {
         }
     }
 
-    // MARK: - Reconnection
-
-    private func handleDisconnection() {
+    /// Called when the receive loop fails — connection is dead at the transport layer.
+    /// Notifies the coordinator; no self-reconnect.
+    private func handleReceiveFailure() {
+        // Only act if this is still the active connection.
         keepaliveTask?.cancel()
         keepaliveTask = nil
+        resolvePendingPong(gotPong: false)
+        activePing?.cancel()
+        activePing = nil
         webSocketTask = nil
-
-        guard !isReconnecting, shouldReconnect, let config = config, let token = token else {
-            if !isReconnecting {
-                state = .disconnected
-                connectionQuality = .disconnected
-                onSendFailed?()
-            }
-            return
-        }
-
-        isReconnecting = true
-        state = .reconnecting
-        attemptReconnect(config: config, token: token)
-    }
-
-    private func attemptReconnect(config: ConnectionConfig, token: String) {
-        reconnectAttempt += 1
-        let gen = reconnectGeneration
-
-        let exponent = min(reconnectAttempt - 1, 30)
-        let baseDelay = min(Double(1 << exponent), maxReconnectDelay)
-        let jitter = baseDelay * Double.random(in: -0.25...0.25)
-        let delay = max(0.5, baseDelay + jitter)
-
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-
-            guard let self, self.shouldReconnect, gen == self.reconnectGeneration else {
-                self?.isReconnecting = false
-                return
-            }
-
-            do {
-                try await self.connect(config: config, token: token)
-                self.isReconnecting = false
-                guard gen == self.reconnectGeneration else { return }
-                self.onReconnected?()
-            } catch {
-                self.isReconnecting = false
-                guard gen == self.reconnectGeneration else { return }
-                self.handleDisconnection()
-            }
-        }
+        state = .disconnected
+        connectionQuality = .disconnected
+        onSendFailed?()
     }
 }
