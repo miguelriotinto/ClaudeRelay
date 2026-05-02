@@ -65,7 +65,7 @@ final class SessionCoordinator: SharedSessionCoordinator {
             object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                await self?.handleForegroundTransition()
+                self?.triggerUserRecovery()
             }
         }
         recoveryObservers = [wakeObs]

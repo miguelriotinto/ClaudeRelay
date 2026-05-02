@@ -76,7 +76,9 @@ public final class RelayConnection: ObservableObject {
     private let maxReconnectDelay: TimeInterval = 30
     private var shouldReconnect = false
     private var isReconnecting = false
-    private var connectionGeneration: UInt64 = 0
+    /// Monotonically increasing counter bumped each time a new WebSocket connection is established.
+    /// Used by SessionController to detect stale auth state after reconnection.
+    public private(set) var generation: UInt64 = 0
     private var reconnectGeneration: UInt64 = 0
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
@@ -104,8 +106,8 @@ public final class RelayConnection: ObservableObject {
         urlSession?.invalidateAndCancel()
 
         // Bump generation so stale receive-loop callbacks become no-ops.
-        connectionGeneration &+= 1
-        let generation = connectionGeneration
+        generation &+= 1
+        let gen = generation
 
         state = .connecting
 
@@ -116,8 +118,8 @@ public final class RelayConnection: ObservableObject {
         task.resume()
 
         state = .connected
-        receiveLoop(generation: generation)
-        startQualityMonitor(generation: generation)
+        receiveLoop(generation: gen)
+        startQualityMonitor(generation: gen)
     }
 
     /// Disconnects from the server. Does not attempt reconnection.
@@ -258,11 +260,11 @@ public final class RelayConnection: ObservableObject {
                 try? await Task.sleep(nanoseconds: UInt64(10 * 1_000_000_000))
                 guard !Task.isCancelled,
                       let self,
-                      generation == self.connectionGeneration,
+                      generation == self.generation,
                       self.state == .connected else { return }
 
                 let rtt = await self.measurePingRTT()
-                guard !Task.isCancelled, generation == self.connectionGeneration else { return }
+                guard !Task.isCancelled, generation == self.generation else { return }
 
                 self.rttWindow.append(rtt)
                 if self.rttWindow.count > self.windowSize {
@@ -279,7 +281,7 @@ public final class RelayConnection: ObservableObject {
                     logger.warning("Three consecutive pings failed — connection dead, notifying coordinator")
                     self.keepaliveTask = nil
                     self.shouldReconnect = false
-                    self.connectionGeneration &+= 1
+                    self.generation &+= 1
                     self.webSocketTask?.cancel(with: .goingAway, reason: nil)
                     self.webSocketTask = nil
                     self.urlSession?.invalidateAndCancel()
@@ -308,12 +310,12 @@ public final class RelayConnection: ObservableObject {
     // MARK: - Receive Loop
 
     private func receiveLoop(generation: UInt64) {
-        guard let task = webSocketTask, generation == connectionGeneration else { return }
+        guard let task = webSocketTask, generation == generation else { return }
 
         task.receive { [weak self] result in
             Task { @MainActor in
                 // If the generation has changed, a new connection superseded us — bail out.
-                guard let self, generation == self.connectionGeneration else { return }
+                guard let self, generation == self.generation else { return }
 
                 switch result {
                 case .success(let message):

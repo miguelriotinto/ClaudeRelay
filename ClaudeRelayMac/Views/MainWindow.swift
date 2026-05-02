@@ -181,11 +181,17 @@ private struct WorkspaceView: View {
             RecoverySheet(
                 phase: coordinator.recoveryPhase,
                 onCancel: {
-                    coordinator.recoveryTask?.cancel()
-                    coordinator.recoveryTask = nil
+                    coordinator.cancelRecovery()
                 }
             )
             .interactiveDismissDisabled()
+        }
+        .alert("Cannot Open Session", isPresented: $coordinator.sessionAttachFailed) {
+            Button("OK", role: .cancel) {
+                coordinator.sessionAttachError = nil
+            }
+        } message: {
+            Text(coordinator.sessionAttachError ?? "Unable to attach to this session.")
         }
     }
 }

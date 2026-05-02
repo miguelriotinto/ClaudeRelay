@@ -25,12 +25,21 @@ public final class SessionController: ObservableObject {
                 return "The operation timed out."
             }
         }
+
+        var isNotAuthenticated: Bool {
+            if case .unexpectedResponse(let msg) = self { return msg == "Not authenticated" }
+            return false
+        }
     }
 
     // MARK: - Published State
 
     @Published public private(set) var sessionId: UUID?
     @Published public private(set) var isAuthenticated = false
+
+    /// The connection generation when auth was established. Used to detect stale auth
+    /// after the WebSocket reconnects (server sees a fresh unauthenticated handler).
+    public private(set) var authenticatedGeneration: UInt64 = 0
 
     // MARK: - Private
 
@@ -43,6 +52,12 @@ public final class SessionController: ObservableObject {
     }
 
     // MARK: - Authentication
+
+    /// Whether the controller is authenticated on the **current** connection.
+    /// Returns false if the WebSocket has been replaced since auth was established.
+    public var isAuthValid: Bool {
+        isAuthenticated && authenticatedGeneration == connection.generation
+    }
 
     /// Resets authentication state so the next operation will re-authenticate.
     /// Call this after the underlying connection has been re-established.
@@ -69,6 +84,7 @@ public final class SessionController: ObservableObject {
                 )
             }
             isAuthenticated = true
+            authenticatedGeneration = connection.generation
         case .authFailure(let reason):
             isAuthenticated = false
             throw SessionError.authenticationFailed(reason: reason)
