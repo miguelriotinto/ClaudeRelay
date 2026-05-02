@@ -454,11 +454,7 @@ final class SessionActivityMonitorTests: XCTestCase {
     /// non-Claude path: observable behavior must match the old code.
     func testEscapeOnlyOutputTransitionsToActiveWhenNotClaude() {
         var states: [ActivityState] = []
-        let monitor = SessionActivityMonitor(
-            silenceThreshold: 10,
-            claudeSilenceThreshold: 10,
-            onChange: { states.append($0) }
-        )
+        let monitor = makeMonitor(silenceThreshold: 10, claudeSilenceThreshold: 10) { states.append($0) }
         // Seed to .idle so the escape-only chunk produces an observable transition.
         monitor.applySilenceTimeout()
         XCTAssertEqual(states.last, .idle)
@@ -474,15 +470,32 @@ final class SessionActivityMonitorTests: XCTestCase {
     /// state change at all from a pure escape chunk, not just "stays idle".)
     func testEscapeOnlyOutputDoesNotCountAsActivityWhenClaudeRunning() {
         var states: [ActivityState] = []
-        let monitor = SessionActivityMonitor(
-            silenceThreshold: 10,
-            claudeSilenceThreshold: 10,
-            onChange: { states.append($0) }
-        )
+        let monitor = makeMonitor(silenceThreshold: 10, claudeSilenceThreshold: 10) { states.append($0) }
         monitor.updateForegroundProcess(isClaude: true)
         states.removeAll() // drop the .active → .claudeActive entry transition
         monitor.processOutput(Data([0x1B, 0x5B, 0x32, 0x41]))
         XCTAssertTrue(states.isEmpty, "escape-only output must not transition while Claude is running")
+        monitor.cancel()
+    }
+
+    /// When Claude IS running and an output chunk isn't valid UTF-8, the Claude path's
+    /// `String(data:encoding: .utf8)` returns nil. The implementation intentionally
+    /// defaults `hasVisibleContent = true` in that case, so the monitor transitions
+    /// to `.claudeActive` rather than silently dropping the chunk. Pin that fallback
+    /// by first seeding `.claudeIdle` via applySilenceTimeout, then feeding invalid
+    /// UTF-8 and asserting the transition back to `.claudeActive` fires.
+    func testNonUTF8OutputCountsAsActivityWhenClaudeRunning() {
+        var states: [ActivityState] = []
+        let monitor = makeMonitor(silenceThreshold: 10, claudeSilenceThreshold: 10) { states.append($0) }
+        monitor.updateForegroundProcess(isClaude: true)
+        // Seed to .claudeIdle so the visible-content branch produces an observable transition.
+        monitor.applySilenceTimeout()
+        XCTAssertEqual(states.last, .claudeIdle)
+
+        // Invalid UTF-8 byte sequence (lone high bytes, not a valid start sequence).
+        // String(data:encoding: .utf8) returns nil → hasVisibleContent stays true → .claudeActive.
+        monitor.processOutput(Data([0xFF, 0xFE, 0xFD]))
+        XCTAssertEqual(states.last, .claudeActive, "non-UTF-8 chunk must fall back to .claudeActive via hasVisibleContent default")
         monitor.cancel()
     }
 }
