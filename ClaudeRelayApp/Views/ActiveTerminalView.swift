@@ -26,8 +26,13 @@ struct ActiveTerminalView: View {
             VStack(spacing: 0) {
                 if let id = coordinator.activeSessionId,
                    let vm = coordinator.viewModel(for: id) {
-                    SwiftTermView(viewModel: vm, fontSize: CGFloat(settings.terminalFontSize), isKeyboardVisible: $isKeyboardVisible)
-                        .id(id)
+                    // Single host reused across session switches so each
+                    // terminal's SwiftTerm scrollback survives the swap.
+                    TerminalHostView(
+                        coordinator: coordinator,
+                        fontSize: CGFloat(settings.terminalFontSize),
+                        isKeyboardVisible: $isKeyboardVisible
+                    )
 
                     if showKeyBar {
                         KeyboardAccessory { data in
@@ -463,7 +468,7 @@ extension Notification.Name {
 /// copy-paste works reliably when a hardware keyboard is connected.
 /// SwiftTerm implements the `copy(_:)` / `paste(_:)` methods but does not
 /// register key commands, so the system never dispatches them on iOS.
-private class RelayTerminalView: TerminalView {
+class RelayTerminalView: TerminalView {
     // SwiftTerm declares `hasText` as `public` (not `open`), so Swift prevents a
     // direct override. We use the Objective-C runtime to add our own implementation
     // to this subclass, making `hasText` always return true. Without this, the
@@ -586,147 +591,246 @@ private class RelayTerminalView: TerminalView {
     }
 }
 
-struct SwiftTermView: UIViewRepresentable {
-    let viewModel: TerminalViewModel
+/// Holds a RelayTerminalView together with the SwiftTerm delegate so its
+/// lifetime exceeds any single SwiftUI render cycle. Cached on the coordinator
+/// so switching sessions reuses the same UIView (preserving SwiftTerm's
+/// internal scrollback) instead of tearing it down.
+final class CachedIOSTerminal {
+    let view: RelayTerminalView
+    let delegate: IOSTerminalCoordinator
+
+    init(view: RelayTerminalView, delegate: IOSTerminalCoordinator) {
+        self.view = view
+        self.delegate = delegate
+    }
+}
+
+/// SwiftUI host that shows the coordinator's cached terminal for the active
+/// session. Creates a new cached terminal on first use and registers it with
+/// the coordinator so subsequent resumes can ask the server to skip the
+/// ring-buffer replay.
+struct TerminalHostView: UIViewRepresentable {
+    @ObservedObject var coordinator: SessionCoordinator
     var fontSize: CGFloat
     @Binding var isKeyboardVisible: Bool
 
-    func makeUIView(context: Context) -> TerminalView {
-        let terminal = RelayTerminalView(frame: .zero)
-        terminal.terminalDelegate = context.coordinator
+    func makeCoordinator() -> HostCoordinator {
+        HostCoordinator(isKeyboardVisible: $isKeyboardVisible)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let host = UIView(frame: .zero)
+        host.backgroundColor = .black
+        context.coordinator.installKeyboardObservers()
+        context.coordinator.installFocusObservers { [weak host] in
+            (host?.subviews.first { !$0.isHidden }) as? RelayTerminalView
+        }
+        return host
+    }
+
+    func updateUIView(_ host: UIView, context: Context) {
+        guard let activeId = coordinator.activeSessionId,
+              let viewModel = coordinator.viewModel(for: activeId) else {
+            for subview in host.subviews { subview.isHidden = true }
+            return
+        }
+
+        let cached = cachedOrMake(for: activeId, viewModel: viewModel, host: host)
+
+        if cached.view.superview !== host {
+            host.addSubview(cached.view)
+            cached.view.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                cached.view.topAnchor.constraint(equalTo: host.topAnchor),
+                cached.view.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+                cached.view.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+                cached.view.trailingAnchor.constraint(equalTo: host.trailingAnchor)
+            ])
+        }
+
+        for subview in host.subviews {
+            subview.isHidden = (subview !== cached.view)
+        }
+
+        let newFont = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        if cached.view.font != newFont {
+            cached.view.font = newFont
+        }
+
+        cached.delegate.viewModel = viewModel
+        viewModel.onTerminalOutput = { [weak view = cached.view] data in
+            guard let view else { return }
+            let bytes = ArraySlice([UInt8](data))
+            view.feed(byteArray: bytes)
+
+            // Sync UIScrollView after buffer changes that bypass the scrolled delegate.
+            // \033[3J (clear scrollback) trims lines and adjusts yDisp without
+            // notifying the view, leaving contentOffset/contentSize stale.
+            let term = view.getTerminal()
+            let rows = term.rows
+            if rows > 0 {
+                let cellHeight = view.bounds.height / CGFloat(rows)
+                let yDisp = CGFloat(term.buffer.yDisp)
+                let expectedOffsetY = yDisp * cellHeight
+                if view.contentOffset.y - expectedOffsetY > cellHeight * 2 {
+                    view.contentSize.height = max(view.bounds.height,
+                                                  (yDisp + CGFloat(rows)) * cellHeight)
+                    view.contentOffset.y = expectedOffsetY
+                }
+            }
+        }
+        viewModel.terminalReady()
+
+        // Make the newly-visible terminal the first responder.
+        _ = cached.view.becomeFirstResponder()
+        cached.view.inputAccessoryView?.isHidden = true
+        cached.view.inputAccessoryView?.frame.size.height = 0
+        cached.view.reloadInputViews()
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: HostCoordinator) {
+        coordinator.removeKeyboardObservers()
+        coordinator.removeFocusObservers()
+    }
+
+    // MARK: - Cache Lookup
+
+    private func cachedOrMake(
+        for sessionId: UUID,
+        viewModel: TerminalViewModel,
+        host: UIView
+    ) -> CachedIOSTerminal {
+        if let existing = coordinator.cachedTerminalView(for: sessionId) as? CachedIOSTerminal {
+            return existing
+        }
+        let delegate = IOSTerminalCoordinator(viewModel: viewModel)
+        let terminal = RelayTerminalView(frame: host.bounds)
+        terminal.terminalDelegate = delegate
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
         terminal.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         terminal.changeScrollback(10_000)
-
-        viewModel.onTerminalOutput = { data in
-            let bytes = ArraySlice([UInt8](data))
-            terminal.feed(byteArray: bytes)
-
-            // Sync UIScrollView after buffer changes that bypass the scrolled delegate.
-            // \033[3J (clear scrollback) trims lines and adjusts yDisp without notifying
-            // the view, leaving contentOffset/contentSize stale. The draw method uses
-            // contentOffset to pick which rows to render, so a stale offset shows blank.
-            let term = terminal.getTerminal()
-            let rows = term.rows
-            if rows > 0 {
-                let cellHeight = terminal.bounds.height / CGFloat(rows)
-                let yDisp = CGFloat(term.buffer.yDisp)
-                let expectedOffsetY = yDisp * cellHeight
-                if terminal.contentOffset.y - expectedOffsetY > cellHeight * 2 {
-                    terminal.contentSize.height = max(terminal.bounds.height,
-                                                      (yDisp + CGFloat(rows)) * cellHeight)
-                    terminal.contentOffset.y = expectedOffsetY
-                }
-            }
-        }
-
         terminal.onPasteImage = { [weak viewModel] imageData in
             viewModel?.sendPasteImage(imageData)
         }
 
-        // Hide SwiftTerm's built-in inputAccessoryView — we use a floating button instead.
-        _ = terminal.becomeFirstResponder()
-        terminal.inputAccessoryView?.isHidden = true
-        terminal.inputAccessoryView?.frame.size.height = 0
-        terminal.reloadInputViews()
+        let cached = CachedIOSTerminal(view: terminal, delegate: delegate)
+        coordinator.registerLiveTerminal(for: sessionId, view: cached)
+        return cached
+    }
+}
 
-        // Listen for focus/resign requests from the floating keyboard button.
-        context.coordinator.focusObserver = NotificationCenter.default.addObserver(
+// MARK: - Host Coordinator (keyboard + focus observers)
+
+/// Owns the keyboard-visibility and focus/resign notification observers for
+/// the terminal host. These are installed once per host (not per terminal)
+/// so switching sessions doesn't register duplicate observers.
+final class HostCoordinator: NSObject {
+    private var isKeyboardVisible: Binding<Bool>
+    private var focusObserver: Any?
+    private var resignObserver: Any?
+    private var keyboardShowObserver: Any?
+    private var keyboardHideObserver: Any?
+
+    init(isKeyboardVisible: Binding<Bool>) {
+        self.isKeyboardVisible = isKeyboardVisible
+        super.init()
+    }
+
+    func installKeyboardObservers() {
+        removeKeyboardObservers()
+        keyboardShowObserver = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardDidShowNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.isKeyboardVisible.wrappedValue = true
+        }
+        keyboardHideObserver = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardDidHideNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.isKeyboardVisible.wrappedValue = false
+        }
+    }
+
+    func removeKeyboardObservers() {
+        if let obs = keyboardShowObserver {
+            NotificationCenter.default.removeObserver(obs)
+            keyboardShowObserver = nil
+        }
+        if let obs = keyboardHideObserver {
+            NotificationCenter.default.removeObserver(obs)
+            keyboardHideObserver = nil
+        }
+    }
+
+    /// Installs focus/resign observers that act on the currently-visible
+    /// terminal, resolved lazily via `activeTerminal()` — this avoids dangling
+    /// references when session swaps change which terminal is front.
+    func installFocusObservers(activeTerminal: @escaping () -> RelayTerminalView?) {
+        removeFocusObservers()
+        focusObserver = NotificationCenter.default.addObserver(
             forName: .terminalRequestFocus, object: nil, queue: .main
         ) { _ in
-            _ = terminal.becomeFirstResponder()
+            _ = activeTerminal()?.becomeFirstResponder()
         }
-        context.coordinator.resignObserver = NotificationCenter.default.addObserver(
+        resignObserver = NotificationCenter.default.addObserver(
             forName: .terminalResignFocus, object: nil, queue: .main
         ) { _ in
-            _ = terminal.resignFirstResponder()
-        }
-        return terminal
-    }
-
-    func updateUIView(_ uiView: TerminalView, context: Context) {
-        let newFont = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        if uiView.font != newFont {
-            uiView.font = newFont
+            _ = activeTerminal()?.resignFirstResponder()
         }
     }
 
-    static func dismantleUIView(_ uiView: TerminalView, coordinator: Coordinator) {
-        if let observer = coordinator.focusObserver {
-            NotificationCenter.default.removeObserver(observer)
+    func removeFocusObservers() {
+        if let obs = focusObserver {
+            NotificationCenter.default.removeObserver(obs)
+            focusObserver = nil
         }
-        if let observer = coordinator.resignObserver {
-            NotificationCenter.default.removeObserver(observer)
+        if let obs = resignObserver {
+            NotificationCenter.default.removeObserver(obs)
+            resignObserver = nil
         }
-        coordinator.removeKeyboardObservers()
+    }
+}
+
+// MARK: - SwiftTerm Delegate
+
+/// One instance per cached terminal. Holds a weak reference to the current
+/// view model (which is re-assigned by `updateUIView` as sessions swap in).
+final class IOSTerminalCoordinator: NSObject, TerminalViewDelegate {
+    weak var viewModel: TerminalViewModel?
+
+    init(viewModel: TerminalViewModel) {
+        self.viewModel = viewModel
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(viewModel: viewModel, isKeyboardVisible: $isKeyboardVisible)
+    func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        Task { @MainActor [weak self] in
+            self?.viewModel?.sendInput(Data(data))
+        }
     }
 
-    class Coordinator: NSObject, TerminalViewDelegate {
-        let viewModel: TerminalViewModel
-        var isKeyboardVisible: Binding<Bool>
-        var focusObserver: Any?
-        var resignObserver: Any?
-
-        init(viewModel: TerminalViewModel, isKeyboardVisible: Binding<Bool>) {
-            self.viewModel = viewModel
-            self.isKeyboardVisible = isKeyboardVisible
-            super.init()
-
-            NotificationCenter.default.addObserver(
-                self, selector: #selector(keyboardDidShow),
-                name: UIResponder.keyboardDidShowNotification, object: nil
-            )
-            NotificationCenter.default.addObserver(
-                self, selector: #selector(keyboardDidHide),
-                name: UIResponder.keyboardDidHideNotification, object: nil
-            )
+    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+        guard newCols > 0, newRows > 0 else { return }
+        Task { @MainActor [weak self] in
+            self?.viewModel?.sendResize(cols: UInt16(newCols), rows: UInt16(newRows))
+            self?.viewModel?.terminalReady()
         }
-
-        func removeKeyboardObservers() {
-            NotificationCenter.default.removeObserver(self)
-        }
-
-        @objc private func keyboardDidShow() {
-            isKeyboardVisible.wrappedValue = true
-        }
-
-        @objc private func keyboardDidHide() {
-            isKeyboardVisible.wrappedValue = false
-        }
-
-        func send(source: TerminalView, data: ArraySlice<UInt8>) {
-            Task { @MainActor in
-                viewModel.sendInput(Data(data))
-            }
-        }
-
-        func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
-            guard newCols > 0, newRows > 0 else { return }
-            Task { @MainActor in
-                viewModel.sendResize(cols: UInt16(newCols), rows: UInt16(newRows))
-                viewModel.terminalReady()
-            }
-        }
-
-        func scrolled(source: TerminalView, position: Double) {}
-        func setTerminalTitle(source: TerminalView, title: String) {
-            Task { @MainActor in
-                viewModel.terminalTitle = title
-                viewModel.onTitleChanged?(title)
-            }
-        }
-        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
-        func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
-        func bell(source: TerminalView) {}
-        func clipboardCopy(source: TerminalView, content: Data) {}
-        func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
-        func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
     }
+
+    func scrolled(source: TerminalView, position: Double) {}
+    func setTerminalTitle(source: TerminalView, title: String) {
+        Task { @MainActor [weak self] in
+            self?.viewModel?.terminalTitle = title
+            self?.viewModel?.onTitleChanged?(title)
+        }
+    }
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
+    func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}
+    func bell(source: TerminalView) {}
+    func clipboardCopy(source: TerminalView, content: Data) {}
+    func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
+    func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
 }
 
 // MARK: - Session Uptime
