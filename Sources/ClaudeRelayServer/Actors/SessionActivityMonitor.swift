@@ -68,33 +68,28 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     public func processOutput(_ data: Data) {
         guard !cancelled else { return }
 
-        // 1. Alt-screen exit is NOT treated as a definitive Claude exit signal.
-        //    Claude spawns tools (vim, less, man) that use alternate screen — when
-        //    those tools exit, this sequence fires but Claude is still running.
-        //    Exit is now handled exclusively by the debounced foreground poll.
-
-        // 2. Extract and analyze OSC title sequences for Claude entry.
+        // Always scan for OSC title so Claude-entry detection still works.
         detectTitleChange(in: data)
 
-        // 3. Strip ANSI and determine if there is visible content.
+        // Fast path: when Claude isn't running, *any* output is activity. We
+        // don't need UTF-8 decoding or ANSI stripping — that work is only
+        // needed to distinguish meaningful output from ink/React redraws
+        // while Claude is running.
+        if !isClaudeRunning {
+            transition(to: .active)
+            resetSilenceTimer()
+            return
+        }
+
+        // Claude path: only count visible content (skip pure escape-sequence
+        // redraws). Decode + ANSI-strip only in this branch.
         var hasVisibleContent = true
         if let raw = String(data: data, encoding: .utf8) {
             let clean = raw.replacing(Self.ansiEscapePattern, with: "")
-
-            // When Claude is running, only count output with visible content as activity.
-            // TUI frameworks (ink/React) send periodic escape sequences (cursor moves,
-            // screen redraws) that don't represent meaningful output change.
-            if isClaudeRunning {
-                hasVisibleContent = !clean.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            }
+            hasVisibleContent = !clean.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
-
-        // 4. Only transition to active state and reset the silence timer for
-        // meaningful visible content. Escape-sequence-only output must NOT
-        // break idle detection.
         if hasVisibleContent {
-            let activeState: ActivityState = isClaudeRunning ? .claudeActive : .active
-            transition(to: activeState)
+            transition(to: .claudeActive)
             resetSilenceTimer()
         }
     }

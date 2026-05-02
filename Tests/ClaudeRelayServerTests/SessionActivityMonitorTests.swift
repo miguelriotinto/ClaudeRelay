@@ -443,4 +443,46 @@ final class SessionActivityMonitorTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(100))
         XCTAssertTrue(states.isEmpty || !states.contains(.idle))
     }
+
+    // MARK: - Fast path (Task 2): regex/UTF-8 decode skipped when !isClaudeRunning
+
+    /// When Claude is not running, any output (including a pure escape-sequence
+    /// chunk) must be counted as activity. We prove this by first seeding the
+    /// monitor to `.idle` via applySilenceTimeout, then feeding an escape-only
+    /// chunk, and asserting the transition to `.active` fires onChange.
+    /// This guards the refactor that skips UTF-8 decode + ANSI regex on the
+    /// non-Claude path: observable behavior must match the old code.
+    func testEscapeOnlyOutputTransitionsToActiveWhenNotClaude() {
+        var states: [ActivityState] = []
+        let monitor = SessionActivityMonitor(
+            silenceThreshold: 10,
+            claudeSilenceThreshold: 10,
+            onChange: { states.append($0) }
+        )
+        // Seed to .idle so the escape-only chunk produces an observable transition.
+        monitor.applySilenceTimeout()
+        XCTAssertEqual(states.last, .idle)
+
+        // Pure escape sequence: cursor-up 2 times. No visible text.
+        monitor.processOutput(Data([0x1B, 0x5B, 0x32, 0x41]))
+        XCTAssertEqual(states.last, .active, "escape-only output must drive !claude monitor back to .active")
+        monitor.cancel()
+    }
+
+    /// When Claude IS running, escape-only output must NOT count as activity.
+    /// (Complements testEscapeOnlyOutputDoesNotBreakClaudeIdle by confirming no
+    /// state change at all from a pure escape chunk, not just "stays idle".)
+    func testEscapeOnlyOutputDoesNotCountAsActivityWhenClaudeRunning() {
+        var states: [ActivityState] = []
+        let monitor = SessionActivityMonitor(
+            silenceThreshold: 10,
+            claudeSilenceThreshold: 10,
+            onChange: { states.append($0) }
+        )
+        monitor.updateForegroundProcess(isClaude: true)
+        states.removeAll() // drop the .active → .claudeActive entry transition
+        monitor.processOutput(Data([0x1B, 0x5B, 0x32, 0x41]))
+        XCTAssertTrue(states.isEmpty, "escape-only output must not transition while Claude is running")
+        monitor.cancel()
+    }
 }
