@@ -17,7 +17,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.18.0"),
-        .package(url: "https://github.com/obra/LLM.swift.git", branch: "main"),
+        .package(url: "https://github.com/obra/LLM.swift.git", revision: "c2144e1a0e29c280ec6080b7da85e876d51f8509"),
     ],
     targets: [
         .target(

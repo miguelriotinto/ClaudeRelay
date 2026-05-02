@@ -13,7 +13,13 @@ class Clauderelay < Formula
     system "swift", "build",
            "-c", "release",
            "--disable-sandbox",
-           "-Xswiftc", "-cross-module-optimization"
+           "-Xswiftc", "-cross-module-optimization",
+           "--product", "claude-relay-server"
+    system "swift", "build",
+           "-c", "release",
+           "--disable-sandbox",
+           "-Xswiftc", "-cross-module-optimization",
+           "--product", "claude-relay"
     bin.install ".build/release/claude-relay"
     bin.install ".build/release/claude-relay-server"
   end

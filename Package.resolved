@@ -5,7 +5,6 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/obra/LLM.swift.git",
       "state" : {
-        "branch" : "main",
         "revision" : "c2144e1a0e29c280ec6080b7da85e876d51f8509"
       }
     },
