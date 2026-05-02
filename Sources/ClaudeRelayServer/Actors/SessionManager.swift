@@ -30,6 +30,10 @@ public actor SessionManager {
         var info: SessionInfo
         var ptySession: (any PTYSessionProtocol)?
         var terminalSince: Date?
+        /// Latest activity reported by the PTY's monitor. Updated from
+        /// `reportActivityChange` so `listSessionsForToken` can return a
+        /// snapshot without hopping into each PTY actor.
+        var latestActivity: ActivityState = .active
     }
 
     // MARK: - Init
@@ -69,7 +73,8 @@ public actor SessionManager {
             rows: rows
         )
 
-        let managed = ManagedSession(info: activeInfo, ptySession: pty)
+        var managed = ManagedSession(info: activeInfo, ptySession: pty)
+        managed.latestActivity = .active
 
         // Set up exit handler BEFORE storing — guarantees handler is in place
         // before any EOF from the read source can fire handleExit().
@@ -352,49 +357,34 @@ public actor SessionManager {
         return managed.info
     }
 
-    /// List sessions for a specific token, enriched with current activity state.
-    public func listSessionsForToken(tokenId: String) async -> [SessionInfo] {
+    /// List sessions for a specific token. Uses the cached activity state
+    /// maintained via `reportActivityChange` — no PTY actor hops.
+    public func listSessionsForToken(tokenId: String) -> [SessionInfo] {
         var results: [SessionInfo] = []
         for managed in sessions.values where managed.info.tokenId == tokenId {
-            var info = managed.info
-            if let pty = managed.ptySession {
-                let activity = await pty.getActivityState()
-                info = SessionInfo(
-                    id: info.id,
-                    name: info.name,
-                    state: info.state,
-                    tokenId: info.tokenId,
-                    createdAt: info.createdAt,
-                    cols: info.cols,
-                    rows: info.rows,
-                    activity: activity
-                )
-            }
-            results.append(info)
+            let info = managed.info
+            results.append(SessionInfo(
+                id: info.id, name: info.name, state: info.state,
+                tokenId: info.tokenId, createdAt: info.createdAt,
+                cols: info.cols, rows: info.rows,
+                activity: managed.latestActivity
+            ))
         }
         return results
     }
 
-    /// List all sessions across all tokens, enriched with current activity state.
+    /// List all sessions across all tokens, enriched with cached activity state.
     /// Used for cross-device attach — lets a device see sessions from other tokens.
-    public func listAllSessions() async -> [SessionInfo] {
+    public func listAllSessions() -> [SessionInfo] {
         var results: [SessionInfo] = []
         for managed in sessions.values {
-            var info = managed.info
-            if let pty = managed.ptySession {
-                let activity = await pty.getActivityState()
-                info = SessionInfo(
-                    id: info.id,
-                    name: info.name,
-                    state: info.state,
-                    tokenId: info.tokenId,
-                    createdAt: info.createdAt,
-                    cols: info.cols,
-                    rows: info.rows,
-                    activity: activity
-                )
-            }
-            results.append(info)
+            let info = managed.info
+            results.append(SessionInfo(
+                id: info.id, name: info.name, state: info.state,
+                tokenId: info.tokenId, createdAt: info.createdAt,
+                cols: info.cols, rows: info.rows,
+                activity: managed.latestActivity
+            ))
         }
         return results
     }
@@ -405,18 +395,16 @@ public actor SessionManager {
     public func addActivityObserver(
         tokenId: String,
         callback: @escaping ActivityObserver
-    ) async -> UUID {
+    ) -> UUID {
         let observerId = UUID()
         activityObservers[observerId] = (tokenId: tokenId, callback: callback)
 
-        // Push current activity state for all sessions owned by this token so the
-        // client immediately reflects the correct state without waiting for a change.
+        // Push current (cached) activity state for this token's sessions so the
+        // client doesn't wait for a change event to render correct state.
         for managed in sessions.values where managed.info.tokenId == tokenId {
-            guard !managed.info.state.isTerminal, let pty = managed.ptySession else { continue }
-            let activity = await pty.getActivityState()
-            callback(managed.info.id, activity)
+            guard !managed.info.state.isTerminal else { continue }
+            callback(managed.info.id, managed.latestActivity)
         }
-
         return observerId
     }
 
@@ -425,8 +413,10 @@ public actor SessionManager {
     }
 
     public func reportActivityChange(sessionId: UUID, activity: ActivityState) {
-        guard let managed = sessions[sessionId] else { return }
+        guard var managed = sessions[sessionId] else { return }
         guard !managed.info.state.isTerminal else { return }
+        managed.latestActivity = activity
+        sessions[sessionId] = managed
         let tokenId = managed.info.tokenId
         for (_, observer) in activityObservers where observer.tokenId == tokenId {
             observer.callback(sessionId, activity)
