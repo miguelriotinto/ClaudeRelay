@@ -46,7 +46,7 @@ struct MainWindow: View {
             }
         }
         .task { await attemptAutoConnect() }
-        .task { await preloadSpeechModels() }
+        .onAppear { speechEngine.preloadInBackground() }
         .sheet(isPresented: $showServerList) {
             NavigationStack {
                 ServerListWindow { config in
@@ -71,27 +71,6 @@ struct MainWindow: View {
 
     private func attemptAutoConnect() async {
         showServerList = true
-    }
-
-    private func preloadSpeechModels() async {
-        let store = SpeechModelStore.shared
-
-        if !store.modelsReady {
-            try? await store.downloadAllModels()
-        }
-
-        guard store.modelsReady else { return }
-
-        let transcriber = WhisperTranscriber.shared
-        if !transcriber.isLoaded {
-            try? await transcriber.loadModel()
-        }
-
-        let cleaner = TextCleaner.shared
-        if !cleaner.isLoaded {
-            cleaner.modelPath = store.llmModelPath
-            try? cleaner.loadModel(from: store.llmModelPath)
-        }
     }
 
     private func connect(to config: ConnectionConfig) async {
@@ -255,14 +234,16 @@ private struct MacMicButton: View {
     let hasActiveSession: Bool
     @State private var showDownloadAlert = false
 
+    private var activeProgress: Double? {
+        engine.modelStore.downloadProgress ?? engine.modelLoadProgress
+    }
+
     var body: some View {
         Button {
             handleTap()
         } label: {
             Group {
-                if let progress = engine.modelStore.downloadProgress {
-                    progressRing(progress)
-                } else if engine.state == .loadingModel, let progress = engine.modelLoadProgress {
+                if let progress = activeProgress {
                     progressRing(progress)
                 } else {
                     Image(systemName: buttonIcon)
@@ -340,7 +321,7 @@ private struct MacMicButton: View {
         case .loadingModel, .transcribing, .cleaning:
             return true
         default:
-            return !hasActiveSession || engine.modelStore.downloadProgress != nil
+            return !hasActiveSession || activeProgress != nil
         }
     }
 

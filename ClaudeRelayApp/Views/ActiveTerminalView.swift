@@ -48,6 +48,9 @@ struct ActiveTerminalView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .onAppear {
+                speechEngine.preloadInBackground()
+            }
 
             // Floating buttons: mic + keyboard toggle (only when a terminal session is active)
             if coordinator.activeSessionId != nil {
@@ -196,11 +199,6 @@ struct ActiveTerminalView: View {
             Button("Cancel", role: .cancel) {}
         }
         .overlay {
-            if let progress = speechEngine.modelLoadProgress {
-                ModelLoadingOverlay(progress: progress)
-            }
-        }
-        .overlay {
             if showQROverlay, let id = coordinator.activeSessionId {
                 QRCodeOverlay(
                     sessionId: id,
@@ -291,46 +289,6 @@ private struct SessionTab: View {
     }
 }
 
-// MARK: - Model Loading Overlay
-
-private struct ModelLoadingOverlay: View {
-    let progress: Double
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-                .ignoresSafeArea()
-
-            VStack(spacing: 16) {
-                Image(systemName: "waveform")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.secondary)
-
-                Text("Loading Speech Models")
-                    .font(.headline)
-
-                ProgressView(value: progress, total: 1.0)
-                    .progressViewStyle(.linear)
-                    .animation(.easeInOut(duration: 0.3), value: progress)
-
-                Text("\(Int(progress * 100))%")
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.2), value: Int(progress * 100))
-
-                Text(progress < 0.8 ? "Loading Whisper…" : "Loading cleanup model…")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(24)
-            .frame(width: 260)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        }
-        .transition(.opacity)
-    }
-}
-
 // MARK: - Mic Button (on-device speech engine)
 
 private struct MicButton: View {
@@ -339,12 +297,16 @@ private struct MicButton: View {
     let coordinator: SessionCoordinator
     @State private var showDownloadAlert = false
 
+    private var activeProgress: Double? {
+        engine.modelStore.downloadProgress ?? engine.modelLoadProgress
+    }
+
     var body: some View {
         Button {
             handleTap()
         } label: {
             Group {
-                if let progress = engine.modelStore.downloadProgress {
+                if let progress = activeProgress {
                     ZStack {
                         Circle()
                             .stroke(Color.gray.opacity(0.4), lineWidth: 3)
@@ -428,7 +390,7 @@ private struct MicButton: View {
         case .loadingModel, .transcribing, .cleaning:
             return true
         default:
-            return engine.modelStore.downloadProgress != nil
+            return activeProgress != nil
         }
     }
 

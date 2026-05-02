@@ -106,6 +106,39 @@ public final class OnDeviceSpeechEngine: ObservableObject {
         }
     }
 
+    /// Pre-load cached models into memory in the background on app launch.
+    /// Updates `modelLoadProgress` so the mic button can show a progress ring
+    /// instead of the mic icon while models load.
+    /// No-op if models aren't downloaded, already loaded, or already loading.
+    public func preloadInBackground() {
+        guard modelStore.modelsReady else { return }
+        guard whisperTranscriber?.isLoaded != true else { return }
+        guard modelLoadProgress == nil else { return }
+
+        modelLoadProgress = 0.0
+
+        Task {
+            do {
+                try await whisperTranscriber?.loadModel { [weak self] progress in
+                    Task { @MainActor in
+                        guard self?.modelLoadProgress != nil else { return }
+                        self?.modelLoadProgress = progress * 0.8
+                    }
+                }
+                self.modelLoadProgress = 0.8
+
+                textCleaner?.modelPath = modelStore.llmModelPath
+                try? textCleaner?.loadModel(from: modelStore.llmModelPath)
+                self.modelLoadProgress = 1.0
+
+                try? await Task.sleep(for: .milliseconds(300))
+                self.modelLoadProgress = nil
+            } catch {
+                self.modelLoadProgress = nil
+            }
+        }
+    }
+
     // MARK: - Recording
 
     public func startRecording() async {
@@ -124,6 +157,8 @@ public final class OnDeviceSpeechEngine: ObservableObject {
         #endif
 
         do {
+            guard modelLoadProgress == nil else { return }
+
             // Load models into memory if cached but not yet loaded (e.g. after app relaunch)
             if modelsReady && whisperTranscriber?.isLoaded != true {
                 state = .loadingModel
