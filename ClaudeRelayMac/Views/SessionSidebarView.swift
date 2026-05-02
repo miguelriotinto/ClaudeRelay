@@ -40,6 +40,9 @@ struct SessionSidebarView: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
+            // Small top inset so the selected row's highlight never renders
+            // underneath the window titlebar / toolbar boundary.
+            .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
 
             Divider()
             HStack {

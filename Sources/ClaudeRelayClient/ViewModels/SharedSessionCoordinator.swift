@@ -50,7 +50,9 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     public private(set) var ownedSessionIds: Set<UUID> = []
 
     public var activeSessions: [SessionInfo] {
-        sessions.filter { !$0.state.isTerminal && ownedSessionIds.contains($0.id) }
+        sessions
+            .filter { !$0.state.isTerminal && ownedSessionIds.contains($0.id) }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     // MARK: - Dependencies
