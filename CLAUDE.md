@@ -33,11 +33,11 @@ Note: Service commands are top-level (`claude-relay stop`), while token/session/
 Six SPM targets + iOS app + macOS app (both XcodeGen-managed via `project.yml`):
 
 - **CPTYShim** — C shim for `forkpty` used by PTYSession.
-- **ClaudeRelayKit** — Shared library: protocol models (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), `SessionInfo`, `TokenInfo`, `RelayConfig`, `ConfigManager`, `ConnectionQuality`, `ActivityState`, `SessionState`. Used by all other targets.
+- **ClaudeRelayKit** — Shared library: protocol models (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), `SessionInfo`, `TokenInfo`, `RelayConfig`, `ConfigManager`, `ConnectionQuality`, `ActivityState`, `SessionState`, `CodingAgent` (pluggable agent registry). Used by all other targets.
 - **ClaudeRelayServer** — NIO-based server: `WebSocketServer` (port 9200, optional TLS via NIO-SSL) + `AdminHTTPServer` (port 9100, localhost-only). Uses actors: `SessionManager`, `TokenStore`, `PTYSession`. Rate-limited via `RateLimiter` actor.
 - **ClaudeRelayCLI** — ArgumentParser CLI (`claude-relay`): token/session/config/service/log management. Talks to admin HTTP API.
 - **ClaudeRelayClient** — URLSessionWebSocketTask client: `RelayConnection` (WebSocket transport + connection quality monitoring), `SessionController` (session lifecycle), `SharedSessionCoordinator` (cross-platform coordinator with recovery), `AuthManager` (auth flow). Also hosts `SessionCoordinating` protocol, `SessionNaming` helpers, `NetworkMonitor`, and `ConnectionConfig` used by both apps.
-- **ClaudeRelaySpeech** — Cross-platform on-device speech pipeline shared by both apps: `OnDeviceSpeechEngine`, `WhisperTranscriber` (WhisperKit), `TextCleaner` (LLM.swift), `CloudPromptEnhancer` (Bedrock Haiku), `AudioCaptureSession`, `SpeechModelStore`. iOS-only APIs (`AVAudioSession`, `UIApplication` memory-warning observer) are guarded by `#if canImport(UIKit)`; storage paths/keys are `#if os(iOS)`-branched to preserve existing user downloads.
+- **ClaudeRelaySpeech** — Cross-platform on-device speech pipeline shared by both apps: `OnDeviceSpeechEngine`, `WhisperTranscriber` (WhisperKit), `TextCleaner` (LLM.swift), `CloudPromptEnhancer` (Bedrock Haiku), `AudioCaptureSession`, `SpeechModelStore`, `SpeechEngineState`. iOS-only APIs (`AVAudioSession`, `UIApplication` memory-warning observer) are guarded by `#if canImport(UIKit)`; storage paths/keys are `#if os(iOS)`-branched to preserve existing user downloads.
 - **ClaudeRelayApp/** — iOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + ClaudeRelaySpeech + SwiftTerm.
 - **ClaudeRelayMac/** — macOS SwiftUI app (not in SPM, uses Xcode project). Depends on ClaudeRelayClient + ClaudeRelaySpeech + SwiftTerm. Menu-bar persistent, single-window with sidebar + native tab support, full iOS feature parity.
 
@@ -93,7 +93,9 @@ Both apps share `SharedSessionCoordinator` (in ClaudeRelayClient) for session li
 
 ### Server-Side Activity Monitoring
 
-The server monitors all PTY output continuously (even for detached sessions) via `SessionActivityMonitor`. It detects Claude entry/exit and output silence, maintaining an `ActivityState` per session. State changes are pushed to clients via `sessionActivity` WebSocket messages. This ensures background tabs in the iOS app correctly reflect Claude running/idle state even when the client is attached to a different session.
+The server monitors all PTY output continuously (even for detached sessions) via `SessionActivityMonitor`. It detects coding agent entry/exit and output silence, maintaining an `ActivityState` per session. Agents are identified via the `CodingAgent` registry (process-name matching + OSC title keywords); currently ships with Claude Code and Codex. State changes are pushed to clients via `sessionActivity` WebSocket messages. This ensures background tabs correctly reflect agent running/idle state even when the client is attached to a different session.
+
+**Performance**: The foreground-process poll runs at 2 s when an agent is active and slows to 5 s when the session is detached. ANSI regex processing is skipped on the hot output path when no agent is running.
 
 ### Key Pattern: sendAndWaitForResponse
 

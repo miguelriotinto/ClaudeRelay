@@ -43,7 +43,7 @@ Tokens are stored in the macOS Keychain (per-connection UUID).
 Closing the main window keeps the app running in the menu bar. Click the menu bar icon (`⌨︎` terminal symbol) for the dropdown with:
 
 - Current server and connection status
-- Session list with live activity icons (claude active / idle / awaiting input)
+- Session list with live activity icons (agent active / idle / awaiting input, per-agent colors)
 - Quick switch — clicking a session activates it and focuses the main window
 - Open Window, Preferences, Quit
 
@@ -96,6 +96,7 @@ ClaudeRelayMac/
     QRScannerView.swift             -- AVFoundation camera QR scanner sheet
     AttachRemoteSessionSheet.swift  -- Cross-device attach picker
   Helpers/
+    AgentColorPalette.swift         -- Per-agent tab/dot coloring (Claude, Codex)
     SleepWakeObserver.swift         -- NSWorkspace sleep/wake observer
     ImagePasteHandler.swift         -- Clipboard/drag-drop image extraction + PNG conversion
     AppCommands.swift               -- Menu bar commands with FocusedValue routing
@@ -112,9 +113,9 @@ Shared types that previously lived here (`TerminalViewModel`, `ServerStatusCheck
 
 Both apps build on:
 
-- **ClaudeRelayKit** — wire protocol (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), session models, tokens, config.
-- **ClaudeRelayClient** — WebSocket transport (`RelayConnection`), `SessionController`, `AuthManager`, `SharedSessionCoordinator` (cross-platform coordinator with recovery), `SessionCoordinating` protocol, `SessionNaming` helpers, `TerminalViewModel`, `ServerStatusChecker`, `SavedConnectionStore`, `NetworkMonitor`, `ConnectionConfig`, `DeviceIdentifier`.
-- **ClaudeRelaySpeech** — on-device speech pipeline: `OnDeviceSpeechEngine` orchestrator, `WhisperTranscriber`, `TextCleaner`, `CloudPromptEnhancer`, `AudioCaptureSession`, `SpeechModelStore`. Platform differences (iOS `AVAudioSession`, iOS `UIApplication` memory-warning observer, per-OS model storage paths) are handled internally via `#if canImport(UIKit)` / `#if os(iOS)`.
+- **ClaudeRelayKit** — wire protocol (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), session models, tokens, config, `CodingAgent` registry.
+- **ClaudeRelayClient** — WebSocket transport (`RelayConnection`), `SessionController`, `AuthManager`, `SharedSessionCoordinator` (cross-platform coordinator with recovery, LRU-bounded terminal cache), `SessionCoordinating` protocol, `SessionNaming` helpers, `TerminalViewModel`, `ServerStatusChecker`, `SavedConnectionStore`, `NetworkMonitor`, `ConnectionConfig`, `DeviceIdentifier`.
+- **ClaudeRelaySpeech** — on-device speech pipeline: `OnDeviceSpeechEngine` orchestrator, `WhisperTranscriber`, `TextCleaner`, `CloudPromptEnhancer`, `AudioCaptureSession`, `SpeechModelStore`, `SpeechEngineState`. Platform differences (iOS `AVAudioSession`, iOS `UIApplication` memory-warning observer, per-OS model storage paths) are handled internally via `#if canImport(UIKit)` / `#if os(iOS)`.
 
 Each app's `SessionCoordinator` is a thin subclass of `SharedSessionCoordinator` that adds only platform-specific glue (macOS: `SleepWakeObserver` and tab navigation; iOS: `scenePhase`).
 

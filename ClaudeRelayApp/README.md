@@ -54,7 +54,8 @@ ClaudeRelayApp/
     Components/
       KeyboardAccessory.swift       -- Extra key row above keyboard
       KeyCaptureView.swift          -- Live key combination capture
-      ActivityDot.swift             -- Claude activity indicator
+      ActivityDot.swift             -- Coding agent activity indicator
+      AgentColorPalette.swift      -- Per-agent tab/dot coloring
       ConnectionQualityDot.swift    -- Connection quality indicator
 ```
 

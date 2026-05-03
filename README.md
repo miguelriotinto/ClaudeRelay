@@ -11,8 +11,9 @@ A remote terminal relay server and CLI over WebSocket, enabling secure terminal 
 - **Session persistence** - Detach and reattach to running sessions
 - **TLS encryption** - Optional NIO-SSL support for secure WebSocket connections
 - **Service management** - Run as a background service with launchd/brew services
-- **iOS client** - Native iOS app with terminal emulation, session tabs, and Claude Code detection
+- **iOS client** - Native iOS app with terminal emulation, session tabs, and coding agent detection
 - **macOS client** - Native macOS app with menu-bar persistence, full keyboard shortcuts, and iOS feature parity
+- **Multi-agent detection** - Pluggable coding agent registry (Claude Code, Codex) with per-agent tab colors
 - **On-device speech engine** - Offline speech-to-text via WhisperKit (CoreML/ANE) with LLM text cleanup (iOS + macOS)
 - **Cloud prompt enhancement** - Optional rewriting of transcriptions into clear prompts via Anthropic Haiku
 - **Admin API** - Localhost-only HTTP API for service management and monitoring
@@ -24,7 +25,7 @@ ClaudeRelay consists of six main components:
 
 - **ClaudeRelayServer** - WebSocket server (port 9200) and Admin HTTP API (port 9100)
 - **ClaudeRelayCLI** - Command-line interface for managing tokens, sessions, and service
-- **ClaudeRelayKit** - Shared library with protocol definitions and utilities
+- **ClaudeRelayKit** - Shared library with protocol definitions, utilities, and `CodingAgent` registry
 - **ClaudeRelayClient** - Swift client library for building custom clients (includes shared `SessionCoordinating` protocol and `SessionNaming` helpers)
 - **ClaudeRelayApp** - iOS application with terminal emulation
 - **ClaudeRelayMac** - Native macOS application with menu-bar persistence and full feature parity with iOS
@@ -224,14 +225,14 @@ See `ClaudeRelayMac/README.md` for Mac-specific setup notes (keyboard shortcuts,
 ClaudeRelay/
 ├── Sources/
 │   ├── CPTYShim/               # C shim for forkpty PTY operations
-│   ├── ClaudeRelayKit/         # Shared protocol models and utilities
+│   ├── ClaudeRelayKit/         # Shared protocol models, CodingAgent registry, utilities
 │   ├── ClaudeRelayServer/      # WebSocket + HTTP server (NIO-based)
 │   ├── ClaudeRelayCLI/         # Command-line interface (ArgumentParser)
 │   ├── ClaudeRelayClient/      # Swift client library (shared across apps)
 │   │   ├── Protocols/          # SessionCoordinating protocol
 │   │   ├── Helpers/            # SessionNaming, SavedConnectionStore, NetworkMonitor, DeviceIdentifier
 │   │   └── ViewModels/         # SharedSessionCoordinator, TerminalViewModel, ServerStatusChecker
-│   └── ClaudeRelaySpeech/      # Cross-platform on-device speech pipeline (WhisperKit + LLM)
+│   └── ClaudeRelaySpeech/      # Cross-platform on-device speech pipeline (WhisperKit + LLM + SpeechEngineState)
 ├── ClaudeRelayApp/             # iOS application (SwiftUI, XcodeGen-managed)
 │   ├── Views/                  # SwiftUI views + components
 │   ├── ViewModels/             # Observable view models
@@ -242,10 +243,10 @@ ClaudeRelay/
 │   ├── Models/                 # App settings, saved connections
 │   └── Helpers/                # NetworkMonitor, SleepWakeObserver, image paste
 ├── Tests/
-│   ├── ClaudeRelayKitTests/
-│   ├── ClaudeRelayServerTests/
-│   ├── ClaudeRelayCLITests/
-│   └── ClaudeRelayClientTests/ # Shared library unit tests
+│   ├── ClaudeRelayKitTests/    # Protocol, CodingAgent, ActivityState, SessionState, TokenGenerator
+│   ├── ClaudeRelayServerTests/ # SessionManager, TokenStore, RateLimiter, RingBuffer, ConfigValidation, ActivityMonitor
+│   ├── ClaudeRelayCLITests/    # OutputFormatter
+│   └── ClaudeRelayClientTests/ # Auth, Connection, SessionNaming, TerminalViewModel, LRU cache
 ├── ClaudeRelayAppTests/        # iOS app unit tests
 ├── Formula/
 │   └── clauderelay.rb          # Homebrew formula
@@ -287,7 +288,7 @@ All WebSocket messages use `MessageEnvelope` with JSON encoding:
 - `session_terminated` - Session terminated notification
 - `session_expired` - Session expired notification
 - `session_state` - Session state change
-- `session_activity` - Claude running/idle activity push
+- `session_activity` - Coding agent running/idle activity push
 - `session_stolen` - Another device attached to your session
 - `session_renamed` - Session name changed
 - `session_list_result` - List of own sessions

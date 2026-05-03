@@ -4,6 +4,32 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
 
+## [0.3.0] - 2026-05-03
+
+### Added
+- **Multi-agent detection** — activity monitoring now supports any registered coding agent, not just Claude Code. New `CodingAgent` model with pluggable registry (ships with Claude Code + Codex)
+- `AgentColorPalette` for per-agent tab coloring (Claude = existing blue, Codex = dark teal)
+- Admin HTTP body cap at 64 KB with 413 rejection for oversized requests
+- `SpeechEngineState` enum extracted to ClaudeRelaySpeech for cross-platform UI observation
+- `TerminalCacheLRUTests` for LRU eviction logic
+
+### Changed
+- `ActivityState` generalized: `claudeActive`/`claudeIdle` → `agentActive`/`agentIdle` (wire-compatible with old values via Codable fallback)
+- LRU-bound terminal cache at 8 sessions (evicts oldest on overflow)
+- Byte-cap on pending terminal output to prevent memory pressure
+- Server session listings served from cached activity state (no actor hops)
+- Foreground-process poll slowed to 5 s while session is detached
+- ANSI regex skipped on hot path when no agent is running
+- Server probe is auth-only (dropped `sessionCount` from `ServerStatus`)
+- Refocus fires only on session change, not every attach
+- Homebrew formula bumped to v0.3.0
+- SPM test count: 331 (was 307)
+
+### Fixed
+- Agent process-chain walk now stops at own PID (prevents false self-match)
+- Suppress terminal sends during recovery to prevent command-response collision
+- Codex tab color corrected from purple to dark teal
+
 ## [1.0] - 2026-05-03 — macOS App
 
 ### Added
