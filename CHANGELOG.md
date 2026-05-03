@@ -4,7 +4,7 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
 
-## [Unreleased] — macOS App
+## [1.0] - 2026-05-03 — macOS App
 
 ### Added
 - **ClaudeRelayMac** — native macOS client with full iOS feature parity
@@ -23,7 +23,7 @@ The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI u
 ### Shared Library Changes
 - `SessionCoordinating` protocol added to `ClaudeRelayClient` and conformed by both apps — formalizes the cross-platform session-lifecycle surface
 - `SessionNamingTheme` and `SessionNaming.pickDefaultName` moved to `ClaudeRelayClient` as shared types
-- New `ClaudeRelayClientTests` target (8 unit tests, SPM test count now 200 / was 192)
+- New `ClaudeRelayClientTests` target (SPM test count now 307)
 
 ### Infrastructure Fixes
 - Fixed `ClaudeRelayAppTests` target missing Info.plist generation (pre-existing, surfaced while regression-testing the Mac work)

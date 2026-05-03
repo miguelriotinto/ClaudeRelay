@@ -77,15 +77,12 @@ ClaudeRelayMac/
   ClaudeRelayMac.entitlements       -- Mic, camera, network-client entitlements
   Info.plist                        -- NSAppTransportSecurity (allows ws://) + CFBundleURLTypes
   Models/
-    SavedConnection.swift           -- Persisted server bookmarks (UserDefaults)
     AppSettings.swift               -- User preferences (@AppStorage)
   ViewModels/
     ServerListViewModel.swift       -- Server list CRUD + status polling
     AddEditServerViewModel.swift    -- Add/edit form validation
     SessionCoordinator.swift        -- Auth, session lifecycle, I/O routing (conforms to SessionCoordinating)
-    TerminalViewModel.swift         -- SwiftTerm I/O bridge
     MenuBarViewModel.swift          -- Menu bar dropdown state mirror
-    ServerStatusChecker.swift       -- TCP-based reachability polling
   Views/
     MainWindow.swift                -- NavigationSplitView: sidebar + terminal + status bar
     ServerListWindow.swift          -- Server configuration window
@@ -99,22 +96,27 @@ ClaudeRelayMac/
     QRScannerView.swift             -- AVFoundation camera QR scanner sheet
     AttachRemoteSessionSheet.swift  -- Cross-device attach picker
   Helpers/
-    NetworkMonitor.swift            -- NWPathMonitor + connectivity-restored notification
     SleepWakeObserver.swift         -- NSWorkspace sleep/wake observer
     ImagePasteHandler.swift         -- Clipboard/drag-drop image extraction + PNG conversion
     AppCommands.swift               -- Menu bar commands with FocusedValue routing
     LaunchAtLogin.swift             -- SMAppService wrapper
+    RecordingShortcutMonitor.swift  -- Global keyboard shortcut for speech recording
+    RelayApplication.swift          -- Custom NSApplication subclass
 ```
+
+Shared types that previously lived here (`TerminalViewModel`, `ServerStatusChecker`,
+`SavedConnectionStore`, `NetworkMonitor`, speech pipeline) now live in
+`Sources/ClaudeRelayClient/` and `Sources/ClaudeRelaySpeech/`.
 
 ## What the Mac Shares with iOS
 
 Both apps build on:
 
 - **ClaudeRelayKit** — wire protocol (`ClientMessage`, `ServerMessage`, `MessageEnvelope`), session models, tokens, config.
-- **ClaudeRelayClient** — WebSocket transport, session controller, auth manager, `SessionCoordinating` protocol, `SessionNaming` helpers.
+- **ClaudeRelayClient** — WebSocket transport (`RelayConnection`), `SessionController`, `AuthManager`, `SharedSessionCoordinator` (cross-platform coordinator with recovery), `SessionCoordinating` protocol, `SessionNaming` helpers, `TerminalViewModel`, `ServerStatusChecker`, `SavedConnectionStore`, `NetworkMonitor`, `ConnectionConfig`, `DeviceIdentifier`.
 - **ClaudeRelaySpeech** — on-device speech pipeline: `OnDeviceSpeechEngine` orchestrator, `WhisperTranscriber`, `TextCleaner`, `CloudPromptEnhancer`, `AudioCaptureSession`, `SpeechModelStore`. Platform differences (iOS `AVAudioSession`, iOS `UIApplication` memory-warning observer, per-OS model storage paths) are handled internally via `#if canImport(UIKit)` / `#if os(iOS)`.
 
-The `SessionCoordinator` in each app conforms to `ClaudeRelayClient.SessionCoordinating`, which documents the shared core surface. Platform-specific methods (menu commands, keyboard shortcuts, sleep/wake handlers) live only in the respective app.
+Each app's `SessionCoordinator` is a thin subclass of `SharedSessionCoordinator` that adds only platform-specific glue (macOS: `SleepWakeObserver` and tab navigation; iOS: `scenePhase`).
 
 ## Troubleshooting
 

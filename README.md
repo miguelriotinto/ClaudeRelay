@@ -229,7 +229,8 @@ ClaudeRelay/
 │   ├── ClaudeRelayCLI/         # Command-line interface (ArgumentParser)
 │   ├── ClaudeRelayClient/      # Swift client library (shared across apps)
 │   │   ├── Protocols/          # SessionCoordinating protocol
-│   │   └── Helpers/            # SessionNaming + theme pools
+│   │   ├── Helpers/            # SessionNaming, SavedConnectionStore, NetworkMonitor, DeviceIdentifier
+│   │   └── ViewModels/         # SharedSessionCoordinator, TerminalViewModel, ServerStatusChecker
 │   └── ClaudeRelaySpeech/      # Cross-platform on-device speech pipeline (WhisperKit + LLM)
 ├── ClaudeRelayApp/             # iOS application (SwiftUI, XcodeGen-managed)
 │   ├── Views/                  # SwiftUI views + components
