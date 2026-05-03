@@ -25,7 +25,7 @@ public struct CodingAgent: Codable, Equatable, Hashable, Sendable {
 
     public func matchesProcessName(_ name: String) -> Bool {
         let lower = name.lowercased()
-        return processNames.contains { lower == $0 || lower.hasPrefix($0 + "-") }
+        return processNames.contains { lower == $0 || lower.hasPrefix($0 + "-") || lower.hasPrefix($0 + ".") }
     }
 
     public func matchesTitle(_ title: String) -> Bool {

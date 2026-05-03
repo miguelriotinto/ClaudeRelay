@@ -9,12 +9,8 @@ enum AgentColorPalette {
     static func color(for agentId: String?) -> Color {
         switch agentId {
         case "claude": return .orange
-        case "codex":  return magenta
+        case "codex":  return .purple
         default:       return .purple
         }
     }
-
-    /// SwiftUI doesn't ship `.magenta`, so we define a vibrant magenta that
-    /// reads well on the black terminal chrome.
-    static let magenta = Color(red: 1.0, green: 0.0, blue: 0.65)
 }

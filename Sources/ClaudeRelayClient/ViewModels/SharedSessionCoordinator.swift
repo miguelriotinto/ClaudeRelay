@@ -640,7 +640,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         }
         if changed { saveAgentSessions() }
 
-        if activity == .agentIdle {
+        if activity == .agentIdle, agentSessions[sessionId] != nil {
             sessionsAwaitingInput.insert(sessionId)
         } else {
             sessionsAwaitingInput.remove(sessionId)

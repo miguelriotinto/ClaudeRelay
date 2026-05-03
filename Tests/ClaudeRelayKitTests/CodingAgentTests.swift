@@ -21,12 +21,20 @@ final class CodingAgentTests: XCTestCase {
         XCTAssertFalse(CodingAgent.claude.matchesProcessName("claudette"))
     }
 
+    func testClaudeExeExtension() {
+        XCTAssertTrue(CodingAgent.claude.matchesProcessName("claude.exe"))
+    }
+
     func testCodexExactMatch() {
         XCTAssertTrue(CodingAgent.codex.matchesProcessName("codex"))
     }
 
     func testCodexPrefixMatch() {
         XCTAssertTrue(CodingAgent.codex.matchesProcessName("codex-cli"))
+    }
+
+    func testCodexJsExtension() {
+        XCTAssertTrue(CodingAgent.codex.matchesProcessName("codex.js"))
     }
 
     func testCodexDoesNotMatchClaude() {
