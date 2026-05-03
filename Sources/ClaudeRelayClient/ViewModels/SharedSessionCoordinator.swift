@@ -595,6 +595,10 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             if detail.localizedCaseInsensitiveContains("invalid") || detail.localizedCaseInsensitiveContains("terminal") {
                 return "This session has ended and cannot be reattached."
             }
+            if detail.localizedCaseInsensitiveContains("no session attached") ||
+               detail.localizedCaseInsensitiveContains("not authenticated") {
+                return "The session couldn't be restored. Please try reconnecting."
+            }
             return detail
         }
         return error.localizedDescription
@@ -734,6 +738,12 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         showError = true
     }
 
+    private func suppressAllViewModelSends(_ suppress: Bool) {
+        for (_, vm) in terminalViewModels {
+            vm.isSendingSuppressed = suppress
+        }
+    }
+
     // MARK: - Recovery
 
     public func handleForegroundTransition() async {
@@ -766,8 +776,10 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         recoveryPhase = .reconnecting
         recoveryFailed = false
         isRecovering = true
+        suppressAllViewModelSends(true)
         defer {
             isRecovering = false
+            suppressAllViewModelSends(false)
             lastRecoveryEndedAt = Date()
         }
 

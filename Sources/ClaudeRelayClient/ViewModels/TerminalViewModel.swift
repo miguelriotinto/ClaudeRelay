@@ -55,6 +55,7 @@ public final class TerminalViewModel: ObservableObject {
     // MARK: - Dependencies
 
     public let sessionId: UUID
+    public var isSendingSuppressed = false
     private let connection: RelayConnection
     private var pendingOutput: [Data] = []
     private var pendingOutputBytes: Int = 0
@@ -143,6 +144,7 @@ public final class TerminalViewModel: ObservableObject {
     // MARK: - Input
 
     public func sendInput(_ data: Data) {
+        guard !isSendingSuppressed else { return }
         if awaitingInput { setAwaitingInput(false) }
         Task { try? await connection.sendBinary(data) }
     }
@@ -153,11 +155,13 @@ public final class TerminalViewModel: ObservableObject {
     }
 
     public func sendPasteImage(_ imageData: Data) {
+        guard !isSendingSuppressed else { return }
         let base64 = imageData.base64EncodedString()
         Task { try? await connection.sendPasteImage(base64Data: base64) }
     }
 
     public func sendResize(cols: UInt16, rows: UInt16) {
+        guard !isSendingSuppressed else { return }
         Task { try? await connection.sendResize(cols: cols, rows: rows) }
     }
 
