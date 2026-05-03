@@ -4,9 +4,19 @@ import XCTest
 @MainActor
 final class TerminalViewModelTests: XCTestCase {
 
-    private func makeVM() -> TerminalViewModel {
+    private func makeVM(
+        normal: Duration = .milliseconds(80),
+        claudeActive: Duration = .milliseconds(160)
+    ) -> TerminalViewModel {
         let connection = RelayConnection()
-        return TerminalViewModel(sessionId: UUID(), connection: connection)
+        return TerminalViewModel(
+            sessionId: UUID(),
+            connection: connection,
+            promptThresholds: InputPromptThresholds(
+                normal: normal,
+                claudeActive: claudeActive
+            )
+        )
     }
 
     func testBuffersOutputBeforeTerminalReady() {
@@ -90,7 +100,7 @@ final class TerminalViewModelTests: XCTestCase {
         vm.terminalReady()
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        try await Task.sleep(for: .milliseconds(1200))
+        try await Task.sleep(for: .milliseconds(120))
         XCTAssertTrue(vm.awaitingInput)
 
         vm.sendInput(Data([0x0A]))
@@ -107,7 +117,7 @@ final class TerminalViewModelTests: XCTestCase {
         vm.onAwaitingInputChanged = { transitions.append($0) }
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        try await Task.sleep(for: .milliseconds(1200))
+        try await Task.sleep(for: .milliseconds(120))
 
         XCTAssertEqual(transitions, [true])
     }
@@ -120,11 +130,11 @@ final class TerminalViewModelTests: XCTestCase {
         vm.isClaudeActive = true
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        try await Task.sleep(for: .milliseconds(1200))
-        XCTAssertFalse(vm.awaitingInput, "Should not trigger at 1.2s when Claude threshold is 2s")
+        try await Task.sleep(for: .milliseconds(120))
+        XCTAssertFalse(vm.awaitingInput, "Should not trigger before claudeActive threshold")
 
-        try await Task.sleep(for: .milliseconds(1000))
-        XCTAssertTrue(vm.awaitingInput, "Should trigger after 2s+ total")
+        try await Task.sleep(for: .milliseconds(80))
+        XCTAssertTrue(vm.awaitingInput, "Should trigger after claudeActive threshold elapses")
     }
 
     func testPendingOutputByteCapEvictsOldest() {

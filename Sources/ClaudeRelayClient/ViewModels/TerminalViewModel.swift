@@ -1,6 +1,21 @@
 import Foundation
 import Combine
 
+/// Configures the input-prompt silence detector. Production defaults match the
+/// empirically-tuned behavior (1.0 s normal, 2.0 s when Claude is running —
+/// longer so API-call/tool-execution gaps don't trip the detector). Tests can
+/// pass shorter durations to run quickly.
+public struct InputPromptThresholds: Sendable {
+    public let normal: Duration
+    public let claudeActive: Duration
+
+    public init(normal: Duration = .milliseconds(1000),
+                claudeActive: Duration = .milliseconds(2000)) {
+        self.normal = normal
+        self.claudeActive = claudeActive
+    }
+}
+
 /// Manages terminal I/O state for a single session.
 ///
 /// The `SessionCoordinator` pushes output bytes in via `receiveOutput(_:)`;
@@ -52,12 +67,18 @@ public final class TerminalViewModel: ObservableObject {
     /// longer window avoids false positives during API-call/tool-execution gaps.
     public var isClaudeActive = false
     private var promptDebounceTask: Task<Void, Never>?
+    private let promptThresholds: InputPromptThresholds
 
     // MARK: - Init
 
-    public init(sessionId: UUID, connection: RelayConnection) {
+    public init(
+        sessionId: UUID,
+        connection: RelayConnection,
+        promptThresholds: InputPromptThresholds = InputPromptThresholds()
+    ) {
         self.sessionId = sessionId
         self.connection = connection
+        self.promptThresholds = promptThresholds
         self.connectionState = connection.state
 
         connection.$state
@@ -151,7 +172,7 @@ public final class TerminalViewModel: ObservableObject {
 
         if awaitingInput { setAwaitingInput(false) }
 
-        let threshold: Duration = isClaudeActive ? .milliseconds(2000) : .milliseconds(1000)
+        let threshold = isClaudeActive ? promptThresholds.claudeActive : promptThresholds.normal
         promptDebounceTask = Task { [weak self] in
             try? await Task.sleep(for: threshold)
             guard !Task.isCancelled else { return }
