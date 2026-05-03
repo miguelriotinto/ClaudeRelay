@@ -92,6 +92,9 @@ public final class ServerStatusChecker: ObservableObject {
             return first
         }
 
+        // Cleanup when the 5s timeout racer wins: the real-work task is cancelled
+        // mid-flight and never runs its own disconnect. RelayConnection.disconnect
+        // is idempotent, so this is a no-op when the real-work task already ran.
         connection.disconnect()
         return result
     }
