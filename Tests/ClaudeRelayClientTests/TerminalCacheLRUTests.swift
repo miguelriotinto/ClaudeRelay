@@ -49,8 +49,13 @@ final class TerminalCacheLRUTests: XCTestCase {
 
         XCTAssertNotNil(coordinator.cachedTerminalView(for: pinned),
             "active session must not be evicted")
-        XCTAssertLessThanOrEqual(coordinator.cachedTerminalViews.count, 9,
-            "cache can be +1 over the limit when the active session is protected")
+        // `enforceTerminalCacheLimit` can in principle leave the cache at +1
+        // over the limit if the only eviction candidate is the active session —
+        // but given `terminalLRU` and `cachedTerminalViews` are always kept
+        // 1-to-1 in sync, that degenerate case isn't reachable, and eviction
+        // always finds a non-active victim, bringing count back to exactly 8.
+        XCTAssertEqual(coordinator.cachedTerminalViews.count, 8,
+            "protection prevents evicting the active session; a non-active victim is always available")
     }
 }
 #endif
