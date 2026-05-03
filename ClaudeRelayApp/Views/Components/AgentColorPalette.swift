@@ -9,8 +9,8 @@ enum AgentColorPalette {
     static func color(for agentId: String?) -> Color {
         switch agentId {
         case "claude": return .orange
-        case "codex":  return .purple
-        default:       return .purple
+        case "codex":  return Color(red: 84/255, green: 132/255, blue: 137/255)
+        default:       return Color(red: 84/255, green: 132/255, blue: 137/255)
         }
     }
 }
