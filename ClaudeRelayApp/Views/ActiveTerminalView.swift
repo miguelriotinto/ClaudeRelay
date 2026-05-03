@@ -105,26 +105,30 @@ struct ActiveTerminalView: View {
                     }
                 }
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
-                            let isSelected = session.id == coordinator.activeSessionId
-                            let isClaude = coordinator.isRunningClaude(sessionId: session.id)
-                            let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
-                            Button {
-                                if AppSettings.shared.hapticFeedbackEnabled {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                    let flashOn = Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
+                                let isSelected = session.id == coordinator.activeSessionId
+                                let isClaude = coordinator.isRunningClaude(sessionId: session.id)
+                                let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
+                                Button {
+                                    if AppSettings.shared.hapticFeedbackEnabled {
+                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    }
+                                    Task { await coordinator.switchToSession(id: session.id) }
+                                } label: {
+                                    SessionTab(
+                                        number: index + 1,
+                                        isSelected: isSelected,
+                                        isClaude: isClaude,
+                                        needsAttention: needsAttention,
+                                        flashOn: flashOn
+                                    )
                                 }
-                                Task { await coordinator.switchToSession(id: session.id) }
-                            } label: {
-                                SessionTab(
-                                    number: index + 1,
-                                    isSelected: isSelected,
-                                    isClaude: isClaude,
-                                    needsAttention: needsAttention
-                                )
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -237,16 +241,16 @@ private struct ToolbarIconButton: View {
     }
 }
 
-/// Individual session tab with optional flash animation when input is needed.
-/// Uses a timer-driven flash instead of repeatForever to ensure the animation
-/// reliably stops when needsAttention becomes false.
+/// Individual session tab. Flash phase is driven by a shared TimelineView clock
+/// in the parent, so we don't spin up one Timer.publish per tab.
 private struct SessionTab: View {
     let number: Int
     let isSelected: Bool
     let isClaude: Bool
     let needsAttention: Bool
-
-    @State private var flashOn = false
+    /// Shared flash phase passed down from the parent's TimelineView.
+    /// Ignored by tabs that don't need attention.
+    let flashOn: Bool
 
     var body: some View {
         Text("\(number)")
@@ -259,32 +263,16 @@ private struct SessionTab: View {
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(selectionBorderColor, lineWidth: isSelected ? 2 : 0)
             )
-            .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
-                guard needsAttention else { return }
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    flashOn.toggle()
-                }
-            }
-            .onChange(of: needsAttention) { _, attention in
-                if !attention {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        flashOn = false
-                    }
-                }
-            }
+            .animation(.easeInOut(duration: 0.15), value: flashOn)
     }
 
-    private var selectionBorderColor: SwiftUI.Color {
-        .white
-    }
+    private var selectionBorderColor: SwiftUI.Color { .white }
 
     private var tabBackground: SwiftUI.Color {
         if needsAttention {
             return flashOn ? SwiftUI.Color.orange : SwiftUI.Color.white.opacity(0.15)
         }
-        if isClaude {
-            return SwiftUI.Color.orange
-        }
+        if isClaude { return SwiftUI.Color.orange }
         return SwiftUI.Color.white.opacity(0.15)
     }
 }

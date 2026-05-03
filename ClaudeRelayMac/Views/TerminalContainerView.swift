@@ -77,6 +77,19 @@ struct TerminalContainerView: NSViewRepresentable {
     @ObservedObject var coordinator: SessionCoordinator
     var fontSize: CGFloat
 
+    /// Tracks the last session id that received keyboard focus so we only
+    /// fire `makeFirstResponder` on actual session switches. `updateNSView`
+    /// is called on many SwiftUI triggers (size change, coordinator publish,
+    /// tab switch); refocusing on each one wastes work and can steal focus
+    /// from modals.
+    final class FocusTracker {
+        var lastFocusedId: UUID?
+    }
+
+    func makeCoordinator() -> FocusTracker {
+        FocusTracker()
+    }
+
     func makeNSView(context: Context) -> NSView {
         let host = NSView(frame: .zero)
         host.wantsLayer = true
@@ -125,8 +138,11 @@ struct TerminalContainerView: NSViewRepresentable {
         }
         viewModel.terminalReady()
 
-        DispatchQueue.main.async { [weak view = cached.view] in
-            view?.window?.makeFirstResponder(view)
+        if context.coordinator.lastFocusedId != activeId {
+            context.coordinator.lastFocusedId = activeId
+            DispatchQueue.main.async { [weak view = cached.view] in
+                view?.window?.makeFirstResponder(view)
+            }
         }
     }
 
