@@ -42,6 +42,8 @@ public final class TerminalViewModel: ObservableObject {
     public let sessionId: UUID
     private let connection: RelayConnection
     private var pendingOutput: [Data] = []
+    private var pendingOutputBytes: Int = 0
+    private static let pendingOutputByteLimit: Int = 4 * 1024 * 1024 // 4 MB
 
     // MARK: - Input Detection
 
@@ -72,6 +74,15 @@ public final class TerminalViewModel: ObservableObject {
             handler(data)
         } else {
             pendingOutput.append(data)
+            pendingOutputBytes += data.count
+            // Cap pending buffer: if the terminal never calls terminalReady()
+            // (layout stuck, bug, etc.), drop oldest chunks instead of growing
+            // unboundedly. The server's ring buffer replays anything we drop
+            // on next attach/resume.
+            while pendingOutputBytes > Self.pendingOutputByteLimit, !pendingOutput.isEmpty {
+                let dropped = pendingOutput.removeFirst()
+                pendingOutputBytes -= dropped.count
+            }
         }
         detectInputPrompt(data)
     }
@@ -83,6 +94,7 @@ public final class TerminalViewModel: ObservableObject {
         terminalSized = true
         let buffered = pendingOutput
         pendingOutput.removeAll()
+        pendingOutputBytes = 0
         for chunk in buffered { handler(chunk) }
     }
 
@@ -104,6 +116,7 @@ public final class TerminalViewModel: ObservableObject {
         onAwaitingInputChanged = nil
         terminalSized = false
         pendingOutput.removeAll()
+        pendingOutputBytes = 0
     }
 
     // MARK: - Input

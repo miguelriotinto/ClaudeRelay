@@ -126,4 +126,23 @@ final class TerminalViewModelTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(1000))
         XCTAssertTrue(vm.awaitingInput, "Should trigger after 2s+ total")
     }
+
+    func testPendingOutputByteCapEvictsOldest() {
+        let vm = makeVM()
+        // 80 × 64 KB = 5 MB, exceeding the 4 MB cap.
+        let chunk = Data(repeating: 0x41, count: 64 * 1024)
+        for _ in 0..<80 {
+            vm.receiveOutput(chunk)
+        }
+
+        var received = [Data]()
+        vm.onTerminalOutput = { received.append($0) }
+        vm.terminalReady()
+
+        let totalBytes = received.reduce(0) { $0 + $1.count }
+        XCTAssertLessThanOrEqual(totalBytes, 4 * 1024 * 1024 + 64 * 1024,
+            "pending buffer should have been capped at ~4MB + one overshoot chunk")
+        XCTAssertGreaterThan(totalBytes, 3 * 1024 * 1024,
+            "cap should keep at least ~3 MB of recent output")
+    }
 }

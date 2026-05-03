@@ -79,6 +79,14 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     /// scrollback persists. The coordinator owns these; platform hosts look up
     /// or install entries via `terminalViewForSession`.
     public var cachedTerminalViews: [UUID: AnyObject] = [:]
+    /// LRU order of session ids for the terminal cache. Most-recently used at the end.
+    /// When the cache exceeds `terminalCacheLimit`, the front (oldest) is evicted —
+    /// except the currently active session, which is never evicted.
+    private var terminalLRU: [UUID] = []
+    /// Maximum number of cached live terminal views. Beyond this, the
+    /// least-recently-used one is evicted (its SwiftTerm scrollback goes;
+    /// subsequent attach replays from the server's ring buffer).
+    private static let terminalCacheLimit: Int = 8
 
     // MARK: - Recovery Control
 
@@ -427,6 +435,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             terminalViewModels[sessionId] = vm
             wireTerminalOutput(to: sessionId)
             activeSessionId = sessionId
+            touchTerminalLRU(sessionId)
+            enforceTerminalCacheLimit()
 
             await fetchSessions()
         } catch {
@@ -470,6 +480,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
             wireTerminalOutput(to: id)
             activeSessionId = id
+            touchTerminalLRU(id)
+            enforceTerminalCacheLimit()
 
             await fetchSessions()
         } catch {
@@ -512,6 +524,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             terminalViewModels[id] = vm
             wireTerminalOutput(to: id)
             activeSessionId = id
+            touchTerminalLRU(id)
+            enforceTerminalCacheLimit()
 
             if let serverName {
                 sessionNames[id] = serverName
@@ -666,6 +680,27 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     public func registerLiveTerminal(for sessionId: UUID, view: AnyObject) {
         cachedTerminalViews[sessionId] = view
         sessionsWithLiveTerminal.insert(sessionId)
+        touchTerminalLRU(sessionId)
+        enforceTerminalCacheLimit()
+    }
+
+    /// Mark this session as the most-recently-used.
+    private func touchTerminalLRU(_ id: UUID) {
+        terminalLRU.removeAll(where: { $0 == id })
+        terminalLRU.append(id)
+    }
+
+    /// If we're over the cache limit, evict the LRU entry, skipping the active session.
+    /// If every remaining entry is the active session, we stop — we never evict the
+    /// session the user is currently looking at, even if the cache is technically
+    /// one over the limit.
+    private func enforceTerminalCacheLimit() {
+        while cachedTerminalViews.count > Self.terminalCacheLimit {
+            guard let victim = terminalLRU.first(where: { $0 != activeSessionId }) else {
+                return
+            }
+            evictTerminal(for: victim)
+        }
     }
 
     /// Lookup the cached native view for a session, if any.
@@ -679,6 +714,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         cachedTerminalViews.removeValue(forKey: sessionId)
         sessionsWithLiveTerminal.remove(sessionId)
         terminalViewModels.removeValue(forKey: sessionId)
+        terminalLRU.removeAll(where: { $0 == sessionId })
     }
 
     public func presentError(_ message: String) {
