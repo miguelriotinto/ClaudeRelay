@@ -56,12 +56,15 @@ final class AdminHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
 
+    private static let maxRequestBodyBytes: Int = 64 * 1024
+
     private let sessionManager: SessionManager
     private let tokenStore: TokenStore
     private let rateLimiter: RateLimiter
 
     private var requestHead: HTTPRequestHead?
     private var requestBody: ByteBuffer?
+    private var requestBodyOverflow: Bool = false
 
     init(sessionManager: SessionManager, tokenStore: TokenStore, rateLimiter: RateLimiter) {
         self.sessionManager = sessionManager
@@ -75,11 +78,33 @@ final class AdminHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
         switch part {
         case .head(let head):
             self.requestHead = head
+            self.requestBodyOverflow = false
             let contentLength = head.headers.first(name: "content-length").flatMap(Int.init) ?? 256
-            self.requestBody = context.channel.allocator.buffer(capacity: contentLength)
+            if contentLength > Self.maxRequestBodyBytes {
+                self.requestBodyOverflow = true
+                self.requestBody = nil
+            } else {
+                self.requestBody = context.channel.allocator.buffer(
+                    capacity: min(contentLength, Self.maxRequestBodyBytes))
+            }
         case .body(var body):
+            if requestBodyOverflow { return }
+            let current = requestBody?.readableBytes ?? 0
+            if current + body.readableBytes > Self.maxRequestBodyBytes {
+                requestBodyOverflow = true
+                requestBody = nil
+                return
+            }
             self.requestBody?.writeBuffer(&body)
         case .end:
+            if requestBodyOverflow {
+                let response = AdminResponse.error("Request body too large", status: 413)
+                writeResponse(response, context: context)
+                self.requestHead = nil
+                self.requestBody = nil
+                self.requestBodyOverflow = false
+                return
+            }
             guard let head = requestHead else { return }
             let body = requestBody
             let sessionManager = self.sessionManager
