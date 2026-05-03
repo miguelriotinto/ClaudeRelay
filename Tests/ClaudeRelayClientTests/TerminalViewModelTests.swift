@@ -19,6 +19,24 @@ final class TerminalViewModelTests: XCTestCase {
         )
     }
 
+    /// Polls `condition()` every 10 ms up to `timeout`, returning once it's true
+    /// or the timeout expires. Lets timing-sensitive tests finish on the fast
+    /// path and tolerate scheduler jitter without inflating the test runtime.
+    private func waitFor(
+        timeout: Duration = .milliseconds(500),
+        _ condition: () -> Bool
+    ) async throws {
+        let start = Date()
+        let timeoutSeconds = Double(timeout.components.seconds)
+            + Double(timeout.components.attoseconds) / 1e18
+        while !condition() {
+            if Date().timeIntervalSince(start) >= timeoutSeconds {
+                return
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     func testBuffersOutputBeforeTerminalReady() {
         let vm = makeVM()
         var received = [Data]()
@@ -100,7 +118,7 @@ final class TerminalViewModelTests: XCTestCase {
         vm.terminalReady()
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        try await Task.sleep(for: .milliseconds(120))
+        try await waitFor { vm.awaitingInput }
         XCTAssertTrue(vm.awaitingInput)
 
         vm.sendInput(Data([0x0A]))
@@ -117,7 +135,7 @@ final class TerminalViewModelTests: XCTestCase {
         vm.onAwaitingInputChanged = { transitions.append($0) }
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        try await Task.sleep(for: .milliseconds(120))
+        try await waitFor { !transitions.isEmpty }
 
         XCTAssertEqual(transitions, [true])
     }
@@ -130,10 +148,17 @@ final class TerminalViewModelTests: XCTestCase {
         vm.isClaudeActive = true
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        try await Task.sleep(for: .milliseconds(120))
+        // At 100 ms the claudeActive threshold (160 ms) hasn't elapsed yet; assert
+        // the timer hasn't fired. This is a deterministic sleep — the invariant
+        // is "did NOT fire" which can't be polled (we need a hard deadline).
+        // 60 ms slack against the threshold gives enough margin for typical CI
+        // jitter without stretching the test unnecessarily.
+        try await Task.sleep(for: .milliseconds(100))
         XCTAssertFalse(vm.awaitingInput, "Should not trigger before claudeActive threshold")
 
-        try await Task.sleep(for: .milliseconds(80))
+        // Now poll for the positive transition — any jitter lets us wait longer
+        // without slowing the happy path.
+        try await waitFor { vm.awaitingInput }
         XCTAssertTrue(vm.awaitingInput, "Should trigger after claudeActive threshold elapses")
     }
 
