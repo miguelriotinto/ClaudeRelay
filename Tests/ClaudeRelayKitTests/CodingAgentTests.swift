@@ -25,6 +25,15 @@ final class CodingAgentTests: XCTestCase {
         XCTAssertTrue(CodingAgent.claude.matchesProcessName("claude.exe"))
     }
 
+    /// The prefix rule (`lower.hasPrefix("claude-")`) unavoidably matches the server
+    /// binary name `claude-relay-server`. `PTYSession.detectAgentInProcessChain`
+    /// compensates by stopping the parent walk at our own PID — without that guard,
+    /// every fresh PTY (login → zsh → claude-relay-server) would look like Claude
+    /// is running from the moment the shell starts.
+    func testClaudeMatchesServerBinary_guardedByPIDCheck() {
+        XCTAssertTrue(CodingAgent.claude.matchesProcessName("claude-relay-server"))
+    }
+
     func testCodexExactMatch() {
         XCTAssertTrue(CodingAgent.codex.matchesProcessName("codex"))
     }

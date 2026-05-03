@@ -216,9 +216,14 @@ public actor PTYSession: PTYSessionProtocol {
     ///    interpreter. This is what catches Node/Python/Ruby-based agents
     ///    like `codex` whose binary is actually `node`.
     private static func detectAgentInProcessChain(startingPid: Int32) -> CodingAgent? {
+        let ownPid = getpid()
         var pid = startingPid
         for _ in 0..<5 {
-            guard pid > 1 else { return nil }
+            // Stop at init or at our own PID. The server binary is named
+            // `claude-relay-server`, which matches `claude-` via the prefix rule —
+            // without this guard every fresh PTY would look like Claude is running
+            // from the moment the shell starts (login → zsh → claude-relay-server).
+            guard pid > 1, pid != ownPid else { return nil }
 
             var execBuf = [CChar](repeating: 0, count: 256)
             if relay_get_process_name(pid, &execBuf, 256) == 0 {
