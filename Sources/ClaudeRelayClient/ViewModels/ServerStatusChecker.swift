@@ -2,10 +2,8 @@ import Foundation
 
 public struct ServerStatus: Equatable {
     public var isLive: Bool = false
-    public var sessionCount: Int = 0
-    public init(isLive: Bool = false, sessionCount: Int = 0) {
+    public init(isLive: Bool = false) {
         self.isLive = isLive
-        self.sessionCount = sessionCount
     }
 }
 
@@ -71,10 +69,13 @@ public final class ServerStatusChecker: ObservableObject {
             group.addTask { @MainActor in
                 do {
                     try await connection.connect(config: config, token: token)
+                    // Auth proves server is live, token is valid, and protocol
+                    // version matches. We skip listSessions — the iOS list no
+                    // longer displays session count, and the Workspace fetches
+                    // real session data when the user actually opens a server.
                     try await controller.authenticate(token: token)
-                    let sessions = try await controller.listSessions()
                     connection.disconnect()
-                    return ServerStatus(isLive: true, sessionCount: sessions.count)
+                    return ServerStatus(isLive: true)
                 } catch {
                     connection.disconnect()
                     return ServerStatus()

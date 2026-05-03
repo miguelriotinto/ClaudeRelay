@@ -187,23 +187,13 @@ struct ServerRowView: View {
                 Text(verbatim: "\(server.host):\(server.port)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(status?.isLive == true ? .green : .red)
-                            .frame(width: 8, height: 8)
-                        Text(status?.isLive == true ? "Live" : "Offline")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    HStack(spacing: 4) {
-                        Text("Sessions:")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text("\(status?.sessionCount ?? 0)")
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(status?.isLive == true ? .green : .red)
+                        .frame(width: 8, height: 8)
+                    Text(status?.isLive == true ? "Live" : "Offline")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
             }
 
