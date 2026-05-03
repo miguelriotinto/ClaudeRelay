@@ -15,7 +15,8 @@ public protocol PTYSessionProtocol: Actor {
     func readBuffer() -> Data
     func terminate()
     func getActivityState() -> ActivityState
-    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState) -> Void)
+    func getActiveAgent() -> CodingAgent?
+    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState, CodingAgent?) -> Void)
     func recordInput()
     /// 1.0 for attached (responsive entry detection); 5.0 for detached.
     func setPollCadence(_ seconds: TimeInterval)
@@ -34,18 +35,18 @@ public enum PTYError: Error {
 /// `onChange` closure captures this box (which is created before `self` is
 /// fully initialized), and `PTYSession` writes the real handler into it later.
 private final class ActivityCallbackBox: @unchecked Sendable {
-    var handler: (@Sendable (ActivityState) -> Void)?
+    var handler: (@Sendable (ActivityState, CodingAgent?) -> Void)?
 }
 
 // MARK: - PTYSession Actor
 
 public actor PTYSession: PTYSessionProtocol {
     /// Poll cadence used while a client is attached — fast enough for responsive
-    /// Claude entry/exit detection.
+    /// agent entry/exit detection.
     public static let attachedPollCadence: TimeInterval = 1.0
     /// Poll cadence used while detached — slow enough that many-session deployments
     /// don't pay 1 Hz of per-session walker cost, but fast enough that background
-    /// iOS tabs still reflect Claude state changes within a few seconds.
+    /// iOS tabs still reflect agent state changes within a few seconds.
     public static let detachedPollCadence: TimeInterval = 5.0
 
     public let sessionId: UUID
@@ -60,7 +61,7 @@ public actor PTYSession: PTYSessionProtocol {
     /// Shared box to bridge the monitor's synchronous onChange callback into the actor.
     /// The monitor captures this box (not `self`) so the closure doesn't require `self` to be fully initialized.
     private let activityCallbackBox = ActivityCallbackBox()
-    private var activityHandler: (@Sendable (ActivityState) -> Void)?
+    private var activityHandler: (@Sendable (ActivityState, CodingAgent?) -> Void)?
     private var terminated: Bool = false
     private var foregroundPollTimer: DispatchSourceTimer?
 
@@ -131,9 +132,9 @@ public actor PTYSession: PTYSessionProtocol {
         let box = self.activityCallbackBox
         self.activityMonitor = SessionActivityMonitor(
             silenceThreshold: 1.0,
-            claudeSilenceThreshold: 2.0,
-            onChange: { newState in
-                box.handler?(newState)
+            agentSilenceThreshold: 2.0,
+            onChange: { newState, agent in
+                box.handler?(newState, agent)
             }
         )
     }
@@ -162,20 +163,20 @@ public actor PTYSession: PTYSessionProtocol {
     }
 
     /// Re-enters actor isolation for the foreground process poll result.
-    private func handleForegroundPollResult(isClaude: Bool) {
+    private func handleForegroundPollResult(agent: CodingAgent?) {
         guard !terminated else { return }
-        activityMonitor.updateForegroundProcess(isClaude: isClaude)
+        activityMonitor.updateForegroundProcess(agent: agent)
     }
 
     // MARK: - Foreground Process Polling
 
-    /// Polls tcgetpgrp + KERN_PROCARGS2 to detect Claude Code as the foreground process
+    /// Polls tcgetpgrp + KERN_PROCARGS2 to detect a coding agent as the foreground process
     /// or as an ancestor (up to 4 levels) of the foreground process.
     ///
-    /// Parent chain walk is essential: when Claude launches tools (git, npm, node),
-    /// those tools become the foreground process group leader while Claude remains
+    /// Parent chain walk is essential: when agents launch tools (git, npm, node),
+    /// those tools become the foreground process group leader while the agent remains
     /// their ancestor. Without the walk, every tool execution briefly appears as
-    /// "Claude exited", causing UI flicker.
+    /// "agent exited", causing UI flicker.
     ///
     /// Poll interval: 1s with 0.5s initial delay for responsive entry detection.
     /// Exit debouncing in SessionActivityMonitor prevents flicker.
@@ -187,10 +188,10 @@ public actor PTYSession: PTYSessionProtocol {
             let pgid = relay_get_foreground_pgid(fd)
             guard pgid > 0 else { return }
 
-            let isClaude = Self.isClaudeInProcessChain(startingPid: pgid)
+            let agent = Self.detectAgentInProcessChain(startingPid: pgid)
             Task {
                 guard let session = self else { return }
-                await session.handleForegroundPollResult(isClaude: isClaude)
+                await session.handleForegroundPollResult(agent: agent)
             }
         }
         timer.resume()
@@ -198,37 +199,48 @@ public actor PTYSession: PTYSessionProtocol {
     }
 
     /// Adjust the foreground-process polling interval. Attached sessions use
-    /// `attachedPollCadence` (1.0 s) for responsive Claude-entry detection;
+    /// `attachedPollCadence` (1.0 s) for responsive agent-entry detection;
     /// detached sessions use `detachedPollCadence` (5.0 s) so many-session
     /// deployments don't pay the full poll cost per second.
-    ///
-    /// No-op if the poll timer hasn't been created yet (before `startReading()`
-    /// has been called). Today every production path calls `startReading()` from
-    /// `SessionManager.createSession` before the session is reachable by
-    /// attach/detach, so this guard is defensive rather than load-bearing.
     public func setPollCadence(_ seconds: TimeInterval) {
         guard let timer = foregroundPollTimer else { return }
         timer.schedule(deadline: .now() + seconds, repeating: seconds)
     }
 
     /// Walks the process tree from `startingPid` up through parents (max 5 hops)
-    /// looking for a process named "claude" or "claude-*".
-    private static func isClaudeInProcessChain(startingPid: Int32) -> Bool {
+    /// looking for a known coding agent.
+    ///
+    /// For each PID we check two names:
+    /// 1. The executable basename (e.g. `claude`, `node`).
+    /// 2. `argv[1]` basename — the script path when the process is a script
+    ///    interpreter. This is what catches Node/Python/Ruby-based agents
+    ///    like `codex` whose binary is actually `node`.
+    private static func detectAgentInProcessChain(startingPid: Int32) -> CodingAgent? {
         var pid = startingPid
         for _ in 0..<5 {
-            guard pid > 1 else { return false }
-            var nameBuf = [CChar](repeating: 0, count: 256)
-            let result = relay_get_process_name(pid, &nameBuf, 256)
-            guard result == 0 else { return false }
-            let name = String(cString: nameBuf).lowercased()
-            if name == "claude" || name.hasPrefix("claude-") {
-                return true
+            guard pid > 1 else { return nil }
+
+            var execBuf = [CChar](repeating: 0, count: 256)
+            if relay_get_process_name(pid, &execBuf, 256) == 0 {
+                let execName = String(cString: execBuf)
+                if let agent = CodingAgent.matching(processName: execName) {
+                    return agent
+                }
             }
+
+            var scriptBuf = [CChar](repeating: 0, count: 256)
+            if relay_get_process_script_name(pid, &scriptBuf, 256) == 0 {
+                let scriptName = String(cString: scriptBuf)
+                if let agent = CodingAgent.matching(processName: scriptName) {
+                    return agent
+                }
+            }
+
             let ppid = relay_get_parent_pid(pid)
-            if ppid <= 1 || ppid == pid { return false }
+            if ppid <= 1 || ppid == pid { return nil }
             pid = ppid
         }
-        return false
+        return nil
     }
 
     // MARK: - Read Source Setup
@@ -296,8 +308,13 @@ public actor PTYSession: PTYSessionProtocol {
         activityMonitor.state
     }
 
+    /// Returns the coding agent currently running in this session, if any.
+    public func getActiveAgent() -> CodingAgent? {
+        activityMonitor.activeAgent
+    }
+
     /// Set callback for activity state changes.
-    public func setActivityHandler(_ handler: @escaping @Sendable (ActivityState) -> Void) {
+    public func setActivityHandler(_ handler: @escaping @Sendable (ActivityState, CodingAgent?) -> Void) {
         self.activityHandler = handler
         self.activityCallbackBox.handler = handler
     }

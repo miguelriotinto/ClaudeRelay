@@ -3,13 +3,15 @@ import ClaudeRelayKit
 
 struct ActivityDot: View {
     let activity: ActivityState
+    var agentId: String?
     var size: CGFloat = 8
     @State private var blinkOpacity: Double = 1.0
 
     private var color: Color {
         switch activity {
         case .active, .idle: return .green
-        case .claudeActive, .claudeIdle: return .orange
+        case .agentActive, .agentIdle:
+            return AgentColorPalette.color(for: agentId)
         }
     }
 
@@ -18,9 +20,9 @@ struct ActivityDot: View {
             .fill(color)
             .frame(width: size, height: size)
             .fixedSize()
-            .opacity(activity == .claudeIdle ? blinkOpacity : 1.0)
+            .opacity(activity == .agentIdle ? blinkOpacity : 1.0)
             .onChange(of: activity) { _, newValue in
-                if newValue == .claudeIdle {
+                if newValue == .agentIdle {
                     withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                         blinkOpacity = 0.3
                     }
@@ -31,7 +33,7 @@ struct ActivityDot: View {
                 }
             }
             .onAppear {
-                if activity == .claudeIdle {
+                if activity == .agentIdle {
                     withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                         blinkOpacity = 0.3
                     }

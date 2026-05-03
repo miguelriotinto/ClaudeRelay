@@ -6,7 +6,7 @@ final class TerminalViewModelTests: XCTestCase {
 
     private func makeVM(
         normal: Duration = .milliseconds(80),
-        claudeActive: Duration = .milliseconds(160)
+        agentActive: Duration = .milliseconds(160)
     ) -> TerminalViewModel {
         let connection = RelayConnection()
         return TerminalViewModel(
@@ -14,7 +14,7 @@ final class TerminalViewModelTests: XCTestCase {
             connection: connection,
             promptThresholds: InputPromptThresholds(
                 normal: normal,
-                claudeActive: claudeActive
+                agentActive: agentActive
             )
         )
     }
@@ -140,26 +140,26 @@ final class TerminalViewModelTests: XCTestCase {
         XCTAssertEqual(transitions, [true])
     }
 
-    func testClaudeActiveUsesLongerThreshold() async throws {
+    func testAgentActiveUsesLongerThreshold() async throws {
         let vm = makeVM()
         var received = [Data]()
         vm.onTerminalOutput = { received.append($0) }
         vm.terminalReady()
-        vm.isClaudeActive = true
+        vm.isAgentActive = true
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        // At 100 ms the claudeActive threshold (160 ms) hasn't elapsed yet; assert
+        // At 100 ms the agentActive threshold (160 ms) hasn't elapsed yet; assert
         // the timer hasn't fired. This is a deterministic sleep — the invariant
         // is "did NOT fire" which can't be polled (we need a hard deadline).
         // 60 ms slack against the threshold gives enough margin for typical CI
         // jitter without stretching the test unnecessarily.
         try await Task.sleep(for: .milliseconds(100))
-        XCTAssertFalse(vm.awaitingInput, "Should not trigger before claudeActive threshold")
+        XCTAssertFalse(vm.awaitingInput, "Should not trigger before agentActive threshold")
 
         // Now poll for the positive transition — any jitter lets us wait longer
         // without slowing the happy path.
         try await waitFor { vm.awaitingInput }
-        XCTAssertTrue(vm.awaitingInput, "Should trigger after claudeActive threshold elapses")
+        XCTAssertTrue(vm.awaitingInput, "Should trigger after agentActive threshold elapses")
     }
 
     func testPendingOutputByteCapEvictsOldest() {

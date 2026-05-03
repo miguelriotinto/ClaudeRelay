@@ -24,6 +24,7 @@ struct SessionSidebarView: View {
                             name: coordinator.name(for: session.id),
                             shortId: String(session.id.uuidString.prefix(8)),
                             activity: activityFor(session.id),
+                            agentId: coordinator.activeAgent(for: session.id),
                             createdAt: session.createdAt
                         )
                         .contextMenu {
@@ -108,8 +109,8 @@ struct SessionSidebarView: View {
     }
 
     private func activityFor(_ id: UUID) -> ActivityState {
-        if coordinator.isRunningClaude(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ? .claudeIdle : .claudeActive
+        if coordinator.isRunningAgent(sessionId: id) {
+            return coordinator.sessionsAwaitingInput.contains(id) ? .agentIdle : .agentActive
         }
         return coordinator.sessionsAwaitingInput.contains(id) ? .idle : .active
     }
@@ -119,11 +120,12 @@ private struct SessionRow: View {
     let name: String
     let shortId: String
     let activity: ActivityState
+    let agentId: String?
     let createdAt: Date
 
     var body: some View {
         HStack(spacing: 8) {
-            ActivityDot(activity: activity, size: 6)
+            ActivityDot(activity: activity, agentId: agentId, size: 6)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name).font(.body)
                 Text(shortId)
@@ -184,13 +186,15 @@ struct ConnectionQualityDot: View {
 
 struct ActivityDot: View {
     let activity: ActivityState
+    var agentId: String?
     var size: CGFloat = 8
     @State private var blinkOpacity: Double = 1.0
 
     private var color: Color {
         switch activity {
         case .active, .idle: return .green
-        case .claudeActive, .claudeIdle: return .orange
+        case .agentActive, .agentIdle:
+            return AgentColorPalette.color(for: agentId)
         }
     }
 
@@ -199,9 +203,9 @@ struct ActivityDot: View {
             .fill(color)
             .frame(width: size, height: size)
             .fixedSize()
-            .opacity(activity == .claudeIdle ? blinkOpacity : 1.0)
+            .opacity(activity == .agentIdle ? blinkOpacity : 1.0)
             .onChange(of: activity) { _, newValue in
-                if newValue == .claudeIdle {
+                if newValue == .agentIdle {
                     withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                         blinkOpacity = 0.3
                     }
@@ -212,7 +216,7 @@ struct ActivityDot: View {
                 }
             }
             .onAppear {
-                if activity == .claudeIdle {
+                if activity == .agentIdle {
                     withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                         blinkOpacity = 0.3
                     }

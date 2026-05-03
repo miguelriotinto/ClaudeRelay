@@ -111,7 +111,7 @@ struct ActiveTerminalView: View {
                         HStack(spacing: 6) {
                             ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
                                 let isSelected = session.id == coordinator.activeSessionId
-                                let isClaude = coordinator.isRunningClaude(sessionId: session.id)
+                                let agentId = coordinator.activeAgent(for: session.id)
                                 let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
                                 Button {
                                     if AppSettings.shared.hapticFeedbackEnabled {
@@ -122,7 +122,7 @@ struct ActiveTerminalView: View {
                                     SessionTab(
                                         number: index + 1,
                                         isSelected: isSelected,
-                                        isClaude: isClaude,
+                                        agentId: agentId,
                                         needsAttention: needsAttention,
                                         flashOn: flashOn
                                     )
@@ -246,7 +246,7 @@ private struct ToolbarIconButton: View {
 private struct SessionTab: View {
     let number: Int
     let isSelected: Bool
-    let isClaude: Bool
+    let agentId: String?
     let needsAttention: Bool
     /// Shared flash phase passed down from the parent's TimelineView.
     /// Ignored by tabs that don't need attention.
@@ -268,11 +268,15 @@ private struct SessionTab: View {
 
     private var selectionBorderColor: SwiftUI.Color { .white }
 
+    private var agentColor: SwiftUI.Color {
+        AgentColorPalette.color(for: agentId)
+    }
+
     private var tabBackground: SwiftUI.Color {
         if needsAttention {
-            return flashOn ? SwiftUI.Color.orange : SwiftUI.Color.white.opacity(0.15)
+            return flashOn ? agentColor : SwiftUI.Color.white.opacity(0.15)
         }
-        if isClaude { return SwiftUI.Color.orange }
+        if agentId != nil { return agentColor }
         return SwiftUI.Color.white.opacity(0.15)
     }
 }

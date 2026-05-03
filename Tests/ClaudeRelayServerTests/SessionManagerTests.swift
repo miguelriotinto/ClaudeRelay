@@ -10,7 +10,7 @@ actor MockPTYSession: PTYSessionProtocol {
     private var outputHandler: (@Sendable (Data) -> Void)?
     private var exitHandler: (@Sendable () -> Void)?
     private var terminated = false
-    private var activityHandler: (@Sendable (ActivityState) -> Void)?
+    private var activityHandler: (@Sendable (ActivityState, CodingAgent?) -> Void)?
 
     init(sessionId: UUID, cols: UInt16, rows: UInt16, scrollbackSize: Int) {
         self.sessionId = sessionId
@@ -25,7 +25,8 @@ actor MockPTYSession: PTYSessionProtocol {
     func readBuffer() -> Data { Data() }
     func terminate() { terminated = true }
     func getActivityState() -> ActivityState { .active }
-    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState) -> Void) {
+    func getActiveAgent() -> CodingAgent? { nil }
+    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState, CodingAgent?) -> Void) {
         activityHandler = handler
     }
     func recordInput() {}
@@ -193,18 +194,21 @@ final class SessionManagerTests: XCTestCase {
         let session = try await manager.createSession(tokenId: tokenInfo.id)
 
         var received: [ActivityState] = []
+        var receivedAgents: [String?] = []
         let expectation = XCTestExpectation(description: "activity callback")
         expectation.expectedFulfillmentCount = 2
-        let observerId = await manager.addActivityObserver(tokenId: tokenInfo.id) { sessionId, activity in
+        let observerId = await manager.addActivityObserver(tokenId: tokenInfo.id) { sessionId, activity, agent in
             XCTAssertEqual(sessionId, session.id)
             received.append(activity)
+            receivedAgents.append(agent)
             expectation.fulfill()
         }
 
-        await manager.reportActivityChange(sessionId: session.id, activity: .claudeActive)
+        await manager.reportActivityChange(sessionId: session.id, activity: .agentActive, agent: "claude")
         await fulfillment(of: [expectation], timeout: 1.0)
-        // First callback is initial state push (.active), second is explicit change
-        XCTAssertEqual(received, [.active, .claudeActive])
+        // First callback is initial state push (.active, nil agent), second is explicit change.
+        XCTAssertEqual(received, [.active, .agentActive])
+        XCTAssertEqual(receivedAgents, [nil, "claude"])
         await manager.removeActivityObserver(id: observerId)
     }
 
@@ -221,12 +225,12 @@ final class SessionManagerTests: XCTestCase {
         var receivedSessionIds: [UUID] = []
         let expectation = XCTestExpectation(description: "only token A")
         expectation.expectedFulfillmentCount = 2
-        let observerId = await manager.addActivityObserver(tokenId: tokenA.id) { sessionId, _ in
+        let observerId = await manager.addActivityObserver(tokenId: tokenA.id) { sessionId, _, _ in
             receivedSessionIds.append(sessionId)
             expectation.fulfill()
         }
 
-        await manager.reportActivityChange(sessionId: sessionB.id, activity: .claudeActive)
+        await manager.reportActivityChange(sessionId: sessionB.id, activity: .agentActive, agent: "claude")
         await manager.reportActivityChange(sessionId: sessionA.id, activity: .idle)
 
         await fulfillment(of: [expectation], timeout: 1.0)
@@ -244,12 +248,12 @@ final class SessionManagerTests: XCTestCase {
         let session = try await manager.createSession(tokenId: tokenInfo.id)
 
         var callCount = 0
-        let observerId = await manager.addActivityObserver(tokenId: tokenInfo.id) { _, _ in
+        let observerId = await manager.addActivityObserver(tokenId: tokenInfo.id) { _, _, _ in
             callCount += 1
         }
 
         // callCount is 1 from initial state push on registration
-        await manager.reportActivityChange(sessionId: session.id, activity: .claudeActive)
+        await manager.reportActivityChange(sessionId: session.id, activity: .agentActive, agent: "claude")
         // callCount is now 2
         await manager.removeActivityObserver(id: observerId)
         await manager.reportActivityChange(sessionId: session.id, activity: .idle)

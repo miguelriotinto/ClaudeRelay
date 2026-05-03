@@ -17,7 +17,7 @@ struct StatusBarView: View {
             Spacer()
 
             if let id = coordinator.activeSessionId {
-                ActivityDot(activity: activityFor(id), size: 6)
+                ActivityDot(activity: activityFor(id), agentId: coordinator.activeAgent(for: id), size: 6)
             }
         }
         .padding(.horizontal, 12)
@@ -36,8 +36,8 @@ struct StatusBarView: View {
         }
     }
     private func activityFor(_ id: UUID) -> ActivityState {
-        if coordinator.isRunningClaude(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ? .claudeIdle : .claudeActive
+        if coordinator.isRunningAgent(sessionId: id) {
+            return coordinator.sessionsAwaitingInput.contains(id) ? .agentIdle : .agentActive
         }
         return coordinator.sessionsAwaitingInput.contains(id) ? .idle : .active
     }

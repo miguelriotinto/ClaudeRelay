@@ -162,15 +162,20 @@ final class SharedSessionCoordinatorTests: XCTestCase {
 
     // MARK: - Activity Tracking
 
-    func testClaudeSessionTracking() {
+    func testAgentSessionTracking() {
         let connection = RelayConnection()
         let coordinator = SharedSessionCoordinator(connection: connection, token: "test-token")
 
         let sessionId = UUID()
-        XCTAssertFalse(coordinator.isRunningClaude(sessionId: sessionId))
+        XCTAssertFalse(coordinator.isRunningAgent(sessionId: sessionId))
+        XCTAssertNil(coordinator.activeAgent(for: sessionId))
 
-        coordinator.claudeSessions.insert(sessionId)
-        XCTAssertTrue(coordinator.isRunningClaude(sessionId: sessionId))
+        coordinator.agentSessions[sessionId] = "claude"
+        XCTAssertTrue(coordinator.isRunningAgent(sessionId: sessionId))
+        XCTAssertEqual(coordinator.activeAgent(for: sessionId), "claude")
+
+        coordinator.agentSessions[sessionId] = "codex"
+        XCTAssertEqual(coordinator.activeAgent(for: sessionId), "codex")
     }
 
     // MARK: - Terminal View Cache
@@ -291,7 +296,7 @@ final class SharedSessionCoordinatorTests: XCTestCase {
         let sessionId = UUID()
         coordinator.activeSessionId = sessionId
         coordinator.sessionNames[sessionId] = "TestSession"
-        coordinator.claudeSessions.insert(sessionId)
+        coordinator.agentSessions[sessionId] = "claude"
         coordinator.sessionsAwaitingInput.insert(sessionId)
 
         connection.onSessionStolen?(sessionId)
@@ -307,7 +312,7 @@ final class SharedSessionCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.activeSessionId)
         XCTAssertTrue(coordinator.showSessionStolen)
         XCTAssertEqual(coordinator.stolenSessionName, "TestSession")
-        XCTAssertFalse(coordinator.claudeSessions.contains(sessionId))
+        XCTAssertNil(coordinator.agentSessions[sessionId])
         XCTAssertFalse(coordinator.sessionsAwaitingInput.contains(sessionId))
     }
 

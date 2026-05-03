@@ -32,6 +32,7 @@ final class MenuBarViewModel: ObservableObject {
     @Published private(set) var connectionColor: Color = .secondary
     @Published private(set) var sessions: [SessionInfo] = []
     @Published private(set) var activityStates: [UUID: ActivityState] = [:]
+    @Published private(set) var agentIds: [UUID: String] = [:]
     @Published private(set) var activeSessionId: UUID?
 
     private var registryTask: Task<Void, Never>?
@@ -57,6 +58,7 @@ final class MenuBarViewModel: ObservableObject {
                     self.connectionColor = .secondary
                     self.sessions = []
                     self.activityStates = [:]
+                    self.agentIds = [:]
                     self.activeSessionId = nil
                 }
             }
@@ -85,26 +87,29 @@ final class MenuBarViewModel: ObservableObject {
                 self.activeSessionId = id
             }
         }
-        let claudeTask = Task { [weak self] in
-            for await _ in coordinator.$claudeSessions.values {
+        let agentTask = Task { [weak self] in
+            for await _ in coordinator.$agentSessions.values {
                 guard let self else { return }
                 self.recomputeActivityStates(coordinator: coordinator)
             }
         }
-        coordinatorTasks = [sessionsTask, activeTask, claudeTask]
+        coordinatorTasks = [sessionsTask, activeTask, agentTask]
     }
 
     private func recomputeActivityStates(coordinator: SessionCoordinator) {
         var states: [UUID: ActivityState] = [:]
+        var ids: [UUID: String] = [:]
         for session in sessions {
             let awaiting = coordinator.sessionsAwaitingInput.contains(session.id)
-            if coordinator.claudeSessions.contains(session.id) {
-                states[session.id] = awaiting ? .claudeIdle : .claudeActive
+            if let agentId = coordinator.activeAgent(for: session.id) {
+                states[session.id] = awaiting ? .agentIdle : .agentActive
+                ids[session.id] = agentId
             } else {
                 states[session.id] = awaiting ? .idle : .active
             }
         }
         activityStates = states
+        agentIds = ids
     }
 
     deinit {

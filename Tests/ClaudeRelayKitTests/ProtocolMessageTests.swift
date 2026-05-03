@@ -280,7 +280,7 @@ final class ProtocolMessageTests: XCTestCase {
             .sessionTerminated(sessionId: id, reason: "exit"),
             .sessionExpired(sessionId: id),
             .sessionState(sessionId: id, state: "idle"),
-            .sessionActivity(sessionId: id, activity: .claudeIdle),
+            .sessionActivity(sessionId: id, activity: .agentIdle, agent: "claude"),
             .sessionStolen(sessionId: id),
             .sessionRenamed(sessionId: id, name: "Varys"),
             .resizeAck(cols: 120, rows: 40),
@@ -364,7 +364,7 @@ final class ProtocolMessageTests: XCTestCase {
     func testSessionListResultDecodesAsServer() throws {
         let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
         let json = """
-        {"type":"session_list_result","payload":{"sessions":[{"id":"\(id.uuidString)","state":"active-attached","tokenId":"tok_1","createdAt":1735689600.0,"cols":80,"rows":24,"activity":"claude_active"}]}}
+        {"type":"session_list_result","payload":{"sessions":[{"id":"\(id.uuidString)","state":"active-attached","tokenId":"tok_1","createdAt":1735689600.0,"cols":80,"rows":24,"activity":"agent_active","agent":"claude"}]}}
         """
         let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
         guard case .server(.sessionList(let sessions)) = envelope else {
@@ -373,14 +373,15 @@ final class ProtocolMessageTests: XCTestCase {
         }
         XCTAssertEqual(sessions.count, 1)
         XCTAssertEqual(sessions[0].id, id)
-        XCTAssertEqual(sessions[0].activity, .claudeActive)
+        XCTAssertEqual(sessions[0].activity, .agentActive)
+        XCTAssertEqual(sessions[0].agent, "claude")
     }
 
     // MARK: - sessionActivity
 
     func testSessionActivityEncoding() throws {
         let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let msg = ServerMessage.sessionActivity(sessionId: id, activity: .claudeIdle)
+        let msg = ServerMessage.sessionActivity(sessionId: id, activity: .agentIdle, agent: "codex")
         let envelope = MessageEnvelope.server(msg)
         let data = try encoder.encode(envelope)
         let obj = try jsonObject(data)
@@ -388,25 +389,41 @@ final class ProtocolMessageTests: XCTestCase {
         XCTAssertEqual(obj["type"] as? String, "session_activity")
         let payload = obj["payload"] as? [String: Any]
         XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
-        XCTAssertEqual(payload?["activity"] as? String, "claude_idle")
+        XCTAssertEqual(payload?["activity"] as? String, "agent_idle")
+        XCTAssertEqual(payload?["agent"] as? String, "codex")
     }
 
     func testSessionActivityFieldVerification() throws {
         let id = "12345678-1234-1234-1234-123456789ABC"
-        let json = #"{"type":"session_activity","payload":{"sessionId":"\#(id)","activity":"claude_active"}}"#
+        let json = #"{"type":"session_activity","payload":{"sessionId":"\#(id)","activity":"agent_active","agent":"claude"}}"#
         let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
-        guard case .server(.sessionActivity(let sessionId, let activity)) = envelope else {
+        guard case .server(.sessionActivity(let sessionId, let activity, let agent)) = envelope else {
             XCTFail("Expected sessionActivity"); return
         }
         XCTAssertEqual(sessionId.uuidString, id)
-        XCTAssertEqual(activity, .claudeActive)
+        XCTAssertEqual(activity, .agentActive)
+        XCTAssertEqual(agent, "claude")
+    }
+
+    /// Backward compat: an old server that doesn't know about the `agent` field
+    /// still sends `{"activity":"claude_active"}`. The new client must decode
+    /// that to `.agentActive` with a nil agent ID.
+    func testSessionActivityLegacyDecodes() throws {
+        let id = "12345678-1234-1234-1234-123456789ABC"
+        let json = #"{"type":"session_activity","payload":{"sessionId":"\#(id)","activity":"claude_active"}}"#
+        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
+        guard case .server(.sessionActivity(_, let activity, let agent)) = envelope else {
+            XCTFail("Expected sessionActivity"); return
+        }
+        XCTAssertEqual(activity, .agentActive)
+        XCTAssertNil(agent)
     }
 
     func testSessionActivityRoundTrip() throws {
         let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let states: [ActivityState] = [.active, .idle, .claudeActive, .claudeIdle]
+        let states: [ActivityState] = [.active, .idle, .agentActive, .agentIdle]
         for state in states {
-            let original = ServerMessage.sessionActivity(sessionId: id, activity: state)
+            let original = ServerMessage.sessionActivity(sessionId: id, activity: state, agent: "claude")
             let envelope = MessageEnvelope.server(original)
             let data = try encoder.encode(envelope)
             let decoded = try decoder.decode(MessageEnvelope.self, from: data)

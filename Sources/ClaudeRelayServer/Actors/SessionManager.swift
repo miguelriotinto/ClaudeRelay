@@ -19,7 +19,7 @@ public actor SessionManager {
     private let ptyFactory: PTYFactory
     private var sessions: [UUID: ManagedSession] = [:]
     private var detachTimers: [UUID: Task<Void, Never>] = [:]
-    public typealias ActivityObserver = @Sendable (UUID, ActivityState) -> Void
+    public typealias ActivityObserver = @Sendable (UUID, ActivityState, String?) -> Void
     private var activityObservers: [UUID: (tokenId: String, callback: ActivityObserver)] = [:]
     public typealias StealObserver = @Sendable (UUID) -> Void
     private var stealObservers: [UUID: (tokenId: String, callback: StealObserver)] = [:]
@@ -34,6 +34,8 @@ public actor SessionManager {
         /// `reportActivityChange` so `listSessionsForToken` can return a
         /// snapshot without hopping into each PTY actor.
         var latestActivity: ActivityState = .active
+        /// The coding agent detected in this session, if any.
+        var latestAgent: String?
     }
 
     // MARK: - Init
@@ -86,9 +88,9 @@ public actor SessionManager {
         }
 
         let sessionId = id
-        await pty.setActivityHandler { [weak self] newState in
+        await pty.setActivityHandler { [weak self] newState, agent in
             Task {
-                await self?.reportActivityChange(sessionId: sessionId, activity: newState)
+                await self?.reportActivityChange(sessionId: sessionId, activity: newState, agent: agent?.id)
             }
         }
 
@@ -367,7 +369,8 @@ public actor SessionManager {
                 id: info.id, name: info.name, state: info.state,
                 tokenId: info.tokenId, createdAt: info.createdAt,
                 cols: info.cols, rows: info.rows,
-                activity: managed.latestActivity
+                activity: managed.latestActivity,
+                agent: managed.latestAgent
             ))
         }
         return results
@@ -383,7 +386,8 @@ public actor SessionManager {
                 id: info.id, name: info.name, state: info.state,
                 tokenId: info.tokenId, createdAt: info.createdAt,
                 cols: info.cols, rows: info.rows,
-                activity: managed.latestActivity
+                activity: managed.latestActivity,
+                agent: managed.latestAgent
             ))
         }
         return results
@@ -403,7 +407,7 @@ public actor SessionManager {
         // client doesn't wait for a change event to render correct state.
         for managed in sessions.values where managed.info.tokenId == tokenId {
             guard !managed.info.state.isTerminal else { continue }
-            callback(managed.info.id, managed.latestActivity)
+            callback(managed.info.id, managed.latestActivity, managed.latestAgent)
         }
         return observerId
     }
@@ -412,14 +416,15 @@ public actor SessionManager {
         activityObservers.removeValue(forKey: id)
     }
 
-    public func reportActivityChange(sessionId: UUID, activity: ActivityState) {
+    public func reportActivityChange(sessionId: UUID, activity: ActivityState, agent: String? = nil) {
         guard var managed = sessions[sessionId] else { return }
         guard !managed.info.state.isTerminal else { return }
         managed.latestActivity = activity
+        managed.latestAgent = agent
         sessions[sessionId] = managed
         let tokenId = managed.info.tokenId
         for (_, observer) in activityObservers where observer.tokenId == tokenId {
-            observer.callback(sessionId, activity)
+            observer.callback(sessionId, activity, agent)
         }
     }
 

@@ -208,10 +208,10 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     let manager = self.sessionManager
                     let observerCtx = UnsafeTransfer(ctx.value)
                     Task { [weak self] in
-                        let observerId = await manager.addActivityObserver(tokenId: info.id) { [weak self] sessionId, activity in
+                        let observerId = await manager.addActivityObserver(tokenId: info.id) { [weak self] sessionId, activity, agent in
                             observerCtx.value.eventLoop.execute {
                                 self?.sendServerMessage(
-                                    .sessionActivity(sessionId: sessionId, activity: activity),
+                                    .sessionActivity(sessionId: sessionId, activity: activity, agent: agent),
                                     context: observerCtx.value
                                 )
                             }
@@ -327,6 +327,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                 let buffered = await pty.readBuffer()
                 let filtered = Self.filterEscapeResponses(buffered)
                 let activity = await pty.getActivityState()
+                let agent = await pty.getActiveAgent()
                 RelayLogger.log(category: "session", "Session attached: \(sessionId)")
                 ctx.value.eventLoop.execute {
                     guard let self = self else { return }
@@ -336,7 +337,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     if !filtered.isEmpty {
                         self.sendChunkedBinaryData(filtered, context: ctx.value)
                     }
-                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity), context: ctx.value)
+                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx.value)
                     self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
             } catch {
@@ -364,6 +365,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                 let buffered = skipReplay ? Data() : await pty.readBuffer()
                 let filtered = Self.filterEscapeResponses(buffered)
                 let activity = await pty.getActivityState()
+                let agent = await pty.getActiveAgent()
                 ctx.value.eventLoop.execute {
                     guard let self = self else { return }
                     self.attachedSessionId = sessionId
@@ -372,7 +374,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     if !filtered.isEmpty {
                         self.sendChunkedBinaryData(filtered, context: ctx.value)
                     }
-                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity), context: ctx.value)
+                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx.value)
                     self.wirePTYOutput(pty: pty, context: ctx.value)
                 }
             } catch {

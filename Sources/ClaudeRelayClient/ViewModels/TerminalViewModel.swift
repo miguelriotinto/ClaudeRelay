@@ -7,12 +7,12 @@ import Combine
 /// pass shorter durations to run quickly.
 public struct InputPromptThresholds: Sendable {
     public let normal: Duration
-    public let claudeActive: Duration
+    public let agentActive: Duration
 
     public init(normal: Duration = .milliseconds(1000),
-                claudeActive: Duration = .milliseconds(2000)) {
+                agentActive: Duration = .milliseconds(2000)) {
         self.normal = normal
-        self.claudeActive = claudeActive
+        self.agentActive = agentActive
     }
 }
 
@@ -62,10 +62,10 @@ public final class TerminalViewModel: ObservableObject {
 
     // MARK: - Input Detection
 
-    /// Set by the coordinator when Claude is actively running in this session.
+    /// Set by the coordinator when a coding agent is actively running in this session.
     /// Controls the silence threshold used for input-awaiting detection — a
     /// longer window avoids false positives during API-call/tool-execution gaps.
-    public var isClaudeActive = false
+    public var isAgentActive = false
     private var promptDebounceTask: Task<Void, Never>?
     private let promptThresholds: InputPromptThresholds
 
@@ -172,7 +172,7 @@ public final class TerminalViewModel: ObservableObject {
 
         if awaitingInput { setAwaitingInput(false) }
 
-        let threshold = isClaudeActive ? promptThresholds.claudeActive : promptThresholds.normal
+        let threshold = isAgentActive ? promptThresholds.agentActive : promptThresholds.normal
         promptDebounceTask = Task { [weak self] in
             try? await Task.sleep(for: threshold)
             guard !Task.isCancelled else { return }

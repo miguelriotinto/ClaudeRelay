@@ -14,7 +14,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     @Published public var activeSessionId: UUID?
     @Published public var sessionNames: [UUID: String] = [:]
     @Published public var terminalTitles: [UUID: String] = [:]
-    @Published public var claudeSessions: Set<UUID> = []
+    @Published public var agentSessions: [UUID: String] = [:]
     @Published public var sessionsAwaitingInput: Set<UUID> = []
     @Published public var isLoading = false
     public enum RecoveryPhase {
@@ -152,11 +152,11 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         self.token = token
         sessionNames = Self.loadNames()
         ownedSessionIds = Self.loadOwned()
-        claudeSessions = Self.loadClaudeSessions()
+        agentSessions = Self.loadAgentSessions()
 
-        connection.onSessionActivity = { [weak self] sessionId, activity in
+        connection.onSessionActivity = { [weak self] sessionId, activity, agent in
             Task { @MainActor [weak self] in
-                self?.handleActivityUpdate(sessionId: sessionId, activity: activity)
+                self?.handleActivityUpdate(sessionId: sessionId, activity: activity, agent: agent)
             }
         }
         connection.onSessionStolen = { [weak self] sessionId in
@@ -268,16 +268,25 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         }
     }
 
-    private static var claudeSessionsKey: String { "\(keyPrefix).claudeSessions" }
+    private static var agentSessionsKey: String { "\(keyPrefix).agentSessions" }
 
-    static func loadClaudeSessions() -> Set<UUID> {
-        guard let arr = UserDefaults.standard.stringArray(forKey: claudeSessionsKey) else { return [] }
-        return Set(arr.compactMap { UUID(uuidString: $0) })
+    static func loadAgentSessions() -> [UUID: String] {
+        guard let data = UserDefaults.standard.data(forKey: agentSessionsKey),
+              let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return [:]
+        }
+        return dict.reduce(into: [UUID: String]()) { result, pair in
+            if let uuid = UUID(uuidString: pair.key) {
+                result[uuid] = pair.value
+            }
+        }
     }
 
-    public func saveClaudeSessions() {
-        let arr = claudeSessions.map { $0.uuidString }
-        UserDefaults.standard.set(arr, forKey: Self.claudeSessionsKey)
+    public func saveAgentSessions() {
+        let dict = agentSessions.reduce(into: [String: String]()) { $0[$1.key.uuidString] = $1.value }
+        if let data = try? JSONEncoder().encode(dict) {
+            UserDefaults.standard.set(data, forKey: Self.agentSessionsKey)
+        }
     }
 
     // MARK: - Ownership
@@ -364,15 +373,15 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
             for session in sessions {
                 let activity = session.activity ?? .idle
-                handleActivityUpdate(sessionId: session.id, activity: activity)
+                handleActivityUpdate(sessionId: session.id, activity: activity, agent: session.agent)
             }
 
             let serverIds = Set(sessions.map { $0.id })
-            let staleActivity = claudeSessions.subtracting(serverIds)
-            if !staleActivity.isEmpty {
-                claudeSessions.subtract(staleActivity)
-                sessionsAwaitingInput.subtract(staleActivity)
-                saveClaudeSessions()
+            let staleAgentIds = Set(agentSessions.keys).subtracting(serverIds)
+            if !staleAgentIds.isEmpty {
+                for id in staleAgentIds { agentSessions.removeValue(forKey: id) }
+                sessionsAwaitingInput.subtract(staleAgentIds)
+                saveAgentSessions()
             }
             let staleOwned = ownedSessionIds.subtracting(serverIds)
             if !staleOwned.isEmpty {
@@ -403,8 +412,12 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         sessions.first { $0.id == sessionId }?.createdAt
     }
 
-    public func isRunningClaude(sessionId: UUID) -> Bool {
-        claudeSessions.contains(sessionId)
+    public func activeAgent(for sessionId: UUID) -> String? {
+        agentSessions[sessionId]
+    }
+
+    public func isRunningAgent(sessionId: UUID) -> Bool {
+        agentSessions[sessionId] != nil
     }
 
     // MARK: - Create
@@ -597,7 +610,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 activeSessionId = nil
             }
             evictTerminal(for: id)
-            claudeSessions.remove(id)
+            agentSessions.removeValue(forKey: id)
             unclaimSession(id)
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
@@ -611,24 +624,23 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     // MARK: - Activity / Steal / Rename Handlers
 
-    private func handleActivityUpdate(sessionId: UUID, activity: ActivityState) {
-        var claudeChanged = false
-        if activity.isClaudeRunning {
-            if !claudeSessions.contains(sessionId) {
-                claudeSessions.insert(sessionId)
-                terminalViewModels[sessionId]?.isClaudeActive = true
-                claudeChanged = true
+    private func handleActivityUpdate(sessionId: UUID, activity: ActivityState, agent: String? = nil) {
+        var changed = false
+        if activity.isAgentRunning, let agentId = agent {
+            if agentSessions[sessionId] != agentId {
+                agentSessions[sessionId] = agentId
+                terminalViewModels[sessionId]?.isAgentActive = true
+                changed = true
             }
         } else {
-            if claudeSessions.contains(sessionId) {
-                claudeSessions.remove(sessionId)
-                terminalViewModels[sessionId]?.isClaudeActive = false
-                claudeChanged = true
+            if agentSessions.removeValue(forKey: sessionId) != nil {
+                terminalViewModels[sessionId]?.isAgentActive = false
+                changed = true
             }
         }
-        if claudeChanged { saveClaudeSessions() }
+        if changed { saveAgentSessions() }
 
-        if activity == .claudeIdle {
+        if activity == .agentIdle {
             sessionsAwaitingInput.insert(sessionId)
         } else {
             sessionsAwaitingInput.remove(sessionId)
@@ -643,7 +655,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             activeSessionId = nil
         }
         evictTerminal(for: sessionId)
-        claudeSessions.remove(sessionId)
+        agentSessions.removeValue(forKey: sessionId)
         sessionsAwaitingInput.remove(sessionId)
 
         stolenSessionName = sessionName
@@ -661,8 +673,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     // MARK: - Wire Output (subclasses may override to add platform callbacks)
 
     open func wireTerminalOutput(to sessionId: UUID) {
-        if claudeSessions.contains(sessionId) {
-            terminalViewModels[sessionId]?.isClaudeActive = true
+        if agentSessions[sessionId] != nil {
+            terminalViewModels[sessionId]?.isAgentActive = true
         }
         connection.onTerminalOutput = { [weak self] data in
             self?.terminalViewModels[sessionId]?.receiveOutput(data)

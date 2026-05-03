@@ -10,6 +10,9 @@ public struct SessionInfo: Codable, Equatable, Sendable {
     public let cols: UInt16
     public let rows: UInt16
     public let activity: ActivityState?
+    /// The coding agent currently running in this session, if any.
+    /// Nil when no agent is running or when the server predates multi-agent support.
+    public let agent: String?
 
     public init(
         id: UUID,
@@ -19,7 +22,8 @@ public struct SessionInfo: Codable, Equatable, Sendable {
         createdAt: Date,
         cols: UInt16,
         rows: UInt16,
-        activity: ActivityState? = nil
+        activity: ActivityState? = nil,
+        agent: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -29,5 +33,6 @@ public struct SessionInfo: Codable, Equatable, Sendable {
         self.cols = cols
         self.rows = rows
         self.activity = activity
+        self.agent = agent
     }
 }

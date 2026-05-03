@@ -25,10 +25,10 @@ public protocol SessionCoordinating: AnyObject {
     /// Session IDs this device has created or attached. Ownership is per-device.
     var ownedSessionIds: Set<UUID> { get }
 
-    /// Session IDs where Claude Code is currently running (server-reported).
-    var claudeSessions: Set<UUID> { get }
+    /// Maps session IDs to the coding agent currently running in them (server-reported).
+    var agentSessions: [UUID: String] { get }
 
-    /// Session IDs currently idle while Claude is running (server-reported).
+    /// Session IDs currently idle while a coding agent is running (server-reported).
     var sessionsAwaitingInput: Set<UUID> { get }
 
     // MARK: - Names
@@ -41,8 +41,11 @@ public protocol SessionCoordinating: AnyObject {
 
     // MARK: - Activity
 
-    /// Whether Claude Code is currently running in the given session.
-    func isRunningClaude(sessionId: UUID) -> Bool
+    /// Returns the agent ID running in this session, or nil.
+    func activeAgent(for sessionId: UUID) -> String?
+
+    /// Whether any coding agent is currently running in the given session.
+    func isRunningAgent(sessionId: UUID) -> Bool
 
     // MARK: - Lifecycle
 

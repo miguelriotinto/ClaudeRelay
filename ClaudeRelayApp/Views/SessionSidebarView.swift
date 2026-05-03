@@ -47,6 +47,7 @@ struct SessionSidebarView: View {
                             shortId: String(session.id.uuidString.prefix(8)),
                             isActive: session.id == coordinator.activeSessionId,
                             activity: activityFor(session.id),
+                            agentId: agentId(for: session.id),
                             onRename: { newName in
                                 coordinator.setName(newName, for: session.id)
                             },
@@ -97,10 +98,14 @@ struct SessionSidebarView: View {
     }
 
     private func activityFor(_ id: UUID) -> ActivityState {
-        if coordinator.isRunningClaude(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ? .claudeIdle : .claudeActive
+        if coordinator.isRunningAgent(sessionId: id) {
+            return coordinator.sessionsAwaitingInput.contains(id) ? .agentIdle : .agentActive
         }
         return coordinator.sessionsAwaitingInput.contains(id) ? .idle : .active
+    }
+
+    private func agentId(for id: UUID) -> String? {
+        coordinator.activeAgent(for: id)
     }
 }
 
@@ -112,6 +117,7 @@ private struct SessionRow: View {
     let shortId: String
     let isActive: Bool
     let activity: ActivityState
+    let agentId: String?
     let onRename: (String) -> Void
     let onShareQR: () -> Void
 
@@ -120,7 +126,7 @@ private struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ActivityDot(activity: activity, size: 8)
+            ActivityDot(activity: activity, agentId: agentId, size: 8)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(name)

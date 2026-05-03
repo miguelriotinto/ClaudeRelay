@@ -7,14 +7,25 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     private func makeMonitor(
         silenceThreshold: TimeInterval = 0.1,
-        claudeSilenceThreshold: TimeInterval = 0.2,
-        onChange: @escaping @Sendable (ActivityState) -> Void = { _ in }
+        agentSilenceThreshold: TimeInterval = 0.2,
+        onChange: @escaping @Sendable (ActivityState, CodingAgent?) -> Void = { _, _ in }
     ) -> SessionActivityMonitor {
         SessionActivityMonitor(
             silenceThreshold: silenceThreshold,
-            claudeSilenceThreshold: claudeSilenceThreshold,
+            agentSilenceThreshold: agentSilenceThreshold,
             onChange: onChange
         )
+    }
+
+    /// Test-only helper so existing tests that only care about state can stay concise.
+    private func makeMonitorStateOnly(
+        silenceThreshold: TimeInterval = 0.1,
+        agentSilenceThreshold: TimeInterval = 0.2,
+        onChange: @escaping @Sendable (ActivityState) -> Void
+    ) -> SessionActivityMonitor {
+        makeMonitor(silenceThreshold: silenceThreshold, agentSilenceThreshold: agentSilenceThreshold) { state, _ in
+            onChange(state)
+        }
     }
 
     private func output(_ string: String) -> Data {
@@ -38,90 +49,128 @@ final class SessionActivityMonitorTests: XCTestCase {
     func testInitialStateIsActive() {
         let monitor = makeMonitor()
         XCTAssertEqual(monitor.state, .active)
+        XCTAssertNil(monitor.activeAgent)
     }
 
-    // MARK: - Claude Entry Detection
+    // MARK: - Agent Entry Detection
 
     func testDetectsClaudeEntryFromTitle() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        var agents: [CodingAgent?] = []
+        let monitor = makeMonitor { state, agent in
+            states.append(state); agents.append(agent)
+        }
         monitor.processOutput(titleSequence("claude"))
-        XCTAssertEqual(monitor.state, .claudeActive)
-        XCTAssertEqual(states, [.claudeActive])
+        XCTAssertEqual(monitor.state, .agentActive)
+        XCTAssertEqual(monitor.activeAgent, .claude)
+        XCTAssertEqual(states, [.agentActive])
+        XCTAssertEqual(agents, [.claude])
+    }
+
+    func testDetectsCodexEntryFromTitle() {
+        var agents: [CodingAgent?] = []
+        let monitor = makeMonitor { _, agent in agents.append(agent) }
+        monitor.processOutput(titleSequence("Codex — working"))
+        XCTAssertEqual(monitor.state, .agentActive)
+        XCTAssertEqual(monitor.activeAgent, .codex)
+        XCTAssertEqual(agents, [.codex])
     }
 
     func testDetectsClaudeEntryFromTitleCaseInsensitive() {
         let monitor = makeMonitor()
         monitor.processOutput(titleSequence("Claude Code - ~/projects"))
-        XCTAssertEqual(monitor.state, .claudeActive)
+        XCTAssertEqual(monitor.state, .agentActive)
+        XCTAssertEqual(monitor.activeAgent, .claude)
     }
 
-    func testDoesNotDetectClaudeFromUnrelatedTitle() {
+    func testDoesNotDetectAgentFromUnrelatedTitle() {
         let monitor = makeMonitor()
         monitor.processOutput(titleSequence("vim myfile.txt"))
         XCTAssertEqual(monitor.state, .active)
+        XCTAssertNil(monitor.activeAgent)
     }
 
-    // MARK: - Claude Exit Detection (Debounced)
+    // MARK: - Agent Exit Detection (Debounced)
 
-    func testAltScreenExitDoesNotImmediatelyExitClaude() {
+    func testAltScreenExitDoesNotImmediatelyExitAgent() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        let monitor = makeMonitorStateOnly { states.append($0) }
         monitor.processOutput(titleSequence("claude"))
-        XCTAssertEqual(monitor.state, .claudeActive)
-        // Alt-screen exit alone no longer exits Claude (tools like vim/less use alt screen)
+        XCTAssertEqual(monitor.state, .agentActive)
         monitor.processOutput(leaveAltScreen)
-        XCTAssertEqual(monitor.state, .claudeActive, "Alt-screen exit must not immediately exit Claude")
-        XCTAssertEqual(states, [.claudeActive])
+        XCTAssertEqual(monitor.state, .agentActive, "Alt-screen exit must not immediately exit agent")
+        XCTAssertEqual(states, [.agentActive])
     }
 
-    func testDetectsClaudeExitFromNonClaudeTitleDebounced() {
+    func testDetectsAgentExitFromNonAgentTitleDebounced() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        let monitor = makeMonitorStateOnly { states.append($0) }
         monitor.processOutput(titleSequence("claude"))
-        XCTAssertEqual(monitor.state, .claudeActive)
-        // First non-Claude title: increments debounce counter but doesn't exit yet
+        XCTAssertEqual(monitor.state, .agentActive)
         monitor.processOutput(titleSequence("zsh"))
-        XCTAssertEqual(monitor.state, .claudeActive, "Single non-Claude signal should not exit")
-        // Second non-Claude signal (via process poll): confirms exit
-        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .agentActive, "Single non-agent signal should not exit")
+        monitor.updateForegroundProcess(agent: nil)
         XCTAssertEqual(monitor.state, .active)
-        XCTAssertEqual(states, [.claudeActive, .active])
+        XCTAssertEqual(states, [.agentActive, .active])
     }
 
-    func testTwoNonClaudeTitlesExitClaude() {
+    func testTwoNonAgentTitlesExitAgent() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        let monitor = makeMonitorStateOnly { states.append($0) }
         monitor.processOutput(titleSequence("claude"))
-        XCTAssertEqual(monitor.state, .claudeActive)
-        // Two consecutive non-Claude titles meet the debounce threshold
+        XCTAssertEqual(monitor.state, .agentActive)
         monitor.processOutput(titleSequence("zsh"))
         monitor.processOutput(titleSequence("bash"))
         XCTAssertEqual(monitor.state, .active)
-        XCTAssertEqual(states, [.claudeActive, .active])
+        XCTAssertEqual(states, [.agentActive, .active])
     }
 
-    func testShellPromptDoesNotExitClaude() {
+    func testShellPromptDoesNotExitAgent() {
         let monitor = makeMonitor()
         monitor.processOutput(titleSequence("claude"))
-        XCTAssertEqual(monitor.state, .claudeActive)
+        XCTAssertEqual(monitor.state, .agentActive)
         monitor.processOutput(output("user@host ~/projects $"))
-        XCTAssertEqual(monitor.state, .claudeActive, "Shell prompt should not exit Claude")
+        XCTAssertEqual(monitor.state, .agentActive, "Shell prompt should not exit agent")
     }
 
-    func testShellPromptDoesNotExitWhenNotInClaude() {
+    func testShellPromptDoesNotExitWhenNotInAgent() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        let monitor = makeMonitorStateOnly { states.append($0) }
         monitor.processOutput(output("user@host ~ $"))
         XCTAssertEqual(monitor.state, .active)
         XCTAssertTrue(states.isEmpty, "No state change expected")
+    }
+
+    // MARK: - Agent-to-Agent Switching
+
+    /// When a different agent takes over (e.g. user exits Claude and launches Codex),
+    /// the switch must be immediate — no debounce — because the signal is unambiguous.
+    func testImmediateSwitchFromClaudeToCodex() {
+        var transitions: [(ActivityState, CodingAgent?)] = []
+        let monitor = makeMonitor { state, agent in transitions.append((state, agent)) }
+        monitor.updateForegroundProcess(agent: .claude)
+        XCTAssertEqual(monitor.activeAgent, .claude)
+        monitor.updateForegroundProcess(agent: .codex)
+        XCTAssertEqual(monitor.activeAgent, .codex)
+        // Both transitions should have fired — the second re-fires agentActive with new agent.
+        XCTAssertEqual(transitions.count, 1, "same state .agentActive shouldn't re-emit, but agent switch must update activeAgent")
+        XCTAssertEqual(monitor.activeAgent, .codex)
+    }
+
+    /// Title-based switch between agents — same semantics as poll-based.
+    func testSwitchFromClaudeToCodexViaTitle() {
+        let monitor = makeMonitor()
+        monitor.processOutput(titleSequence("claude"))
+        XCTAssertEqual(monitor.activeAgent, .claude)
+        monitor.processOutput(titleSequence("codex"))
+        XCTAssertEqual(monitor.activeAgent, .codex)
     }
 
     // MARK: - Silence Detection
 
     func testTransitionsToIdleAfterSilence() async {
         let expectation = XCTestExpectation(description: "idle state")
-        let monitor = makeMonitor(silenceThreshold: 0.05) { state in
+        let monitor = makeMonitorStateOnly(silenceThreshold: 0.05) { state in
             if state == .idle { expectation.fulfill() }
         }
         monitor.processOutput(output("some output"))
@@ -129,20 +178,19 @@ final class SessionActivityMonitorTests: XCTestCase {
         XCTAssertEqual(monitor.state, .idle)
     }
 
-    func testTransitionsToClaudeIdleAfterSilence() async {
-        let expectation = XCTestExpectation(description: "claudeIdle state")
-        let monitor = makeMonitor(silenceThreshold: 0.05, claudeSilenceThreshold: 0.1) { state in
-            if state == .claudeIdle { expectation.fulfill() }
+    func testTransitionsToAgentIdleAfterSilence() async {
+        let expectation = XCTestExpectation(description: "agentIdle state")
+        let monitor = makeMonitorStateOnly(silenceThreshold: 0.05, agentSilenceThreshold: 0.1) { state in
+            if state == .agentIdle { expectation.fulfill() }
         }
         monitor.processOutput(titleSequence("claude"))
         monitor.processOutput(output("thinking..."))
         await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(monitor.state, .claudeIdle)
+        XCTAssertEqual(monitor.state, .agentIdle)
     }
 
     func testNewOutputCancelsSilenceTimer() async {
-        var states: [ActivityState] = []
-        let monitor = makeMonitor(silenceThreshold: 0.2) { states.append($0) }
+        let monitor = makeMonitor(silenceThreshold: 0.2)
         monitor.processOutput(output("line 1"))
         try? await Task.sleep(for: .milliseconds(100))
         monitor.processOutput(output("line 2"))
@@ -152,7 +200,7 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     func testInputResetsSilenceToActive() async {
         let idleExpectation = XCTestExpectation(description: "idle")
-        let monitor = makeMonitor(silenceThreshold: 0.05) { state in
+        let monitor = makeMonitorStateOnly(silenceThreshold: 0.05) { state in
             if state == .idle { idleExpectation.fulfill() }
         }
         monitor.processOutput(output("prompt $"))
@@ -177,30 +225,25 @@ final class SessionActivityMonitorTests: XCTestCase {
     // MARK: - Escape-Only Output (TUI Noise)
 
     /// Regression: escape-only output (cursor moves, screen redraws) must not
-    /// break the claudeIdle state. Before the fix, such noise would transition
-    /// to claudeActive without resetting the silence timer, permanently killing
-    /// the idle signal.
-    func testEscapeOnlyOutputDoesNotBreakClaudeIdle() async {
-        let idleExpectation = XCTestExpectation(description: "claudeIdle")
+    /// break the agentIdle state.
+    func testEscapeOnlyOutputDoesNotBreakAgentIdle() async {
+        let idleExpectation = XCTestExpectation(description: "agentIdle")
         var states: [ActivityState] = []
-        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { state in
+        let monitor = makeMonitorStateOnly(agentSilenceThreshold: 0.05) { state in
             states.append(state)
-            if state == .claudeIdle { idleExpectation.fulfill() }
+            if state == .agentIdle { idleExpectation.fulfill() }
         }
 
-        // Enter Claude and produce visible output
         monitor.processOutput(titleSequence("claude"))
         monitor.processOutput(output("thinking..."))
 
-        // Wait for idle
         await fulfillment(of: [idleExpectation], timeout: 1.0)
-        XCTAssertEqual(monitor.state, .claudeIdle)
+        XCTAssertEqual(monitor.state, .agentIdle)
 
-        // Send escape-only output (cursor move) — should NOT break idle
-        let escapeOnly = Data([0x1B, 0x5B, 0x48]) // ESC [ H (cursor home)
+        let escapeOnly = Data([0x1B, 0x5B, 0x48])
         states.removeAll()
         monitor.processOutput(escapeOnly)
-        XCTAssertEqual(monitor.state, .claudeIdle, "Escape-only output must not break claudeIdle")
+        XCTAssertEqual(monitor.state, .agentIdle, "Escape-only output must not break agentIdle")
         XCTAssertTrue(states.isEmpty, "No state transition expected for escape-only noise")
     }
 
@@ -208,82 +251,87 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     func testForegroundProcessDetectsClaudeEntry() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        XCTAssertEqual(monitor.state, .claudeActive)
-        XCTAssertEqual(states, [.claudeActive])
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        XCTAssertEqual(monitor.state, .agentActive)
+        XCTAssertEqual(states, [.agentActive])
+    }
+
+    func testForegroundProcessDetectsCodexEntry() {
+        var agents: [CodingAgent?] = []
+        let monitor = makeMonitor { _, agent in agents.append(agent) }
+        monitor.updateForegroundProcess(agent: .codex)
+        XCTAssertEqual(monitor.state, .agentActive)
+        XCTAssertEqual(monitor.activeAgent, .codex)
+        XCTAssertEqual(agents, [.codex])
     }
 
     func testForegroundProcessExitRequiresDebounce() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        // Single non-Claude poll should not exit (debounce)
-        monitor.updateForegroundProcess(isClaude: false)
-        XCTAssertEqual(monitor.state, .claudeActive, "Single non-Claude poll should not exit")
-        // Second consecutive non-Claude poll confirms exit
-        monitor.updateForegroundProcess(isClaude: false)
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        monitor.updateForegroundProcess(agent: nil)
+        XCTAssertEqual(monitor.state, .agentActive, "Single non-agent poll should not exit")
+        monitor.updateForegroundProcess(agent: nil)
         XCTAssertEqual(monitor.state, .active)
-        XCTAssertEqual(states, [.claudeActive, .active])
+        XCTAssertEqual(states, [.agentActive, .active])
     }
 
-    func testForegroundProcessClaudePollResetsDebounce() {
+    func testForegroundProcessAgentPollResetsDebounce() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        // One non-Claude poll
-        monitor.updateForegroundProcess(isClaude: false)
-        XCTAssertEqual(monitor.state, .claudeActive)
-        // Claude returns — resets debounce counter
-        monitor.updateForegroundProcess(isClaude: true)
-        // Another single non-Claude poll — should NOT exit (counter was reset)
-        monitor.updateForegroundProcess(isClaude: false)
-        XCTAssertEqual(monitor.state, .claudeActive, "Debounce counter should reset on Claude poll")
-        XCTAssertEqual(states, [.claudeActive])
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        monitor.updateForegroundProcess(agent: nil)
+        XCTAssertEqual(monitor.state, .agentActive)
+        monitor.updateForegroundProcess(agent: .claude)
+        monitor.updateForegroundProcess(agent: nil)
+        XCTAssertEqual(monitor.state, .agentActive, "Debounce counter should reset on agent poll")
+        XCTAssertEqual(states, [.agentActive])
     }
 
     func testForegroundProcessNoOpWhenAlreadyInState() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        monitor.updateForegroundProcess(isClaude: true)
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        monitor.updateForegroundProcess(agent: .claude)
         XCTAssertEqual(states.count, 1, "Duplicate poll should not re-trigger transition")
     }
 
     func testForegroundProcessIdleAfterSilence() async {
-        let expectation = XCTestExpectation(description: "claudeIdle via foreground")
-        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { state in
-            if state == .claudeIdle { expectation.fulfill() }
+        let expectation = XCTestExpectation(description: "agentIdle via foreground")
+        let monitor = makeMonitorStateOnly(agentSilenceThreshold: 0.05) { state in
+            if state == .agentIdle { expectation.fulfill() }
         }
-        monitor.updateForegroundProcess(isClaude: true)
+        monitor.updateForegroundProcess(agent: .claude)
         await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(monitor.state, .claudeIdle)
+        XCTAssertEqual(monitor.state, .agentIdle)
     }
 
     // MARK: - Force Exit (PTY death)
 
-    func testForceExitClearsClaudeState() {
+    func testForceExitClearsAgentState() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        XCTAssertEqual(monitor.state, .claudeActive)
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        XCTAssertEqual(monitor.state, .agentActive)
         states.removeAll()
 
         monitor.forceExit()
         XCTAssertEqual(monitor.state, .idle)
+        XCTAssertNil(monitor.activeAgent)
         XCTAssertEqual(states, [.idle])
     }
 
-    func testForceExitFromClaudeIdle() async {
-        let idleExpectation = XCTestExpectation(description: "claudeIdle")
+    func testForceExitFromAgentIdle() async {
+        let idleExpectation = XCTestExpectation(description: "agentIdle")
         var states: [ActivityState] = []
-        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { state in
+        let monitor = makeMonitorStateOnly(agentSilenceThreshold: 0.05) { state in
             states.append(state)
-            if state == .claudeIdle { idleExpectation.fulfill() }
+            if state == .agentIdle { idleExpectation.fulfill() }
         }
-        monitor.updateForegroundProcess(isClaude: true)
+        monitor.updateForegroundProcess(agent: .claude)
         await fulfillment(of: [idleExpectation], timeout: 1.0)
-        XCTAssertEqual(monitor.state, .claudeIdle)
+        XCTAssertEqual(monitor.state, .agentIdle)
         states.removeAll()
 
         monitor.forceExit()
@@ -291,9 +339,9 @@ final class SessionActivityMonitorTests: XCTestCase {
         XCTAssertEqual(states, [.idle])
     }
 
-    func testForceExitWhenNotRunningClaude() {
+    func testForceExitWhenNotRunningAgent() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        let monitor = makeMonitorStateOnly { states.append($0) }
         monitor.processOutput(output("hello"))
         XCTAssertEqual(monitor.state, .active)
         states.removeAll()
@@ -305,8 +353,8 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     func testForceExitPreventsSubsequentSilenceTimer() async {
         var states: [ActivityState] = []
-        let monitor = makeMonitor(claudeSilenceThreshold: 0.05) { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
+        let monitor = makeMonitorStateOnly(agentSilenceThreshold: 0.05) { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
         monitor.processOutput(output("working..."))
         monitor.forceExit()
         states.removeAll()
@@ -318,75 +366,68 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     func testNoStateChangeAfterCancel() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
         states.removeAll()
 
         monitor.cancel()
         monitor.processOutput(output("late output"))
-        monitor.updateForegroundProcess(isClaude: false)
-        monitor.updateForegroundProcess(isClaude: false)
+        monitor.updateForegroundProcess(agent: nil)
+        monitor.updateForegroundProcess(agent: nil)
         monitor.forceExit()
         XCTAssertTrue(states.isEmpty, "No transitions after cancel")
     }
 
     // MARK: - Rapid Launch/Exit Cycles
 
-    func testRapidClaudeLaunchExitCycle() {
+    func testRapidAgentLaunchExitCycle() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        let monitor = makeMonitorStateOnly { states.append($0) }
 
-        // Launch
-        monitor.updateForegroundProcess(isClaude: true)
-        XCTAssertEqual(monitor.state, .claudeActive)
+        monitor.updateForegroundProcess(agent: .claude)
+        XCTAssertEqual(monitor.state, .agentActive)
 
-        // Rapid exit (two consecutive non-Claude)
-        monitor.updateForegroundProcess(isClaude: false)
-        monitor.updateForegroundProcess(isClaude: false)
+        monitor.updateForegroundProcess(agent: nil)
+        monitor.updateForegroundProcess(agent: nil)
         XCTAssertEqual(monitor.state, .active)
 
-        // Immediate relaunch
-        monitor.updateForegroundProcess(isClaude: true)
-        XCTAssertEqual(monitor.state, .claudeActive)
+        monitor.updateForegroundProcess(agent: .claude)
+        XCTAssertEqual(monitor.state, .agentActive)
 
-        // Another exit
-        monitor.updateForegroundProcess(isClaude: false)
-        monitor.updateForegroundProcess(isClaude: false)
+        monitor.updateForegroundProcess(agent: nil)
+        monitor.updateForegroundProcess(agent: nil)
         XCTAssertEqual(monitor.state, .active)
 
-        XCTAssertEqual(states, [.claudeActive, .active, .claudeActive, .active])
+        XCTAssertEqual(states, [.agentActive, .active, .agentActive, .active])
     }
 
     func testForceExitResetsDebounceCounter() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        // One non-Claude poll (debounce counter = 1)
-        monitor.updateForegroundProcess(isClaude: false)
-        XCTAssertEqual(monitor.state, .claudeActive)
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        monitor.updateForegroundProcess(agent: nil)
+        XCTAssertEqual(monitor.state, .agentActive)
 
-        // Force exit resets everything
         monitor.forceExit()
         XCTAssertEqual(monitor.state, .idle)
 
-        // New Claude launch should work cleanly
-        monitor.updateForegroundProcess(isClaude: true)
-        XCTAssertEqual(monitor.state, .claudeActive)
+        monitor.updateForegroundProcess(agent: .claude)
+        XCTAssertEqual(monitor.state, .agentActive)
     }
 
     // MARK: - Silence Timeout via Actor (applySilenceTimeout)
 
-    func testApplySilenceTimeoutWhenClaudeRunning() {
+    func testApplySilenceTimeoutWhenAgentRunning() {
         let monitor = makeMonitor()
-        monitor.updateForegroundProcess(isClaude: true)
+        monitor.updateForegroundProcess(agent: .claude)
         monitor.processOutput(output("some output"))
-        XCTAssertEqual(monitor.state, .claudeActive)
+        XCTAssertEqual(monitor.state, .agentActive)
 
         monitor.applySilenceTimeout()
-        XCTAssertEqual(monitor.state, .claudeIdle)
+        XCTAssertEqual(monitor.state, .agentIdle)
     }
 
-    func testApplySilenceTimeoutWhenNotClaude() {
+    func testApplySilenceTimeoutWhenNotAgent() {
         let monitor = makeMonitor()
         monitor.processOutput(output("prompt"))
         XCTAssertEqual(monitor.state, .active)
@@ -397,7 +438,7 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     func testApplySilenceTimeoutNoOpAfterCancel() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
+        let monitor = makeMonitorStateOnly { states.append($0) }
         monitor.processOutput(output("data"))
         monitor.cancel()
         states.removeAll()
@@ -410,24 +451,20 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     func testTitleEntryThenPollExitCrossSignal() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        // Enter via title
+        let monitor = makeMonitorStateOnly { states.append($0) }
         monitor.processOutput(titleSequence("Claude Code - project"))
-        XCTAssertEqual(monitor.state, .claudeActive)
-        // Exit via one title + one poll (cross-source debounce)
+        XCTAssertEqual(monitor.state, .agentActive)
         monitor.processOutput(titleSequence("zsh"))
-        XCTAssertEqual(monitor.state, .claudeActive)
-        monitor.updateForegroundProcess(isClaude: false)
+        XCTAssertEqual(monitor.state, .agentActive)
+        monitor.updateForegroundProcess(agent: nil)
         XCTAssertEqual(monitor.state, .active)
     }
 
     func testPollEntryThenTitleExitCrossSignal() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor { states.append($0) }
-        // Enter via poll
-        monitor.updateForegroundProcess(isClaude: true)
-        XCTAssertEqual(monitor.state, .claudeActive)
-        // Exit via two titles
+        let monitor = makeMonitorStateOnly { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        XCTAssertEqual(monitor.state, .agentActive)
         monitor.processOutput(titleSequence("bash"))
         monitor.processOutput(titleSequence("user@host ~ %"))
         XCTAssertEqual(monitor.state, .active)
@@ -437,65 +474,45 @@ final class SessionActivityMonitorTests: XCTestCase {
 
     func testCancelStopsSilenceTimer() async {
         var states: [ActivityState] = []
-        let monitor = makeMonitor(silenceThreshold: 0.05) { states.append($0) }
+        let monitor = makeMonitorStateOnly(silenceThreshold: 0.05) { states.append($0) }
         monitor.processOutput(output("something"))
         monitor.cancel()
         try? await Task.sleep(for: .milliseconds(100))
         XCTAssertTrue(states.isEmpty || !states.contains(.idle))
     }
 
-    // MARK: - Fast path (Task 2): regex/UTF-8 decode skipped when !isClaudeRunning
+    // MARK: - Fast path: regex/UTF-8 decode skipped when no agent running
 
-    /// When Claude is not running, any output (including a pure escape-sequence
-    /// chunk) must be counted as activity. We prove this by first seeding the
-    /// monitor to `.idle` via applySilenceTimeout, then feeding an escape-only
-    /// chunk, and asserting the transition to `.active` fires onChange.
-    /// This guards the refactor that skips UTF-8 decode + ANSI regex on the
-    /// non-Claude path: observable behavior must match the old code.
-    func testEscapeOnlyOutputTransitionsToActiveWhenNotClaude() {
+    func testEscapeOnlyOutputTransitionsToActiveWhenNotAgent() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor(silenceThreshold: 10, claudeSilenceThreshold: 10) { states.append($0) }
-        // Seed to .idle so the escape-only chunk produces an observable transition.
+        let monitor = makeMonitorStateOnly(silenceThreshold: 10, agentSilenceThreshold: 10) { states.append($0) }
         monitor.applySilenceTimeout()
         XCTAssertEqual(states.last, .idle)
 
-        // Pure escape sequence: cursor-up 2 times. No visible text.
         monitor.processOutput(Data([0x1B, 0x5B, 0x32, 0x41]))
-        XCTAssertEqual(states.last, .active, "escape-only output must drive !claude monitor back to .active")
+        XCTAssertEqual(states.last, .active, "escape-only output must drive non-agent monitor back to .active")
         monitor.cancel()
     }
 
-    /// When Claude IS running, escape-only output must NOT count as activity.
-    /// (Complements testEscapeOnlyOutputDoesNotBreakClaudeIdle by confirming no
-    /// state change at all from a pure escape chunk, not just "stays idle".)
-    func testEscapeOnlyOutputDoesNotCountAsActivityWhenClaudeRunning() {
+    func testEscapeOnlyOutputDoesNotCountAsActivityWhenAgentRunning() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor(silenceThreshold: 10, claudeSilenceThreshold: 10) { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        states.removeAll() // drop the .active → .claudeActive entry transition
+        let monitor = makeMonitorStateOnly(silenceThreshold: 10, agentSilenceThreshold: 10) { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
+        states.removeAll()
         monitor.processOutput(Data([0x1B, 0x5B, 0x32, 0x41]))
-        XCTAssertTrue(states.isEmpty, "escape-only output must not transition while Claude is running")
+        XCTAssertTrue(states.isEmpty, "escape-only output must not transition while agent is running")
         monitor.cancel()
     }
 
-    /// When Claude IS running and an output chunk isn't valid UTF-8, the Claude path's
-    /// `String(data:encoding: .utf8)` returns nil. The implementation intentionally
-    /// defaults `hasVisibleContent = true` in that case, so the monitor transitions
-    /// to `.claudeActive` rather than silently dropping the chunk. Pin that fallback
-    /// by first seeding `.claudeIdle` via applySilenceTimeout, then feeding invalid
-    /// UTF-8 and asserting the transition back to `.claudeActive` fires.
-    func testNonUTF8OutputCountsAsActivityWhenClaudeRunning() {
+    func testNonUTF8OutputCountsAsActivityWhenAgentRunning() {
         var states: [ActivityState] = []
-        let monitor = makeMonitor(silenceThreshold: 10, claudeSilenceThreshold: 10) { states.append($0) }
-        monitor.updateForegroundProcess(isClaude: true)
-        // Seed to .claudeIdle so the visible-content branch produces an observable transition.
+        let monitor = makeMonitorStateOnly(silenceThreshold: 10, agentSilenceThreshold: 10) { states.append($0) }
+        monitor.updateForegroundProcess(agent: .claude)
         monitor.applySilenceTimeout()
-        XCTAssertEqual(states.last, .claudeIdle)
+        XCTAssertEqual(states.last, .agentIdle)
 
-        // Invalid UTF-8 byte sequence (lone high bytes, not a valid start sequence).
-        // String(data:encoding: .utf8) returns nil → hasVisibleContent stays true → .claudeActive.
         monitor.processOutput(Data([0xFF, 0xFE, 0xFD]))
-        XCTAssertEqual(states.last, .claudeActive, "non-UTF-8 chunk must fall back to .claudeActive via hasVisibleContent default")
+        XCTAssertEqual(states.last, .agentActive, "non-UTF-8 chunk must fall back to .agentActive")
         monitor.cancel()
     }
 }

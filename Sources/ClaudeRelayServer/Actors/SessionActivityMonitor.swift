@@ -8,9 +8,9 @@ import ClaudeRelayKit
 ///
 /// Detection mechanisms (in priority order):
 /// 1. **Foreground process polling**: tcgetpgrp + KERN_PROCARGS2 with parent chain walk
-/// 2. **OSC title sequences**: fallback when shell sets title containing "claude"
+/// 2. **OSC title sequences**: fallback when shell sets title containing an agent keyword
 ///
-/// Exit is debounced: requires two consecutive non-Claude signals to prevent false
+/// Exit is debounced: requires two consecutive non-agent signals to prevent false
 /// exits during momentary tool-launch process group changes.
 public final class SessionActivityMonitor: @unchecked Sendable {
 
@@ -19,14 +19,14 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     /// Current activity state. Read from any context; mutated only via `processOutput`/`recordInput`.
     public private(set) var state: ActivityState = .active
 
-    /// Whether Claude Code is currently detected as running.
-    private var isClaudeRunning = false
+    /// The coding agent currently detected as running, or nil.
+    public private(set) var activeAgent: CodingAgent?
 
     // MARK: - Configuration
 
     private let silenceThreshold: TimeInterval
-    private let claudeSilenceThreshold: TimeInterval
-    private let onChange: @Sendable (ActivityState) -> Void
+    private let agentSilenceThreshold: TimeInterval
+    private let onChange: @Sendable (ActivityState, CodingAgent?) -> Void
 
     /// Called by the silence timer from `timerQueue`. The owner (PTYSession) sets
     /// this to a closure that re-enters the actor and calls `applySilenceTimeout()`,
@@ -39,12 +39,12 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     private let timerQueue = DispatchQueue(label: "com.claude.relay.activity-monitor")
     private var cancelled = false
 
-    /// Exit debounce: counts consecutive non-Claude signals from **any source**
+    /// Exit debounce: counts consecutive non-agent signals from **any source**
     /// (foreground-process poll and/or OSC title change). The two inputs share a
-    /// single counter, so exit fires when any two consecutive non-Claude signals
+    /// single counter, so exit fires when any two consecutive non-agent signals
     /// arrive — e.g. poll+poll, title+title, or poll+title in either order.
-    /// Any Claude-positive signal resets the counter to 0.
-    private var consecutiveNonClaudePolls = 0
+    /// Any agent-positive signal resets the counter to 0.
+    private var consecutiveNoAgentPolls = 0
     private static let exitDebounceThreshold = 2
 
     /// Comprehensive ANSI/VT escape sequence stripper.
@@ -54,11 +54,11 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     public init(
         silenceThreshold: TimeInterval = 1.0,
-        claudeSilenceThreshold: TimeInterval = 2.0,
-        onChange: @escaping @Sendable (ActivityState) -> Void
+        agentSilenceThreshold: TimeInterval = 2.0,
+        onChange: @escaping @Sendable (ActivityState, CodingAgent?) -> Void
     ) {
         self.silenceThreshold = silenceThreshold
-        self.claudeSilenceThreshold = claudeSilenceThreshold
+        self.agentSilenceThreshold = agentSilenceThreshold
         self.onChange = onChange
     }
 
@@ -68,20 +68,20 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     public func processOutput(_ data: Data) {
         guard !cancelled else { return }
 
-        // Always scan for OSC title so Claude-entry detection still works.
+        // Always scan for OSC title so agent-entry detection still works.
         detectTitleChange(in: data)
 
-        // Fast path: when Claude isn't running, *any* output is activity. We
+        // Fast path: when no agent is running, *any* output is activity. We
         // don't need UTF-8 decoding or ANSI stripping — that work is only
         // needed to distinguish meaningful output from ink/React redraws
-        // while Claude is running.
-        if !isClaudeRunning {
+        // while an agent is running.
+        if activeAgent == nil {
             transition(to: .active)
             resetSilenceTimer()
             return
         }
 
-        // Claude path: only count visible content (skip pure escape-sequence
+        // Agent path: only count visible content (skip pure escape-sequence
         // redraws). Decode + ANSI-strip only in this branch.
         var hasVisibleContent = true
         if let raw = String(data: data, encoding: .utf8) {
@@ -89,7 +89,7 @@ public final class SessionActivityMonitor: @unchecked Sendable {
             hasVisibleContent = !clean.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         if hasVisibleContent {
-            transition(to: .claudeActive)
+            transition(to: .agentActive)
             resetSilenceTimer()
         }
     }
@@ -97,21 +97,21 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     /// Called when the client sends input to this session.
     public func recordInput() {
         guard !cancelled else { return }
-        let activeState: ActivityState = isClaudeRunning ? .claudeActive : .active
+        let activeState: ActivityState = activeAgent != nil ? .agentActive : .active
         transition(to: activeState)
         resetSilenceTimer()
     }
 
-    /// Force Claude exit and transition to idle. Called when the PTY process exits —
-    /// regardless of what the monitor thinks, Claude cannot be running if the shell is dead.
+    /// Force agent exit and transition to idle. Called when the PTY process exits —
+    /// regardless of what the monitor thinks, an agent cannot be running if the shell is dead.
     /// Emits a final state change so clients see the definitive "not running" state.
     public func forceExit() {
         guard !cancelled else { return }
         silenceTimer?.cancel()
         silenceTimer = nil
-        if isClaudeRunning {
-            isClaudeRunning = false
-            consecutiveNonClaudePolls = 0
+        if activeAgent != nil {
+            activeAgent = nil
+            consecutiveNoAgentPolls = 0
         }
         transition(to: .idle)
     }
@@ -125,26 +125,26 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     // MARK: - Foreground Process Detection
 
-    /// Called by PTYSession's foreground poll timer with the result of process
-    /// detection (including parent chain walk).
+    /// Called by PTYSession's foreground poll timer with the detected agent
+    /// (or nil if no agent was found in the process chain).
     ///
     /// Entry is immediate (single poll confirms). Exit is debounced: requires
-    /// `exitDebounceThreshold` consecutive non-Claude signals (counted across
+    /// `exitDebounceThreshold` consecutive non-agent signals (counted across
     /// this poll path and the OSC title path combined) to guard against
     /// momentary process group changes during tool launches.
-    public func updateForegroundProcess(isClaude: Bool) {
+    public func updateForegroundProcess(agent: CodingAgent?) {
         guard !cancelled else { return }
-        if isClaude {
-            consecutiveNonClaudePolls = 0
-            if !isClaudeRunning {
-                isClaudeRunning = true
-                transition(to: .claudeActive)
+        if let agent {
+            consecutiveNoAgentPolls = 0
+            if activeAgent?.id != agent.id {
+                activeAgent = agent
+                transition(to: .agentActive)
                 resetSilenceTimer()
             }
-        } else if isClaudeRunning {
-            consecutiveNonClaudePolls += 1
-            if consecutiveNonClaudePolls >= Self.exitDebounceThreshold {
-                exitClaude()
+        } else if activeAgent != nil {
+            consecutiveNoAgentPolls += 1
+            if consecutiveNoAgentPolls >= Self.exitDebounceThreshold {
+                exitAgent()
             }
         }
     }
@@ -181,26 +181,24 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     }
 
     private func handleTitle(_ title: String) {
-        if title.localizedCaseInsensitiveContains("claude") {
-            consecutiveNonClaudePolls = 0
-            if !isClaudeRunning {
-                isClaudeRunning = true
-                transition(to: .claudeActive)
+        if let agent = CodingAgent.matching(title: title) {
+            consecutiveNoAgentPolls = 0
+            if activeAgent?.id != agent.id {
+                activeAgent = agent
+                transition(to: .agentActive)
                 resetSilenceTimer()
             }
-        } else if isClaudeRunning {
-            // Non-Claude title increments the debounce counter. Combined with
-            // process poll, two consecutive non-Claude signals confirm exit.
-            consecutiveNonClaudePolls += 1
-            if consecutiveNonClaudePolls >= Self.exitDebounceThreshold {
-                exitClaude()
+        } else if activeAgent != nil {
+            consecutiveNoAgentPolls += 1
+            if consecutiveNoAgentPolls >= Self.exitDebounceThreshold {
+                exitAgent()
             }
         }
     }
 
-    private func exitClaude() {
-        isClaudeRunning = false
-        consecutiveNonClaudePolls = 0
+    private func exitAgent() {
+        activeAgent = nil
+        consecutiveNoAgentPolls = 0
         transition(to: .active)
         resetSilenceTimer()
     }
@@ -216,23 +214,23 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     // MARK: - Silence Timer
 
     /// Called from the owning actor when the silence timer fires. Computes the
-    /// idle state using the current `isClaudeRunning` flag — safe because the
+    /// idle state using the current `activeAgent` flag — safe because the
     /// actor serializes this call with all other state mutations.
     public func applySilenceTimeout() {
         guard !cancelled else { return }
-        let idleState: ActivityState = isClaudeRunning ? .claudeIdle : .idle
+        let idleState: ActivityState = activeAgent != nil ? .agentIdle : .idle
         transition(to: idleState)
     }
 
     private func resetSilenceTimer() {
         silenceTimer?.cancel()
-        let threshold = isClaudeRunning ? claudeSilenceThreshold : silenceThreshold
+        let threshold = activeAgent != nil ? agentSilenceThreshold : silenceThreshold
         let item = DispatchWorkItem { [weak self] in
             guard let self, !self.cancelled else { return }
             if let callback = self.onSilenceTimeout {
                 callback()
             } else {
-                let idleState: ActivityState = self.isClaudeRunning ? .claudeIdle : .idle
+                let idleState: ActivityState = self.activeAgent != nil ? .agentIdle : .idle
                 self.transition(to: idleState)
             }
         }
@@ -247,6 +245,6 @@ public final class SessionActivityMonitor: @unchecked Sendable {
         let oldState = state
         state = newState
         RelayLogger.log(.debug, category: "activity", "State: \(oldState.rawValue) → \(newState.rawValue)")
-        onChange(newState)
+        onChange(newState, activeAgent)
     }
 }
