@@ -98,6 +98,13 @@ final class AdminHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
             self.requestBody?.writeBuffer(&body)
         case .end:
             if requestBodyOverflow {
+                if let head = requestHead {
+                    RelayLogger.log(
+                        .error,
+                        category: "admin",
+                        "\(head.method) \(head.uri) — rejected: request body > \(Self.maxRequestBodyBytes) bytes"
+                    )
+                }
                 let response = AdminResponse.error("Request body too large", status: 413)
                 writeResponse(response, context: context)
                 self.requestHead = nil
@@ -146,6 +153,7 @@ final class AdminHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
 
             self.requestHead = nil
             self.requestBody = nil
+            self.requestBodyOverflow = false
         }
     }
 
