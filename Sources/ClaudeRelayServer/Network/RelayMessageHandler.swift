@@ -32,6 +32,12 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private static let maxTextFrameSize = 10_000_000   // 10MB (images are base64 in JSON)
     private static let maxBinaryFrameSize = 10_000_000 // 10MB
 
+    /// Bytes currently in-flight on the WebSocket write pipe. When this exceeds
+    /// `maxInflightOutputBytes` we skip frames; the server's ring buffer holds
+    /// the authoritative copy so the client replays on resume.
+    private var inflightOutputBytes = 0
+    private static let maxInflightOutputBytes = 2 * 1024 * 1024  // 2 MB
+
     init(sessionManager: SessionManager, tokenStore: TokenStore) {
         self.sessionManager = sessionManager
         self.tokenStore = tokenStore
@@ -640,12 +646,26 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private func sendBinaryData(_ data: Data, context: ChannelHandlerContext) {
         guard context.channel.isActive else { return }
-        var buffer = context.channel.allocator.buffer(capacity: data.count)
+        // Backpressure: if the client is slow (mobile backgrounded, bad network)
+        // skip frames. The server's ring buffer holds the authoritative copy;
+        // the client replays from there on resume.
+        if inflightOutputBytes > Self.maxInflightOutputBytes {
+            return
+        }
+        let byteCount = data.count
+        inflightOutputBytes += byteCount
+        var buffer = context.channel.allocator.buffer(capacity: byteCount)
         buffer.writeBytes(data)
         let frame = WebSocketFrame(fin: true, opcode: .binary, data: buffer)
         let promise = context.eventLoop.makePromise(of: Void.self)
-        promise.futureResult.whenFailure { error in
-            RelayLogger.log(.error, category: "connection", "Binary write failed (\(data.count) bytes): \(error)")
+        promise.futureResult.whenComplete { [weak self] result in
+            // inflight counter must decrement whether the write succeeded or
+            // failed — otherwise a persistent failure would drain the budget.
+            self?.inflightOutputBytes -= byteCount
+            if case .failure(let error) = result {
+                RelayLogger.log(.error, category: "connection",
+                    "Binary write failed (\(byteCount) bytes): \(error)")
+            }
         }
         context.writeAndFlush(wrapOutboundOut(frame), promise: promise)
     }
