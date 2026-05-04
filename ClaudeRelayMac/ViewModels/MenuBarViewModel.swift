@@ -74,6 +74,10 @@ final class MenuBarViewModel: ObservableObject {
     /// state. Each task runs until the coordinator is replaced (new coordinator
     /// or nil), at which point cancelCoordinatorTasks() cancels them.
     private func followCoordinator(_ coordinator: SessionCoordinator) {
+        // Cancel any pre-existing follow tasks before spawning new ones — avoids
+        // stacking three tasks per coordinator swap during rapid reconnects.
+        cancelCoordinatorTasks()
+
         let sessionsTask = Task { [weak self] in
             for await s in coordinator.$sessions.values {
                 guard let self else { return }
