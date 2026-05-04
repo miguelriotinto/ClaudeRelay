@@ -124,7 +124,11 @@ public final class RelayConnection: ObservableObject {
 
         let session = URLSession(configuration: .default)
         self.urlSession = session
-        let task = session.webSocketTask(with: config.wsURL)
+        guard let url = config.wsURL else {
+            state = .disconnected
+            throw ConnectionError.invalidMessage("Invalid host '\(config.host)'")
+        }
+        let task = session.webSocketTask(with: url)
         task.maximumMessageSize = 10 * 1024 * 1024
         self.webSocketTask = task
         task.resume()

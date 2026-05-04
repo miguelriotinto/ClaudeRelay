@@ -9,10 +9,11 @@ public struct ConnectionConfig: Codable, Identifiable, Sendable {
     public var useTLS: Bool
 
     /// Constructs the WebSocket URL from the configuration properties.
-    public var wsURL: URL {
+    /// Returns `nil` if the stored host contains characters that RFC 3986
+    /// forbids in a URL (a corrupted bookmark, for instance).
+    public var wsURL: URL? {
         let scheme = useTLS ? "wss" : "ws"
-        // Force-unwrap is safe here because we control the format.
-        return URL(string: "\(scheme)://\(host):\(port)")!
+        return URL(string: "\(scheme)://\(host):\(port)")
     }
 
     public init(

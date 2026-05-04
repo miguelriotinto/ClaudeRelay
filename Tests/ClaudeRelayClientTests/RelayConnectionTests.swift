@@ -243,12 +243,12 @@ final class ConnectionConfigTests: XCTestCase {
 
     func testWSURLPlaintext() {
         let config = ConnectionConfig(name: "Test", host: "192.168.1.1", port: 9200)
-        XCTAssertEqual(config.wsURL.absoluteString, "ws://192.168.1.1:9200")
+        XCTAssertEqual(config.wsURL?.absoluteString, "ws://192.168.1.1:9200")
     }
 
     func testWSURLWithTLS() {
         let config = ConnectionConfig(name: "Test", host: "relay.example.com", port: 443, useTLS: true)
-        XCTAssertEqual(config.wsURL.absoluteString, "wss://relay.example.com:443")
+        XCTAssertEqual(config.wsURL?.absoluteString, "wss://relay.example.com:443")
     }
 
     func testDefaultPort() {
