@@ -46,7 +46,7 @@ struct SessionSidebarView: View {
                             name: coordinator.name(for: session.id),
                             shortId: String(session.id.uuidString.prefix(8)),
                             isActive: session.id == coordinator.activeSessionId,
-                            activity: activityFor(session.id),
+                            activity: coordinator.activityState(for: session.id),
                             agentId: agentId(for: session.id),
                             onRename: { newName in
                                 coordinator.setName(newName, for: session.id)
@@ -95,13 +95,6 @@ struct SessionSidebarView: View {
                 isPresented: $showAttachSheet
             )
         }
-    }
-
-    private func activityFor(_ id: UUID) -> ActivityState {
-        if coordinator.isRunningAgent(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ? .agentIdle : .agentActive
-        }
-        return coordinator.sessionsAwaitingInput.contains(id) ? .idle : .active
     }
 
     private func agentId(for id: UUID) -> String? {

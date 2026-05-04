@@ -23,7 +23,7 @@ struct SessionSidebarView: View {
                         SessionRow(
                             name: coordinator.name(for: session.id),
                             shortId: String(session.id.uuidString.prefix(8)),
-                            activity: activityFor(session.id),
+                            activity: coordinator.activityState(for: session.id),
                             agentId: coordinator.activeAgent(for: session.id),
                             createdAt: session.createdAt
                         )
@@ -108,12 +108,6 @@ struct SessionSidebarView: View {
         }
     }
 
-    private func activityFor(_ id: UUID) -> ActivityState {
-        if coordinator.isRunningAgent(sessionId: id) {
-            return coordinator.sessionsAwaitingInput.contains(id) ? .agentIdle : .agentActive
-        }
-        return coordinator.sessionsAwaitingInput.contains(id) ? .idle : .active
-    }
 }
 
 private struct SessionRow: View {

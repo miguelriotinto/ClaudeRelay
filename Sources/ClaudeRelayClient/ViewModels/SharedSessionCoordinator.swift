@@ -420,6 +420,16 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         agentSessions[sessionId] != nil
     }
 
+    /// Derive the `ActivityState` for a session. Convenience helper used by
+    /// sidebar views on both platforms — keeps the agent/awaiting-input
+    /// resolution in one place.
+    public func activityState(for sessionId: UUID) -> ActivityState {
+        if isRunningAgent(sessionId: sessionId) {
+            return sessionsAwaitingInput.contains(sessionId) ? .agentIdle : .agentActive
+        }
+        return sessionsAwaitingInput.contains(sessionId) ? .idle : .active
+    }
+
     // MARK: - Create
 
     public func createNewSession() async {
