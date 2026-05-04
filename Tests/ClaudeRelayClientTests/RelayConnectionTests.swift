@@ -158,6 +158,21 @@ final class RelayConnectionTests: XCTestCase {
         XCTAssertLessThanOrEqual(connection._testOnly_rttWindowCount, 6,
             "rttWindow must be bounded to windowSize (6)")
     }
+
+    /// Regression test for ping/pong flap: alternating successes and failures
+    /// must never let the RTT window grow unbounded, since any leak would show
+    /// up as ever-growing memory footprint on a long-lived connection whose
+    /// network oscillates. 20 samples is enough to hit the cap (6) several times
+    /// over.
+    @MainActor
+    func testAlternatingRTTsStayBoundedByRttWindow() async {
+        let connection = RelayConnection()
+        for i in 0..<20 {
+            connection._testOnly_recordRTT(rtt: i % 2 == 0 ? 0.05 : nil)
+        }
+        XCTAssertLessThanOrEqual(connection._testOnly_rttWindowCount, 6,
+            "rttWindow must be bounded to windowSize (6) even under sustained flap")
+    }
 }
 
 // MARK: - SessionController Tests
