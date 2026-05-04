@@ -802,4 +802,27 @@ final class SessionManagerTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Periodic Observer Cleanup
+
+    func testPurgeStaleObserversRemovesOldEntries() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        _ = await manager.addActivityObserver(tokenId: tokenInfo.id) { _, _, _ in }
+        _ = await manager.addStealObserver(tokenId: tokenInfo.id) { _ in }
+        _ = await manager.addRenameObserver(tokenId: tokenInfo.id) { _, _ in }
+
+        let beforeCount = await manager._testOnly_observerCount
+        XCTAssertEqual(beforeCount, 3, "Should have 3 observers registered")
+
+        // Purge with zero-second cutoff evicts everything because Date() is strictly
+        // greater than any timestamp we just recorded.
+        await manager.purgeStaleObservers(olderThan: 0)
+
+        let afterCount = await manager._testOnly_observerCount
+        XCTAssertEqual(afterCount, 0, "All observers should have been purged with 0s cutoff")
+    }
 }

@@ -15,6 +15,16 @@ let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 let tokenStore = TokenStore(directory: RelayConfig.configDirectory)
 let sessionManager = SessionManager(config: config, tokenStore: tokenStore)
 
+// Every 30 minutes, evict observers older than 1 hour. Prevents unbounded
+// growth if a channel dies without its ChannelInboundHandler running cleanup.
+let observerPurgeTask = Task {
+    while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(30 * 60))
+        guard !Task.isCancelled else { return }
+        await sessionManager.purgeStaleObservers(olderThan: 60 * 60)
+    }
+}
+
 let wsServer = WebSocketServer(
     group: group, config: config,
     sessionManager: sessionManager, tokenStore: tokenStore
@@ -59,6 +69,7 @@ await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>)
 
 RelayLogger.log(category: "server", "Shutdown signal received")
 print("\nShutting down...")
+observerPurgeTask.cancel()
 await sessionManager.shutdown()
 await tokenStore.flushIfDirty()
 try await wsServer.stop()

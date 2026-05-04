@@ -25,6 +25,15 @@ public actor SessionManager {
     private var stealObservers: [UUID: (tokenId: String, callback: StealObserver)] = [:]
     public typealias RenameObserver = @Sendable (UUID, String) -> Void
     private var renameObservers: [UUID: (tokenId: String, callback: RenameObserver)] = [:]
+    /// Creation timestamp per observer ID (all three kinds). Used by
+    /// `purgeStaleObservers` to evict observers from handlers that died
+    /// without running `cleanupSession()` (crash, panic, network partition).
+    ///
+    /// IMPORTANT — when adding a new observer kind, update all three sites:
+    ///   1. `add*Observer`: write `observerMetadata[id] = Date()`
+    ///   2. `remove*Observer`: call `observerMetadata.removeValue(forKey: id)`
+    ///   3. `purgeStaleObservers`: remove stale IDs from the new dictionary too
+    private var observerMetadata: [UUID: Date] = [:]
 
     struct ManagedSession {
         var info: SessionInfo
@@ -402,6 +411,7 @@ public actor SessionManager {
     ) -> UUID {
         let observerId = UUID()
         activityObservers[observerId] = (tokenId: tokenId, callback: callback)
+        observerMetadata[observerId] = Date()
 
         // Push current (cached) activity state for this token's sessions so the
         // client doesn't wait for a change event to render correct state.
@@ -414,6 +424,7 @@ public actor SessionManager {
 
     public func removeActivityObserver(id: UUID) {
         activityObservers.removeValue(forKey: id)
+        observerMetadata.removeValue(forKey: id)
     }
 
     public func reportActivityChange(sessionId: UUID, activity: ActivityState, agent: String? = nil) {
@@ -437,11 +448,13 @@ public actor SessionManager {
     ) -> UUID {
         let observerId = UUID()
         stealObservers[observerId] = (tokenId: tokenId, callback: callback)
+        observerMetadata[observerId] = Date()
         return observerId
     }
 
     public func removeStealObserver(id: UUID) {
         stealObservers.removeValue(forKey: id)
+        observerMetadata.removeValue(forKey: id)
     }
 
     private func reportSessionStolen(sessionId: UUID, tokenId: String, excludeObserver: UUID?) {
@@ -461,11 +474,38 @@ public actor SessionManager {
     ) -> UUID {
         let observerId = UUID()
         renameObservers[observerId] = (tokenId: tokenId, callback: callback)
+        observerMetadata[observerId] = Date()
         return observerId
     }
 
     public func removeRenameObserver(id: UUID) {
         renameObservers.removeValue(forKey: id)
+        observerMetadata.removeValue(forKey: id)
+    }
+
+    // MARK: - Periodic Cleanup
+
+    /// Evict observers older than `olderThan` seconds. Called periodically from
+    /// main.swift to prevent unbounded growth when handlers die without running
+    /// `cleanupSession()` (crash, panic, network partition).
+    public func purgeStaleObservers(olderThan seconds: TimeInterval) {
+        let cutoff = Date().addingTimeInterval(-seconds)
+        let stale = observerMetadata.filter { $0.value < cutoff }.map(\.key)
+        for id in stale {
+            activityObservers.removeValue(forKey: id)
+            stealObservers.removeValue(forKey: id)
+            renameObservers.removeValue(forKey: id)
+            observerMetadata.removeValue(forKey: id)
+        }
+        if !stale.isEmpty {
+            RelayLogger.log(.info, category: "session",
+                            "Purged \(stale.count) stale observer(s)")
+        }
+    }
+
+    /// Exposed only for tests. Do not call from production code.
+    public var _testOnly_observerCount: Int {
+        activityObservers.count + stealObservers.count + renameObservers.count
     }
 
     // MARK: - Shutdown
