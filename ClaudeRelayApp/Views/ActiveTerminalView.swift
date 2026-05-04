@@ -103,31 +103,12 @@ struct ActiveTerminalView: View {
                     }
                 }
 
-                TimelineView(.periodic(from: .now, by: 0.5)) { context in
-                    let flashOn = Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
-                                let isSelected = session.id == coordinator.activeSessionId
-                                let agentId = coordinator.activeAgent(for: session.id)
-                                let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
-                                Button {
-                                    if AppSettings.shared.hapticFeedbackEnabled {
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    }
-                                    Task { await coordinator.switchToSession(id: session.id) }
-                                } label: {
-                                    SessionTab(
-                                        number: index + 1,
-                                        isSelected: isSelected,
-                                        agentId: agentId,
-                                        needsAttention: needsAttention,
-                                        flashOn: flashOn
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
+                if coordinator.sessionsAwaitingInput.isEmpty {
+                    sessionTabBar(flashOn: false)
+                } else {
+                    TimelineView(.periodic(from: .now, by: 0.5)) { context in
+                        let flashOn = Int(context.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
+                        sessionTabBar(flashOn: flashOn)
                     }
                 }
 
@@ -207,6 +188,34 @@ struct ActiveTerminalView: View {
                     sessionName: coordinator.name(for: id),
                     onDismiss: { showQROverlay = false }
                 )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sessionTabBar(flashOn: Bool) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(Array(coordinator.activeSessions.enumerated()), id: \.element.id) { index, session in
+                    let isSelected = session.id == coordinator.activeSessionId
+                    let agentId = coordinator.activeAgent(for: session.id)
+                    let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
+                    Button {
+                        if AppSettings.shared.hapticFeedbackEnabled {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                        Task { await coordinator.switchToSession(id: session.id) }
+                    } label: {
+                        SessionTab(
+                            number: index + 1,
+                            isSelected: isSelected,
+                            agentId: agentId,
+                            needsAttention: needsAttention,
+                            flashOn: flashOn
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
