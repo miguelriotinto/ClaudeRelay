@@ -224,7 +224,14 @@ struct TerminalHostView: UIViewRepresentable {
                 }
             }
         }
-        viewModel.terminalReady()
+        // `terminalReady` is itself idempotent, but `updateUIView` fires on every
+        // coordinator publish. Only dispatch once per session to avoid the
+        // guard + pending-buffer flush loop cost on each update pass. Tracking
+        // by session id doubles as the session-switch reset.
+        if context.coordinator.readiedSessionId != activeId {
+            context.coordinator.readiedSessionId = activeId
+            viewModel.terminalReady()
+        }
 
         // Hide the built-in input accessory once per terminal (idempotent, but
         // not needed on every updateUIView).
@@ -292,6 +299,12 @@ final class HostCoordinator: NSObject {
     /// the terminal on actual session switches, not on every coordinator
     /// property publish.
     var lastFocusedSessionId: UUID?
+
+    /// Tracks which session has had its first `terminalReady()` call dispatched.
+    /// `updateUIView` fires on every @ObservedObject publish, and while
+    /// `terminalReady()` is already internally idempotent, this avoids the
+    /// guard dispatch + flush loop cost on each update pass.
+    var readiedSessionId: UUID?
 
     init(isKeyboardVisible: Binding<Bool>) {
         self.isKeyboardVisible = isKeyboardVisible
