@@ -9,5 +9,6 @@ DerivedData/
 *.xcarchive
 .asc/artifacts/
 .DS_Store
+ExportOptions.plist
 # Added by code-review-graph
 .code-review-graph/

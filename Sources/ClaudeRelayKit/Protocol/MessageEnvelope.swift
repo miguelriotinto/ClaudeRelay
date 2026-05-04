@@ -3,6 +3,9 @@ import Foundation
 /// A wire-format envelope that wraps either a `ClientMessage` or `ServerMessage`.
 ///
 /// Encodes to: `{"type":"<message_type>","payload":{...}}`
+///
+/// Thread-safe: both associated types conform to `Sendable`, and the
+/// `typeOrigin` lookup table is immutable after initialization.
 public enum MessageEnvelope: Equatable, Sendable {
     case client(ClientMessage)
     case server(ServerMessage)

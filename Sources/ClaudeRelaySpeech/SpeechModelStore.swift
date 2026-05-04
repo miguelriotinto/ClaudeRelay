@@ -155,11 +155,21 @@ public final class SpeechModelStore: ObservableObject {
     /// Total bytes used by models on disk.
     public var totalModelSize: Int64 {
         guard FileManager.default.fileExists(atPath: modelsDirectory.path) else { return 0 }
-        let enumerator = FileManager.default.enumerator(at: modelsDirectory, includingPropertiesForKeys: [.fileSizeKey])
+        let enumerator = FileManager.default.enumerator(
+            at: modelsDirectory,
+            includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey]
+        )
         var total: Int64 = 0
         while let url = enumerator?.nextObject() as? URL {
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            total += Int64(size)
+            guard
+                let resourceValues = try? url.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey]),
+                resourceValues.isDirectory != true,
+                let size = resourceValues.fileSize
+            else {
+                continue
+            }
+            let (partial, _) = total.addingReportingOverflow(Int64(clamping: size))
+            total = partial
         }
         return total
     }

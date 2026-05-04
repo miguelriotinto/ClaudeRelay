@@ -206,12 +206,12 @@ public actor PTYSession: PTYSessionProtocol {
     /// their ancestor. Without the walk, every tool execution briefly appears as
     /// "agent exited", causing UI flicker.
     ///
-    /// Poll interval: 1s with 0.5s initial delay for responsive entry detection.
+    /// Poll interval: 1s, first fire immediately on attach for responsive entry detection.
     /// Exit debouncing in SessionActivityMonitor prevents flicker.
     private func startForegroundPoll() {
         let timer = DispatchSource.makeTimerSource(queue: .global())
         let fd = masterFD
-        timer.schedule(deadline: .now() + 0.5, repeating: 1.0)
+        timer.schedule(deadline: .now(), repeating: 1.0)
         timer.setEventHandler { [weak self] in
             let pgid = relay_get_foreground_pgid(fd)
             guard pgid > 0 else { return }
