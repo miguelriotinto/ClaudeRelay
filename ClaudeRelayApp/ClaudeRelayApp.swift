@@ -44,6 +44,7 @@ struct ClaudeRelayApp: App {
         pendingSessionId = sessionId
     }
 
+    @MainActor
     private func preloadSpeechModels() async {
         let store = SpeechModelStore.shared
 
