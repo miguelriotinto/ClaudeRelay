@@ -235,6 +235,28 @@ final class SessionControllerTests: XCTestCase {
         XCTAssertEqual(controller.authenticatedGeneration, 0)
         XCTAssertEqual(connection.generation, 0)
     }
+
+    // MARK: - Authenticate Error Paths
+
+    /// Authenticating before the transport is connected must throw and leave
+    /// the controller unauthenticated — never silently "succeed" against a
+    /// missing socket.
+    func testAuthenticateThrowsWhenNotConnected() async {
+        let connection = RelayConnection()
+        let controller = SessionController(connection: connection)
+
+        do {
+            try await controller.authenticate(token: "any-token")
+            XCTFail("Expected an error when authenticating before connect()")
+        } catch {
+            // Any thrown error is acceptable here — the contract is that the
+            // call must not return normally. We additionally guarantee the
+            // controller stays unauthenticated.
+            XCTAssertFalse(controller.isAuthenticated,
+                           "Controller should remain unauthenticated after failed send")
+            XCTAssertFalse(controller.isAuthValid)
+        }
+    }
 }
 
 // MARK: - ConnectionConfig Tests
