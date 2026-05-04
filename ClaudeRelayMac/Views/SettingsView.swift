@@ -122,7 +122,7 @@ private struct GeneralSettingsTab: View {
                         .labelsHidden()
                         .fixedSize()
                     }
-                    SettingsGroupRow(showDivider: false) {
+                    SettingsGroupRow {
                         Text("Terminal font size")
                         Spacer()
                         Text("\(Int(settings.terminalFontSize)) pt")
@@ -131,6 +131,18 @@ private struct GeneralSettingsTab: View {
                         Stepper("", value: $settings.terminalFontSize, in: 8...16, step: 1)
                             .labelsHidden()
                             .fixedSize()
+                    }
+                    SettingsGroupRow(showDivider: false) {
+                        Text("Terminal scrollback")
+                        Spacer()
+                        Picker("", selection: $settings.terminalScrollbackLines) {
+                            Text("1,000 lines").tag(1_000)
+                            Text("5,000 lines").tag(5_000)
+                            Text("10,000 lines").tag(10_000)
+                            Text("25,000 lines").tag(25_000)
+                        }
+                        .labelsHidden()
+                        .fixedSize()
                     }
                 }
 

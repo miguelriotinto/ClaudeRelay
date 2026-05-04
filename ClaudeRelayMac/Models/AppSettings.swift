@@ -30,6 +30,11 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("com.clauderelay.mac.terminalFontSize") var terminalFontSize: Double = 12
 
+    /// Max scrollback lines kept by SwiftTerm per session. Lower = less RAM,
+    /// higher = more scrollback history in-client. Server's ring buffer
+    /// replays anything that fell off this edge on next attach.
+    @AppStorage("com.clauderelay.mac.terminalScrollbackLines") var terminalScrollbackLines: Int = 5_000
+
     @AppStorage("com.clauderelay.mac.recordingShortcutEnabled") var recordingShortcutEnabled = true
     @AppStorage("com.clauderelay.mac.recordingShortcutModifiers") var recordingShortcutModifiers: Int = Int(NSEvent.ModifierFlags([.command, .option]).rawValue)
     @AppStorage("com.clauderelay.mac.recordingShortcutKey") var recordingShortcutKey = ""

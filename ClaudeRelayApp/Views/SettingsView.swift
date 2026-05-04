@@ -62,6 +62,12 @@ struct SettingsView: View {
                             .labelsHidden()
                             .fixedSize()
                     }
+                    Picker("Terminal Scrollback", selection: $settings.terminalScrollbackLines) {
+                        Text("1,000 lines").tag(1_000)
+                        Text("5,000 lines").tag(5_000)
+                        Text("10,000 lines").tag(10_000)
+                        Text("25,000 lines").tag(25_000)
+                    }
                 }
 
                 Section {

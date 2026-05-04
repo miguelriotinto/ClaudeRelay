@@ -266,7 +266,7 @@ struct TerminalHostView: UIViewRepresentable {
         terminal.nativeBackgroundColor = .black
         terminal.nativeForegroundColor = .white
         terminal.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        terminal.changeScrollback(10_000)
+        terminal.changeScrollback(AppSettings.shared.terminalScrollbackLines)
         terminal.onPasteImage = { [weak viewModel] imageData in
             viewModel?.sendPasteImage(imageData)
         }
