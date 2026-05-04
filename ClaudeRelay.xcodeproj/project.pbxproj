@@ -35,6 +35,7 @@
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
 		6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */; };
 		79E3FE7C11E7B6245B12C0CD /* ConnectionQualityDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61B39459418F45CCE4AA0BD /* ConnectionQualityDot.swift */; };
+		7C1BDD714B65C5AEFBCD74D6 /* QRCodeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3014236A9153620618B1A7 /* QRCodeComponents.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
 		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
 		83965FD395DF96FA49CEEECD /* MicButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508D7CD8DCA41375E993CDA2 /* MicButton.swift */; };
@@ -121,6 +122,7 @@
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarDropdown.swift; sourceTree = "<group>"; };
 		CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureView.swift; sourceTree = "<group>"; };
+		CB3014236A9153620618B1A7 /* QRCodeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeComponents.swift; sourceTree = "<group>"; };
 		CF311DE62F36AF5A19AB87E9 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
 		D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngineTests.swift; sourceTree = "<group>"; };
 		D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClaudeRelayMac.entitlements; sourceTree = "<group>"; };
@@ -279,6 +281,7 @@
 				03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */,
 				CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */,
 				508D7CD8DCA41375E993CDA2 /* MicButton.swift */,
+				CB3014236A9153620618B1A7 /* QRCodeComponents.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -516,6 +519,7 @@
 				160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
 				83965FD395DF96FA49CEEECD /* MicButton.swift in Sources */,
+				7C1BDD714B65C5AEFBCD74D6 /* QRCodeComponents.swift in Sources */,
 				0D5C609EB39AC81E2A65632B /* QRCodeSheet.swift in Sources */,
 				83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
