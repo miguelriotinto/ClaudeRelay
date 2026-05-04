@@ -26,6 +26,7 @@
 		3C1FB57BAEEB29070F151C11 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */; };
 		41F39C140085E25466F7428C /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D78DC0EE4B30D251D06A848D /* AddEditServerView.swift */; };
 		4644DE3ED2824ABC39E387F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B48FD6DC9E458119F76B8E /* SettingsView.swift */; };
+		4CCC681584E50D630A55D3A7 /* RelayTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE2628EFBF436099BE3C66E /* RelayTerminalView.swift */; };
 		524215008EB1ED37BB7BEF5C /* RecordingShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 563F4F7F71211D99C0146EAC /* RecordingShortcutMonitor.swift */; };
 		55C2DA5C4B2D81E90A5C16BE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5D747D243348BFF4BE40432F /* Assets.xcassets */; };
 		5696B67E1B61623069D8BB79 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */; };
@@ -108,6 +109,7 @@
 		91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeRelayAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		94688372C735D9B8D283F7BE /* QRCodePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodePopover.swift; sourceTree = "<group>"; };
 		9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachRemoteSessionSheet.swift; sourceTree = "<group>"; };
+		9AE2628EFBF436099BE3C66E /* RelayTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayTerminalView.swift; sourceTree = "<group>"; };
 		9D717204F74BA58AC8D5C168 /* MenuBarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViewModel.swift; sourceTree = "<group>"; };
 		AAE5CC46536E8CA8C49EB434 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
@@ -282,6 +284,7 @@
 				CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */,
 				508D7CD8DCA41375E993CDA2 /* MicButton.swift */,
 				CB3014236A9153620618B1A7 /* QRCodeComponents.swift */,
+				9AE2628EFBF436099BE3C66E /* RelayTerminalView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -522,6 +525,7 @@
 				7C1BDD714B65C5AEFBCD74D6 /* QRCodeComponents.swift in Sources */,
 				0D5C609EB39AC81E2A65632B /* QRCodeSheet.swift in Sources */,
 				83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */,
+				4CCC681584E50D630A55D3A7 /* RelayTerminalView.swift in Sources */,
 				08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */,
 				BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */,
 				9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */,
