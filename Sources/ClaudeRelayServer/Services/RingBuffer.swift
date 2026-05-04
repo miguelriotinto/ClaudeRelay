@@ -35,7 +35,7 @@ public struct RingBuffer: Sendable {
             let tail = data.suffix(capacity)
             storage.withUnsafeMutableBytes { raw in
                 guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
-                tail.copyBytes(to: UnsafeMutableBufferPointer(start: base, count: capacity))
+                _ = tail.copyBytes(to: UnsafeMutableBufferPointer(start: base, count: capacity))
             }
             head = 0
             filled = capacity
@@ -46,13 +46,13 @@ public struct RingBuffer: Sendable {
         storage.withUnsafeMutableBytes { raw in
             guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
             if count <= spaceToEnd {
-                data.copyBytes(to: UnsafeMutableBufferPointer(start: base + head, count: count))
+                _ = data.copyBytes(to: UnsafeMutableBufferPointer(start: base + head, count: count))
             } else {
                 let splitIndex = data.startIndex.advanced(by: spaceToEnd)
                 let first = data[data.startIndex..<splitIndex]
                 let second = data[splitIndex...]
-                first.copyBytes(to: UnsafeMutableBufferPointer(start: base + head, count: spaceToEnd))
-                second.copyBytes(to: UnsafeMutableBufferPointer(start: base, count: count - spaceToEnd))
+                _ = first.copyBytes(to: UnsafeMutableBufferPointer(start: base + head, count: spaceToEnd))
+                _ = second.copyBytes(to: UnsafeMutableBufferPointer(start: base, count: count - spaceToEnd))
             }
         }
         head = (head + count) % capacity
