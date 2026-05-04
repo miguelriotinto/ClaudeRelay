@@ -31,6 +31,17 @@ final class ServerListViewModel: ObservableObject {
         statusChecker.$statuses.assign(to: &$serverStatuses)
     }
 
+    deinit {
+        // Ensure the poll task doesn't outlive the view model. statusChecker
+        // is MainActor-isolated so we bounce through a detached task; the
+        // checker is captured strongly to keep it alive long enough for
+        // the cancellation to take effect.
+        let checker = statusChecker
+        Task { @MainActor in
+            checker.stopPolling()
+        }
+    }
+
     // MARK: - Polling
 
     func startPolling() {
