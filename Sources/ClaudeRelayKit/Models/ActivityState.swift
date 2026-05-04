@@ -1,5 +1,3 @@
-import Foundation
-
 /// Activity state of a terminal session, tracked by the server.
 /// The server monitors PTY output continuously (even for detached sessions)
 /// and pushes state changes to connected clients.
