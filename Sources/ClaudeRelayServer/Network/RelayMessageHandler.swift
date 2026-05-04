@@ -27,8 +27,8 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     /// so the late-arriving observer IDs can be unregistered instead of leaked.
     private var isCleanedUp = false
     private static let maxAuthAttempts = 3
-    private let jsonEncoder = JSONEncoder()
-    private let jsonDecoder = JSONDecoder()
+    private static let jsonEncoder = JSONEncoder()
+    private static let jsonDecoder = JSONDecoder()
     private static let maxTextFrameSize = 10_000_000   // 10MB (images are base64 in JSON)
     private static let maxBinaryFrameSize = 10_000_000 // 10MB
 
@@ -104,7 +104,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
         let envelope: MessageEnvelope
         do {
-            envelope = try jsonDecoder.decode(MessageEnvelope.self, from: jsonData)
+            envelope = try Self.jsonDecoder.decode(MessageEnvelope.self, from: jsonData)
         } catch {
             sendServerMessage(.error(code: 400, message: "Invalid message format"), context: context)
             return
@@ -597,7 +597,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         guard context.channel.isActive else { return }
         let envelope = MessageEnvelope.server(message)
         do {
-            let data = try jsonEncoder.encode(envelope)
+            let data = try Self.jsonEncoder.encode(envelope)
             var buffer = context.channel.allocator.buffer(capacity: data.count)
             buffer.writeBytes(data)
             let frame = WebSocketFrame(fin: true, opcode: .text, data: buffer)
