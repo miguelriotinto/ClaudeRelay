@@ -180,4 +180,41 @@ final class TerminalViewModelTests: XCTestCase {
         XCTAssertGreaterThan(totalBytes, 3 * 1024 * 1024,
             "cap should keep at least ~3 MB of recent output")
     }
+
+    /// Boundary case: buffering data up to *exactly* the 4 MB cap must not
+    /// evict anything. The eviction path only runs when size *exceeds* the cap.
+    func testPendingOutputExactlyAtCapDoesNotEvict() {
+        let vm = makeVM()
+        // 4 × 1 MB = 4 MB, exactly at the cap.
+        let chunk = Data(repeating: 0x42, count: 1024 * 1024)
+        for _ in 0..<4 {
+            vm.receiveOutput(chunk)
+        }
+
+        var received = [Data]()
+        vm.onTerminalOutput = { received.append($0) }
+        vm.terminalReady()
+
+        let total = received.reduce(0) { $0 + $1.count }
+        XCTAssertEqual(total, 4 * 1024 * 1024,
+            "All 4 MB should be preserved when buffer is at cap (but not over)")
+    }
+
+    /// Boundary case: buffering slightly over the cap must evict the oldest
+    /// chunks so the total stays within cap + one head-chunk slack.
+    func testPendingOutputOverCapDropsOldestChunks() {
+        let vm = makeVM()
+        let chunk = Data(repeating: 0x43, count: 64 * 1024)     // 64 KB
+        for _ in 0..<80 {                                        // 5 MB > 4 MB cap
+            vm.receiveOutput(chunk)
+        }
+
+        var received = [Data]()
+        vm.onTerminalOutput = { received.append($0) }
+        vm.terminalReady()
+
+        let total = received.reduce(0) { $0 + $1.count }
+        XCTAssertLessThanOrEqual(total, 4 * 1024 * 1024 + chunk.count,
+            "Total delivered should stay within cap + one head chunk slack")
+    }
 }
