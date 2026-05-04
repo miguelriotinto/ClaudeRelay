@@ -84,4 +84,20 @@ final class RateLimiterTests: XCTestCase {
         let blockedRecent = await limiter.isBlocked(ip: "10.0.0.24")
         XCTAssertFalse(blockedRecent, "Recent IP with single failure should not be blocked")
     }
+
+    /// Regression test for the real-world "window expires" path, not just the
+    /// 0-second degenerate case. Uses a 1-second window and waits past it to
+    /// verify an IP becomes unblocked once its failure entries age out.
+    func testIPUnblocksAfterWindowElapses() async {
+        let limiter = RateLimiter(maxAttempts: 2, windowSeconds: 1, maxTrackedIPs: 100)
+        await limiter.recordFailure(ip: "9.9.9.9")
+        await limiter.recordFailure(ip: "9.9.9.9")
+        let blockedInitially = await limiter.isBlocked(ip: "9.9.9.9")
+        XCTAssertTrue(blockedInitially)
+
+        try? await Task.sleep(for: .milliseconds(1100))
+        let blockedAfterWait = await limiter.isBlocked(ip: "9.9.9.9")
+        XCTAssertFalse(blockedAfterWait,
+                       "IP should be released once the failure window has elapsed")
+    }
 }
