@@ -39,9 +39,9 @@ public struct DeviceIdentifier: DeviceIdentifying {
             kIOMainPortDefault,
             IOServiceMatching("IOPlatformExpertDevice")
         )
+        guard platformExpert != 0 else { return "unknown" }
         defer { IOObjectRelease(platformExpert) }
-        guard platformExpert != 0,
-              let serial = IORegistryEntryCreateCFProperty(
+        guard let serial = IORegistryEntryCreateCFProperty(
                   platformExpert,
                   kIOPlatformUUIDKey as CFString,
                   kCFAllocatorDefault, 0

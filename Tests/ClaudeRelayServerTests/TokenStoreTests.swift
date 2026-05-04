@@ -125,4 +125,19 @@ final class TokenStoreTests: XCTestCase {
         XCTAssertEqual(validated?.id, info.id)
         XCTAssertEqual(validated?.label, "persist")
     }
+
+    func testFlushIfDirtyCancelsPendingFlushTaskSynchronously() async throws {
+        // Create, validate to schedule a dirty-flush, then flush and verify
+        // the dirty flag is cleared without waiting for the background 30s timer.
+        let store = TokenStore(directory: tempDir)
+        let (plaintext, _) = try await store.create(label: "task5")
+        _ = await store.validate(token: plaintext)
+        let dirtyAfterValidate = await store._testOnly_isDirty
+        XCTAssertTrue(dirtyAfterValidate,
+            "validate() should have scheduled a dirty flush")
+        await store.flushIfDirty()
+        let dirtyAfterFlush = await store._testOnly_isDirty
+        XCTAssertFalse(dirtyAfterFlush,
+            "flushIfDirty must clear the dirty flag synchronously, not wait for the 30s timer")
+    }
 }

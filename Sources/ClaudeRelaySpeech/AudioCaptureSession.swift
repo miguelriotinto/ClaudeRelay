@@ -15,7 +15,13 @@ public final class AudioCaptureSession {
     /// Minimum recording duration in seconds to avoid empty transcriptions.
     public static let minimumDuration: TimeInterval = 0.5
 
+    /// Maximum recording duration; auto-stops to cap memory.
+    /// Backgrounded recordings that never call stop() would otherwise grow
+    /// at 64 KB/s (16 kHz × 4 bytes × 1 channel) unbounded.
+    public static let maximumDuration: TimeInterval = 300   // 5 minutes
+
     private var recordingStart: Date?
+    private var autoStopTask: Task<Void, Never>?
 
     public init() {}
 
@@ -57,6 +63,13 @@ public final class AudioCaptureSession {
 
         recordingStart = Date()
         isRecording = true
+
+        autoStopTask?.cancel()
+        autoStopTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.maximumDuration))
+            guard !Task.isCancelled, let self, self.isRecording else { return }
+            _ = self.stop()
+        }
     }
 
     /// Stop engine, deactivate audio session (iOS), return accumulated buffer.
@@ -67,6 +80,8 @@ public final class AudioCaptureSession {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         isRecording = false
+        autoStopTask?.cancel()
+        autoStopTask = nil
 
         #if canImport(UIKit)
         try? AVAudioSession.sharedInstance().setActive(

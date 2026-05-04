@@ -11,6 +11,9 @@ public final class ConfigManager: Sendable {
     }()
 
     /// Load config from ~/.claude-relay/config.json, or return defaults if not found.
+    /// On decode failure (corrupted file), logs a warning to stderr and returns
+    /// defaults — crashing the server on a bad config file would be worse than
+    /// reverting to known-good behavior.
     public static func load() throws -> RelayConfig {
         let configFile = RelayConfig.configFile
         let fm = FileManager.default
@@ -19,8 +22,14 @@ public final class ConfigManager: Sendable {
             return RelayConfig.default
         }
 
-        let data = try Data(contentsOf: configFile)
-        return try sharedDecoder.decode(RelayConfig.self, from: data)
+        do {
+            let data = try Data(contentsOf: configFile)
+            return try sharedDecoder.decode(RelayConfig.self, from: data)
+        } catch {
+            FileHandle.standardError.write(Data(
+                "Warning: failed to parse config at \(configFile.path): \(error). Using defaults.\n".utf8))
+            return RelayConfig.default
+        }
     }
 
     /// Save config to ~/.claude-relay/config.json.

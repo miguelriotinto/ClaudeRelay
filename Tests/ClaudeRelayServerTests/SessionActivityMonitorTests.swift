@@ -169,12 +169,21 @@ final class SessionActivityMonitorTests: XCTestCase {
     // MARK: - Silence Detection
 
     func testTransitionsToIdleAfterSilence() async {
-        let expectation = XCTestExpectation(description: "idle state")
-        let monitor = makeMonitorStateOnly(silenceThreshold: 0.05) { state in
-            if state == .idle { expectation.fulfill() }
-        }
+        // Poll with exponential backoff instead of a fixed wait. The silence
+        // timer fires on a private dispatch queue, so the transition to .idle
+        // can arrive at any point after `silenceThreshold`. Previous iterations
+        // of this test used a fixed 50 ms sleep, which occasionally lost the
+        // race on heavily-loaded CI runners.
+        let monitor = makeMonitor(silenceThreshold: 0.05)
         monitor.processOutput(output("some output"))
-        await fulfillment(of: [expectation], timeout: 1.0)
+
+        var delay: UInt64 = 10_000_000      // 10 ms
+        for _ in 0..<10 {
+            try? await Task.sleep(nanoseconds: delay)
+            if monitor.state == .idle { break }
+            delay = min(delay * 2, 100_000_000) // cap at 100 ms
+        }
+
         XCTAssertEqual(monitor.state, .idle)
     }
 

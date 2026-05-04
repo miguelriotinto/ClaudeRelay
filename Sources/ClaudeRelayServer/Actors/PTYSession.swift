@@ -65,6 +65,29 @@ public actor PTYSession: PTYSessionProtocol {
     private var terminated: Bool = false
     private var foregroundPollTimer: DispatchSourceTimer?
 
+    // MARK: - Write Queue
+
+    /// Bytes that could not be flushed immediately because the PTY master FD
+    /// returned EAGAIN. Drained by `writeSource` when the FD is writable.
+    /// Each entry tracks `offset` so partial writes advance in-place instead
+    /// of copying the tail via `subdata(in:)` — keeps drain O(n) under
+    /// sustained backpressure.
+    private struct QueuedWrite {
+        var data: Data
+        var offset: Int
+        var remaining: Int { data.count - offset }
+    }
+    private var writeQueue: [QueuedWrite] = []
+    private var writeQueueBytes = 0
+    /// Hard cap on buffered write bytes before we drop oldest. 4 MB matches
+    /// the client's terminal-output cap; shell input >4 MB is almost certainly
+    /// a runaway loop.
+    private static let maxWriteQueueBytes = 4 * 1024 * 1024
+    private var writeSource: DispatchSourceWrite?
+    /// One-shot flag so we only log the overflow warning once per session
+    /// (the stream of dropped chunks is all one operational event).
+    private var didLogWriteOverflow = false
+
     // MARK: - Initialization
 
     /// Initialize: forkpty with given terminal size, spawn command in child.
@@ -129,6 +152,11 @@ public actor PTYSession: PTYSessionProtocol {
         // Parent process
         self.masterFD = fd
         self.childPID = pid
+        // Put the master FD into non-blocking mode so write() never pins the
+        // actor. write(2) returns EAGAIN when the shell's input buffer is full;
+        // we buffer the remainder in writeQueue and drain from a DispatchSource.
+        let existingFlags = fcntl(fd, F_GETFL, 0)
+        _ = fcntl(fd, F_SETFL, existingFlags | O_NONBLOCK)
         let box = self.activityCallbackBox
         self.activityMonitor = SessionActivityMonitor(
             silenceThreshold: 1.0,
@@ -178,12 +206,12 @@ public actor PTYSession: PTYSessionProtocol {
     /// their ancestor. Without the walk, every tool execution briefly appears as
     /// "agent exited", causing UI flicker.
     ///
-    /// Poll interval: 1s with 0.5s initial delay for responsive entry detection.
+    /// Poll interval: 1s, first fire immediately on attach for responsive entry detection.
     /// Exit debouncing in SessionActivityMonitor prevents flicker.
     private func startForegroundPoll() {
         let timer = DispatchSource.makeTimerSource(queue: .global())
         let fd = masterFD
-        timer.schedule(deadline: .now() + 0.5, repeating: 1.0)
+        timer.schedule(deadline: .now(), repeating: 1.0)
         timer.setEventHandler { [weak self] in
             let pgid = relay_get_foreground_pgid(fd)
             guard pgid > 0 else { return }
@@ -346,29 +374,86 @@ public actor PTYSession: PTYSessionProtocol {
         self.outputHandler = nil
     }
 
-    /// Write data to PTY (terminal input from client).
+    /// Write data to PTY (terminal input from client). Non-blocking: on EAGAIN
+    /// the remainder is buffered and a DispatchSourceWrite is scheduled to
+    /// drain the queue when the FD becomes writable.
     public func write(_ data: Data) {
         guard !terminated else { return }
-        data.withUnsafeBytes { rawBuffer in
-            guard let ptr = rawBuffer.baseAddress else { return }
-            var totalWritten = 0
-            let count = data.count
-            while totalWritten < count {
-                let written = Foundation.write(masterFD, ptr.advanced(by: totalWritten), count - totalWritten)
-                if written > 0 {
-                    totalWritten += written
-                } else if written == 0 {
-                    break
-                } else {
-                    let err = errno
-                    if err == EAGAIN || err == EINTR {
-                        continue
-                    }
-                    RelayLogger.log(.error, category: "session", "PTYSession \(sessionId) write error: errno \(err)")
-                    break
-                }
-            }
+        guard !data.isEmpty else { return }
+        writeQueue.append(QueuedWrite(data: data, offset: 0))
+        writeQueueBytes += data.count
+        capWriteQueue()
+        drainWriteQueue()
+    }
+
+    /// Drop oldest chunks while the queue exceeds the byte cap. Logs once per
+    /// session's lifetime so a runaway-input bug is diagnosable without
+    /// spamming the log.
+    private func capWriteQueue() {
+        guard writeQueueBytes > Self.maxWriteQueueBytes else { return }
+        let overshoot = writeQueueBytes
+        while writeQueueBytes > Self.maxWriteQueueBytes, !writeQueue.isEmpty {
+            let dropped = writeQueue.removeFirst()
+            writeQueueBytes -= dropped.remaining
         }
+        if !didLogWriteOverflow {
+            RelayLogger.log(.error, category: "session",
+                "PTYSession \(sessionId) write queue overflow: dropped \(overshoot - writeQueueBytes) bytes (cap = \(Self.maxWriteQueueBytes))")
+            didLogWriteOverflow = true
+        }
+    }
+
+    /// Flush as many bytes as the kernel will take right now. On EAGAIN schedule
+    /// (or keep alive) a write source that will call us back.
+    private func drainWriteQueue() {
+        while let head = writeQueue.first {
+            let remaining = head.remaining
+            let written = head.data.withUnsafeBytes { raw -> Int in
+                guard let base = raw.baseAddress else { return 0 }
+                return Foundation.write(masterFD, base.advanced(by: head.offset), remaining)
+            }
+            if written >= remaining {
+                writeQueue.removeFirst()
+                writeQueueBytes -= remaining
+                continue
+            }
+            if written > 0 {
+                writeQueue[0].offset += written
+                writeQueueBytes -= written
+                continue
+            }
+            // written == -1
+            let err = errno
+            if err == EAGAIN || err == EINTR {
+                startWriteSourceIfNeeded()
+                return
+            }
+            RelayLogger.log(.error, category: "session",
+                "PTYSession \(sessionId) write error: errno \(err)")
+            writeQueue.removeAll()
+            writeQueueBytes = 0
+            writeSource?.cancel()
+            writeSource = nil
+            return
+        }
+        // Queue drained successfully. Reset the overflow log gate so a later
+        // overflow episode gets its own log line instead of being swallowed.
+        didLogWriteOverflow = false
+        writeSource?.cancel()
+        writeSource = nil
+    }
+
+    /// Lazy-create a write dispatch source that kicks drainWriteQueue whenever
+    /// the FD becomes writable. No-op if one is already live.
+    private func startWriteSourceIfNeeded() {
+        guard writeSource == nil else { return }
+        let sessionActor = self
+        let source = DispatchSource.makeWriteSource(fileDescriptor: masterFD, queue: .global(qos: .userInitiated))
+        source.setEventHandler {
+            Task { await sessionActor.drainWriteQueue() }
+        }
+        source.resume()
+        writeSource = source
     }
 
     /// Resize the terminal.
@@ -394,6 +479,11 @@ public actor PTYSession: PTYSessionProtocol {
         // Cancel the read source (this also closes the fd via the cancel handler)
         readSource?.cancel()
         readSource = nil
+
+        writeSource?.cancel()
+        writeSource = nil
+        writeQueue.removeAll()
+        writeQueueBytes = 0
 
         // Send SIGTERM to the child. SIGCHLD is set to SIG_IGN in main.swift,
         // so the kernel auto-reaps — no waitpid needed.

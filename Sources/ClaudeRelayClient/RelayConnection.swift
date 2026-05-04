@@ -124,7 +124,11 @@ public final class RelayConnection: ObservableObject {
 
         let session = URLSession(configuration: .default)
         self.urlSession = session
-        let task = session.webSocketTask(with: config.wsURL)
+        guard let url = config.wsURL else {
+            state = .disconnected
+            throw ConnectionError.invalidMessage("Invalid host '\(config.host)'")
+        }
+        let task = session.webSocketTask(with: url)
         task.maximumMessageSize = 10 * 1024 * 1024
         self.webSocketTask = task
         task.resume()
@@ -315,16 +319,7 @@ public final class RelayConnection: ObservableObject {
                 let rtt = await self.measurePingRTT()
                 guard !Task.isCancelled, generation == self.generation else { return }
 
-                self.rttWindow.append(rtt)
-                if self.rttWindow.count > self.windowSize {
-                    self.rttWindow.removeFirst()
-                }
-
-                if rtt == nil {
-                    self.consecutiveFailures += 1
-                } else {
-                    self.consecutiveFailures = 0
-                }
+                self.recordRTT(rtt)
 
                 if self.consecutiveFailures >= 3 {
                     logger.warning("Three consecutive pings failed — connection dead, notifying coordinator")
@@ -354,6 +349,21 @@ public final class RelayConnection: ObservableObject {
         state = .disconnected
         connectionQuality = .disconnected
         onSendFailed?()
+    }
+
+    /// Appends an RTT sample to the sliding window, enforces the window cap,
+    /// and updates the consecutive-failure counter. Safe to call from the
+    /// keepalive loop or any other path that observes a ping result.
+    private func recordRTT(_ rtt: TimeInterval?) {
+        rttWindow.append(rtt)
+        if rttWindow.count > windowSize {
+            rttWindow.removeFirst()
+        }
+        if rtt == nil {
+            consecutiveFailures += 1
+        } else {
+            consecutiveFailures = 0
+        }
     }
 
     private func computeQuality() -> ConnectionQuality {
@@ -439,4 +449,11 @@ public final class RelayConnection: ObservableObject {
         connectionQuality = .disconnected
         onSendFailed?()
     }
+
+    // MARK: - Test Hooks
+
+    /// Exposed only for tests. Invokes the same private recordRTT the keepalive loop uses.
+    /// Prefix `_testOnly_` is the convention; do not call from production code.
+    public func _testOnly_recordRTT(rtt: TimeInterval?) { recordRTT(rtt) }
+    public var _testOnly_rttWindowCount: Int { rttWindow.count }
 }

@@ -802,4 +802,103 @@ final class SessionManagerTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Periodic Observer Cleanup
+
+    func testPurgeStaleObserversRemovesOldEntries() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        _ = await manager.addActivityObserver(tokenId: tokenInfo.id) { _, _, _ in }
+        _ = await manager.addStealObserver(tokenId: tokenInfo.id) { _ in }
+        _ = await manager.addRenameObserver(tokenId: tokenInfo.id) { _, _ in }
+
+        let beforeCount = await manager._testOnly_observerCount
+        XCTAssertEqual(beforeCount, 3, "Should have 3 observers registered")
+
+        // Purge with zero-second cutoff evicts everything because Date() is strictly
+        // greater than any timestamp we just recorded.
+        await manager.purgeStaleObservers(olderThan: 0)
+
+        let afterCount = await manager._testOnly_observerCount
+        XCTAssertEqual(afterCount, 0, "All observers should have been purged with 0s cutoff")
+    }
+
+    func testCreateSessionEnforcesPerTokenLimit() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        var config = RelayConfig.default
+        config.maxSessionsPerToken = 3
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        for i in 0..<3 {
+            _ = try await manager.createSession(tokenId: tokenInfo.id, name: "s\(i)")
+        }
+
+        do {
+            _ = try await manager.createSession(tokenId: tokenInfo.id, name: "overflow")
+            XCTFail("Expected sessionLimitExceeded")
+        } catch SessionError.sessionLimitExceeded(let limit) {
+            XCTAssertEqual(limit, 3)
+        } catch {
+            XCTFail("Wrong error: \(error)")
+        }
+    }
+
+    func testCreateSessionUnlimitedWhenLimitIsZero() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        var config = RelayConfig.default
+        config.maxSessionsPerToken = 0
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        for i in 0..<10 {
+            _ = try await manager.createSession(tokenId: tokenInfo.id, name: "s\(i)")
+        }
+        let list = await manager.listSessionsForToken(tokenId: tokenInfo.id)
+        XCTAssertEqual(list.count, 10)
+    }
+
+    // MARK: - Concurrent Attach Race
+
+    /// When two tokens race to attach the same session, the actor must serialize
+    /// the calls — one attaches first (transferring ownership), the other
+    /// stealsfrom the first. Final ownership must be exactly one of the two
+    /// tokens, never a third value or a split/torn state.
+    func testConcurrentAttachSameSessionProducesSingleOwner() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "device-b")
+
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id)
+
+        async let resultA: Void = {
+            do {
+                _ = try await manager.attachSession(id: session.id, tokenId: tokenA.id)
+            } catch {
+                // One of the racers may lose depending on scheduling; ignore.
+            }
+        }()
+        async let resultB: Void = {
+            do {
+                _ = try await manager.attachSession(id: session.id, tokenId: tokenB.id)
+            } catch {
+                // One of the racers may lose depending on scheduling; ignore.
+            }
+        }()
+        _ = await (resultA, resultB)
+
+        let final = try await manager.inspectSession(id: session.id)
+        XCTAssertTrue(final.tokenId == tokenA.id || final.tokenId == tokenB.id,
+                      "Ownership should resolve to exactly one token, got \(final.tokenId)")
+        XCTAssertEqual(final.state, .activeAttached,
+                       "Session should end up attached to whichever token won the race")
+    }
 }

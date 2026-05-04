@@ -1,10 +1,22 @@
 import SwiftUI
 import ClaudeRelayKit
 
-struct ActivityDot: View {
-    let activity: ActivityState
-    var agentId: String?
-    var size: CGFloat = 8
+/// Small colored dot visualizing the current `ActivityState` for a session.
+/// When an agent is running the color is resolved via `AgentColorPalette`.
+///
+/// Conforms to `Equatable` so SwiftUI can short-circuit redraws inside
+/// loops such as `ForEach` and `TimelineView`.
+public struct ActivityDot: View, Equatable {
+    public let activity: ActivityState
+    public var agentId: String?
+    public var size: CGFloat
+
+    public init(activity: ActivityState, agentId: String? = nil, size: CGFloat = 8) {
+        self.activity = activity
+        self.agentId = agentId
+        self.size = size
+    }
+
     @State private var blinkOpacity: Double = 1.0
 
     private var color: Color {
@@ -15,7 +27,7 @@ struct ActivityDot: View {
         }
     }
 
-    var body: some View {
+    public var body: some View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
@@ -39,5 +51,11 @@ struct ActivityDot: View {
                     }
                 }
             }
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.activity == rhs.activity
+            && lhs.agentId == rhs.agentId
+            && lhs.size == rhs.size
     }
 }

@@ -144,6 +144,35 @@ final class RelayConnectionTests: XCTestCase {
         XCTAssertEqual(connection.state, .disconnected)
         XCTAssertEqual(connection.connectionQuality, .disconnected)
     }
+
+    // MARK: - RTT Window Boundedness
+
+    @MainActor
+    func testRTTWindowStaysBoundedUnderRepeatedMeasurePingRTT() async {
+        let connection = RelayConnection()
+        // Call recordRTT 100 times via the test hook. Without the cap
+        // being inside recordRTT, this would grow unbounded.
+        for i in 0..<100 {
+            connection._testOnly_recordRTT(rtt: i % 2 == 0 ? 0.05 : nil)
+        }
+        XCTAssertLessThanOrEqual(connection._testOnly_rttWindowCount, 6,
+            "rttWindow must be bounded to windowSize (6)")
+    }
+
+    /// Regression test for ping/pong flap: alternating successes and failures
+    /// must never let the RTT window grow unbounded, since any leak would show
+    /// up as ever-growing memory footprint on a long-lived connection whose
+    /// network oscillates. 20 samples is enough to hit the cap (6) several times
+    /// over.
+    @MainActor
+    func testAlternatingRTTsStayBoundedByRttWindow() async {
+        let connection = RelayConnection()
+        for i in 0..<20 {
+            connection._testOnly_recordRTT(rtt: i % 2 == 0 ? 0.05 : nil)
+        }
+        XCTAssertLessThanOrEqual(connection._testOnly_rttWindowCount, 6,
+            "rttWindow must be bounded to windowSize (6) even under sustained flap")
+    }
 }
 
 // MARK: - SessionController Tests
@@ -221,6 +250,28 @@ final class SessionControllerTests: XCTestCase {
         XCTAssertEqual(controller.authenticatedGeneration, 0)
         XCTAssertEqual(connection.generation, 0)
     }
+
+    // MARK: - Authenticate Error Paths
+
+    /// Authenticating before the transport is connected must throw and leave
+    /// the controller unauthenticated — never silently "succeed" against a
+    /// missing socket.
+    func testAuthenticateThrowsWhenNotConnected() async {
+        let connection = RelayConnection()
+        let controller = SessionController(connection: connection)
+
+        do {
+            try await controller.authenticate(token: "any-token")
+            XCTFail("Expected an error when authenticating before connect()")
+        } catch {
+            // Any thrown error is acceptable here — the contract is that the
+            // call must not return normally. We additionally guarantee the
+            // controller stays unauthenticated.
+            XCTAssertFalse(controller.isAuthenticated,
+                           "Controller should remain unauthenticated after failed send")
+            XCTAssertFalse(controller.isAuthValid)
+        }
+    }
 }
 
 // MARK: - ConnectionConfig Tests
@@ -229,12 +280,12 @@ final class ConnectionConfigTests: XCTestCase {
 
     func testWSURLPlaintext() {
         let config = ConnectionConfig(name: "Test", host: "192.168.1.1", port: 9200)
-        XCTAssertEqual(config.wsURL.absoluteString, "ws://192.168.1.1:9200")
+        XCTAssertEqual(config.wsURL?.absoluteString, "ws://192.168.1.1:9200")
     }
 
     func testWSURLWithTLS() {
         let config = ConnectionConfig(name: "Test", host: "relay.example.com", port: 443, useTLS: true)
-        XCTAssertEqual(config.wsURL.absoluteString, "wss://relay.example.com:443")
+        XCTAssertEqual(config.wsURL?.absoluteString, "wss://relay.example.com:443")
     }
 
     func testDefaultPort() {

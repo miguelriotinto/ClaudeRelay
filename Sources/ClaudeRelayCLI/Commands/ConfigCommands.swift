@@ -62,10 +62,46 @@ struct ConfigSetCommand: AsyncParsableCommand {
     var value: String
 
     func run() async throws {
+        let validKeys: Set<String> = [
+            "wsPort", "adminPort", "detachTimeout", "scrollbackSize",
+            "tlsCert", "tlsKey", "logLevel", "maxSessionsPerToken"
+        ]
+        guard validKeys.contains(key) else {
+            FileHandle.standardError.write(Data(
+                "Error: unknown config key '\(key)'. Valid keys: \(validKeys.sorted().joined(separator: ", "))\n".utf8))
+            throw ExitCode.failure
+        }
+
+        let typedValue = ConfigValue.infer(from: value)
+        switch (key, typedValue) {
+        case ("wsPort", .int(let p)), ("adminPort", .int(let p)):
+            guard (1024...65535).contains(p) else {
+                FileHandle.standardError.write(Data("Error: port must be 1024..65535\n".utf8))
+                throw ExitCode.failure
+            }
+        case ("scrollbackSize", .int(let s)):
+            guard s >= 1024 else {
+                FileHandle.standardError.write(Data("Error: scrollbackSize must be >= 1024\n".utf8))
+                throw ExitCode.failure
+            }
+        case ("logLevel", .string(let lvl)):
+            let valid = ["trace", "debug", "info", "warning", "error"]
+            guard valid.contains(lvl) else {
+                FileHandle.standardError.write(Data("Error: logLevel must be one of \(valid)\n".utf8))
+                throw ExitCode.failure
+            }
+        case ("maxSessionsPerToken", .int(let n)):
+            guard n >= 0 else {
+                FileHandle.standardError.write(Data("Error: maxSessionsPerToken must be >= 0\n".utf8))
+                throw ExitCode.failure
+            }
+        default:
+            break
+        }
+
         let client = AdminClient(port: globals.port)
 
         do {
-            let typedValue = ConfigValue.infer(from: value)
             let body = ["value": typedValue]
             let _: ConfigSetResponse = try await client.put("/config/\(key)", body: body)
             if !globals.quiet {

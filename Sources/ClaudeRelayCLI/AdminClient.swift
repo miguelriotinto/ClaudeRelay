@@ -8,6 +8,11 @@ public final class AdminClient {
     public let baseURL: URL
     private let session: URLSession
 
+    /// Default per-request timeout. Applied whenever a caller's URLRequest would
+    /// otherwise hit the URLSession default (60s) or longer. Shorter overrides
+    /// (like isServiceRunning's 3s) are preserved.
+    public var requestTimeout: TimeInterval = 10
+
     public init(port: UInt16 = 9100) {
         self.baseURL = URL(string: "http://127.0.0.1:\(port)")!
         self.session = URLSession.shared
@@ -119,8 +124,15 @@ public final class AdminClient {
     }
 
     private func performRaw(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        var req = request
+        // URLRequest's default timeoutInterval is 60s. Cap at requestTimeout (10s)
+        // whenever the caller is at or above that default. Shorter caller-set
+        // timeouts (e.g., isServiceRunning's 3s) pass through unchanged.
+        if req.timeoutInterval >= 60.0 {
+            req.timeoutInterval = requestTimeout
+        }
         do {
-            return try await session.data(for: request)
+            return try await session.data(for: req)
         } catch let error as URLError where error.code == .cannotConnectToHost
             || error.code == .networkConnectionLost
             || error.code == .timedOut

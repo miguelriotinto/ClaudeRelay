@@ -67,18 +67,26 @@ public final class ServerStatusChecker: ObservableObject {
 
         let result = await withTaskGroup(of: ServerStatus.self) { group -> ServerStatus in
             group.addTask { @MainActor in
-                do {
-                    try await connection.connect(config: config, token: token)
-                    // Auth proves server is live, token is valid, and protocol
-                    // version matches. We skip listSessions — the iOS list no
-                    // longer displays session count, and the Workspace fetches
-                    // real session data when the user actually opens a server.
-                    try await controller.authenticate(token: token)
-                    connection.disconnect()
-                    return ServerStatus(isLive: true)
-                } catch {
-                    connection.disconnect()
-                    return ServerStatus()
+                // Wrap in withTaskCancellationHandler so connection.disconnect()
+                // fires synchronously when the 5s timeout racer wins, instead of
+                // waiting for URLSession.webSocketTask.receive to notice its
+                // task was cancelled. Prevents FD / URLSession leaks.
+                await withTaskCancellationHandler {
+                    do {
+                        try await connection.connect(config: config, token: token)
+                        // Auth proves server is live, token is valid, and protocol
+                        // version matches. We skip listSessions — the iOS list no
+                        // longer displays session count, and the Workspace fetches
+                        // real session data when the user actually opens a server.
+                        try await controller.authenticate(token: token)
+                        connection.disconnect()
+                        return ServerStatus(isLive: true)
+                    } catch {
+                        connection.disconnect()
+                        return ServerStatus()
+                    }
+                } onCancel: {
+                    Task { @MainActor in connection.disconnect() }
                 }
             }
 

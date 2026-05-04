@@ -1,9 +1,20 @@
 import SwiftUI
 import ClaudeRelayKit
 
-struct ConnectionQualityDot: View {
-    let quality: ConnectionQuality
-    var size: CGFloat = 8
+/// Small colored dot visualizing the current `ConnectionQuality`. Used in
+/// the status bar on both iOS and macOS.
+///
+/// Conforms to `Equatable` so SwiftUI can short-circuit redraws inside
+/// loops such as `ForEach` and `TimelineView`.
+public struct ConnectionQualityDot: View, Equatable {
+    public let quality: ConnectionQuality
+    public var size: CGFloat
+
+    public init(quality: ConnectionQuality, size: CGFloat = 8) {
+        self.quality = quality
+        self.size = size
+    }
+
     @State private var blinkOpacity: Double = 1.0
 
     private var color: Color {
@@ -18,7 +29,7 @@ struct ConnectionQualityDot: View {
         quality == .good || quality == .veryPoor
     }
 
-    var body: some View {
+    public var body: some View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
@@ -43,5 +54,9 @@ struct ConnectionQualityDot: View {
                     }
                 }
             }
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.quality == rhs.quality && lhs.size == rhs.size
     }
 }

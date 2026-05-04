@@ -25,23 +25,36 @@ public struct RingBuffer: Sendable {
     /// Appends data to the buffer. If the total exceeds capacity,
     /// the oldest bytes are silently dropped.
     public mutating func write(_ data: Data) {
-        if data.count >= capacity {
-            // Only the last `capacity` bytes matter
-            let start = data.count - capacity
-            storage = Array(data[data.startIndex.advanced(by: start)...])
+        let count = data.count
+        guard count > 0 else { return }
+
+        if count >= capacity {
+            // Fast path: the write is larger than the buffer, so the previous
+            // content is irrelevant — just keep the last `capacity` bytes.
+            // Use unsafe mutable bytes to copy in place rather than allocating
+            // a fresh Array.
+            let tail = data.suffix(capacity)
+            storage.withUnsafeMutableBytes { raw in
+                guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+                _ = tail.copyBytes(to: UnsafeMutableBufferPointer(start: base, count: capacity))
+            }
             head = 0
             filled = capacity
             return
         }
 
-        let count = data.count
         let spaceToEnd = capacity - head
-        if count <= spaceToEnd {
-            storage.replaceSubrange(head..<head + count, with: data)
-        } else {
-            let splitIndex = data.startIndex.advanced(by: spaceToEnd)
-            storage.replaceSubrange(head..<capacity, with: data[data.startIndex..<splitIndex])
-            storage.replaceSubrange(0..<count - spaceToEnd, with: data[splitIndex...])
+        storage.withUnsafeMutableBytes { raw in
+            guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            if count <= spaceToEnd {
+                _ = data.copyBytes(to: UnsafeMutableBufferPointer(start: base + head, count: count))
+            } else {
+                let splitIndex = data.startIndex.advanced(by: spaceToEnd)
+                let first = data[data.startIndex..<splitIndex]
+                let second = data[splitIndex...]
+                _ = first.copyBytes(to: UnsafeMutableBufferPointer(start: base + head, count: spaceToEnd))
+                _ = second.copyBytes(to: UnsafeMutableBufferPointer(start: base, count: count - spaceToEnd))
+            }
         }
         head = (head + count) % capacity
         filled = min(filled + count, capacity)

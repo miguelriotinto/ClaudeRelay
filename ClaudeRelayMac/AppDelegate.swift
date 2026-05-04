@@ -3,6 +3,7 @@ import SwiftUI
 import ClaudeRelayClient
 import ClaudeRelaySpeech
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sleepWakeObserver: SleepWakeObserver?
     private var networkMonitor: NetworkMonitor?

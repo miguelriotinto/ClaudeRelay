@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import ClaudeRelayClient
 import ClaudeRelaySpeech
 
@@ -105,6 +106,7 @@ private struct GeneralSettingsTab: View {
     @State private var isCapturing = false
     @State private var capturedModifiers: NSEvent.ModifierFlags = []
     @State private var capturedKey: String = ""
+    @State private var windowObserver: AnyCancellable?
 
     var body: some View {
         ScrollView {
@@ -122,7 +124,7 @@ private struct GeneralSettingsTab: View {
                         .labelsHidden()
                         .fixedSize()
                     }
-                    SettingsGroupRow(showDivider: false) {
+                    SettingsGroupRow {
                         Text("Terminal font size")
                         Spacer()
                         Text("\(Int(settings.terminalFontSize)) pt")
@@ -131,6 +133,18 @@ private struct GeneralSettingsTab: View {
                         Stepper("", value: $settings.terminalFontSize, in: 8...16, step: 1)
                             .labelsHidden()
                             .fixedSize()
+                    }
+                    SettingsGroupRow(showDivider: false) {
+                        Text("Terminal scrollback")
+                        Spacer()
+                        Picker("", selection: $settings.terminalScrollbackLines) {
+                            Text("1,000 lines").tag(1_000)
+                            Text("5,000 lines").tag(5_000)
+                            Text("10,000 lines").tag(10_000)
+                            Text("25,000 lines").tag(25_000)
+                        }
+                        .labelsHidden()
+                        .fixedSize()
                     }
                 }
 
@@ -235,15 +249,20 @@ private struct GeneralSettingsTab: View {
                 removeKeyMonitor()
             }
         }
+        .onAppear {
+            windowObserver = NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)
+                .sink { _ in
+                    if isCapturing {
+                        NSLog("[KeyCapture] window resigned key — cancelling capture")
+                        isCapturing = false
+                    }
+                }
+        }
         .onDisappear {
             removeKeyMonitor()
             isCapturing = false
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
-            if isCapturing {
-                NSLog("[KeyCapture] window resigned key — cancelling capture")
-                isCapturing = false
-            }
+            windowObserver?.cancel()
+            windowObserver = nil
         }
     }
 
@@ -385,7 +404,7 @@ private struct AboutSettingsTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                SettingsSectionHeader(title: "ClaudeDock")
+                SettingsSectionHeader(title: "ClaudeRelay")
                 SettingsGroup {
                     SettingsGroupRow {
                         Text("Version")

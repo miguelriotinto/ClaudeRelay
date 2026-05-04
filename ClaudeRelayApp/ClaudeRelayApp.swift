@@ -14,6 +14,7 @@ struct ClaudeRelayApp: App {
 
     @State private var showSplash = true
     @State private var pendingSessionId: UUID?
+    @State private var preloadTask: Task<Void, Never>?
 
     var body: some Scene {
         WindowGroup {
@@ -27,7 +28,15 @@ struct ClaudeRelayApp: App {
                     .transition(.identity)
                 }
             }
-            .task { await preloadSpeechModels() }
+            .task {
+                let task = Task { await preloadSpeechModels() }
+                preloadTask = task
+                await task.value
+            }
+            .onDisappear {
+                preloadTask?.cancel()
+                preloadTask = nil
+            }
             .onOpenURL { url in
                 handleDeepLink(url)
             }
@@ -44,6 +53,7 @@ struct ClaudeRelayApp: App {
         pendingSessionId = sessionId
     }
 
+    @MainActor
     private func preloadSpeechModels() async {
         let store = SpeechModelStore.shared
 

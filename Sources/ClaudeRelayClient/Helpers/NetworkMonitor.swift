@@ -9,7 +9,7 @@ public final class NetworkMonitor: ObservableObject {
     @Published public private(set) var isConnected = true
 
     private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "com.clauderelay.networkMonitor")
+    private static let queue = DispatchQueue(label: "com.clauderelay.networkMonitor")
     private var wasDisconnected = false
 
     public init() {
@@ -27,7 +27,7 @@ public final class NetworkMonitor: ObservableObject {
                 }
             }
         }
-        monitor.start(queue: queue)
+        monitor.start(queue: Self.queue)
     }
 
     deinit {

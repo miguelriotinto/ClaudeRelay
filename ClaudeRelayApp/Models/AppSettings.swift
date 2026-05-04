@@ -39,6 +39,11 @@ final class AppSettings: ObservableObject {
     @AppStorage("sessionNamingTheme") var sessionNamingTheme: SessionNamingTheme = .gameOfThrones
     @AppStorage("terminalFontSize") var terminalFontSize: Double = 12
 
+    /// Max scrollback lines kept by SwiftTerm per session. Lower = less RAM,
+    /// higher = more scrollback history in-client. Server's ring buffer
+    /// replays anything that fell off this edge on next attach.
+    @AppStorage("terminalScrollbackLines") var terminalScrollbackLines: Int = 5_000
+
     @AppStorage("recordingShortcutEnabled") var recordingShortcutEnabled = true
     @AppStorage("recordingShortcutFlags") var recordingShortcutFlags: Int = Int(UIKeyModifierFlags([.command, .alternate]).rawValue)
     @AppStorage("recordingShortcutKey") var recordingShortcutKey = ""

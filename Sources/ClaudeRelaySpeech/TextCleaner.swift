@@ -8,7 +8,8 @@ public protocol TextCleaning: Sendable {
 
 /// Runs a local Qwen 3.5 0.8B GGUF model via llama.cpp (Metal GPU) to clean transcriptions.
 /// Only handles filler word removal and punctuation fixes — prompt enhancement is cloud-based.
-public final class TextCleaner: TextCleaning, @unchecked Sendable {
+@MainActor
+public final class TextCleaner: TextCleaning {
 
     public static let shared = TextCleaner()
 

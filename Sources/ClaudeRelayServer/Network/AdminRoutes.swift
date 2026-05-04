@@ -281,6 +281,10 @@ enum AdminRoutes {
             config.tlsCert = value as? String
         case "tlsKey":
             config.tlsKey = value as? String
+        case "maxSessionsPerToken":
+            guard let val = value as? Int else { throw ConfigError(message: "maxSessionsPerToken must be an integer") }
+            guard val >= 0 else { throw ConfigError(message: "maxSessionsPerToken must be >= 0") }
+            config.maxSessionsPerToken = val
         default:
             throw ConfigError(message: "Unknown config key: \(key)")
         }

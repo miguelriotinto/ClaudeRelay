@@ -206,6 +206,14 @@ public final class OnDeviceSpeechEngine: ObservableObject {
     ) async -> String? {
         guard state == .recording else { return nil }
 
+        // Defensive: if a previous call never cleared processingTask, cancel it
+        // now rather than orphaning it. UI should already disable the mic button
+        // in .transcribing/.cleaning states, so this normally shouldn't fire.
+        if let existing = processingTask {
+            existing.cancel()
+            processingTask = nil
+        }
+
         guard let audioBuffer = capture.stop() else {
             state = .idle
             return nil

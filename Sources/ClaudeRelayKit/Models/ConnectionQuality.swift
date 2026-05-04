@@ -7,14 +7,21 @@ public enum ConnectionQuality: String, Sendable, Equatable {
     case veryPoor
     case disconnected
 
+    private static let excellentRTT: TimeInterval = 0.1
+    private static let goodRTT: TimeInterval = 0.3
+    private static let poorRTT: TimeInterval = 0.8
+    private static let minSuccessRate: Double = 0.5
+    private static let goodSuccessRate: Double = 0.83
+    private static let perfectSuccessRate: Double = 1.0
+
     public init(medianRTT: TimeInterval, successRate: Double) {
-        if successRate < 0.5 {
+        if successRate < Self.minSuccessRate {
             self = .veryPoor
-        } else if medianRTT < 0.1 && successRate >= 1.0 {
+        } else if medianRTT < Self.excellentRTT && successRate >= Self.perfectSuccessRate {
             self = .excellent
-        } else if medianRTT < 0.3 && successRate >= 0.83 {
+        } else if medianRTT < Self.goodRTT && successRate >= Self.goodSuccessRate {
             self = .good
-        } else if medianRTT < 0.8 && successRate >= 0.5 {
+        } else if medianRTT < Self.poorRTT && successRate >= Self.minSuccessRate {
             self = .poor
         } else {
             self = .veryPoor

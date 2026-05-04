@@ -16,16 +16,48 @@ public struct CodingAgent: Codable, Equatable, Hashable, Sendable {
     /// Case-insensitive substrings to match against OSC title sequences.
     public let titleKeywords: [String]
 
+    /// Pre-lowercased copy of `processNames`. Populated at init time so the
+    /// hot-path poll doesn't re-lowercase every call.
+    private let normalizedProcessNames: [String]
+
     public init(id: String, displayName: String, processNames: [String], titleKeywords: [String]) {
         self.id = id
         self.displayName = displayName
         self.processNames = processNames
         self.titleKeywords = titleKeywords
+        self.normalizedProcessNames = processNames.map { $0.lowercased() }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, displayName, processNames, titleKeywords
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.displayName = try container.decode(String.self, forKey: .displayName)
+        self.processNames = try container.decode([String].self, forKey: .processNames)
+        self.titleKeywords = try container.decode([String].self, forKey: .titleKeywords)
+        self.normalizedProcessNames = self.processNames.map { $0.lowercased() }
+    }
+
+    public static func == (lhs: CodingAgent, rhs: CodingAgent) -> Bool {
+        lhs.id == rhs.id
+            && lhs.displayName == rhs.displayName
+            && lhs.processNames == rhs.processNames
+            && lhs.titleKeywords == rhs.titleKeywords
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(displayName)
+        hasher.combine(processNames)
+        hasher.combine(titleKeywords)
     }
 
     public func matchesProcessName(_ name: String) -> Bool {
         let lower = name.lowercased()
-        return processNames.contains { lower == $0 || lower.hasPrefix($0 + "-") || lower.hasPrefix($0 + ".") }
+        return normalizedProcessNames.contains { lower == $0 || lower.hasPrefix($0 + "-") || lower.hasPrefix($0 + ".") }
     }
 
     public func matchesTitle(_ title: String) -> Bool {

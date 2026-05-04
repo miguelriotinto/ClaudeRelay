@@ -26,8 +26,11 @@ public final class LogStore: @unchecked Sendable {
         entries.append(entry)
         if entries.count > maxEntries {
             dropCount += 1
-            // Compact periodically to reclaim memory (every 1000 dropped entries)
-            if dropCount >= 1000 {
+            // Compact when overshoot exceeds 5% of capacity (capped at 100).
+            // Keeps the live array within ~1.05× maxEntries without the O(n)
+            // shift cost on every append.
+            let overshootThreshold = min(100, max(10, maxEntries / 20))
+            if dropCount >= overshootThreshold {
                 entries.removeFirst(dropCount)
                 dropCount = 0
             }
