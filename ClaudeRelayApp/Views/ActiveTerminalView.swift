@@ -92,8 +92,11 @@ struct ActiveTerminalView: View {
                         columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
                     }
                 }
+                .accessibilityLabel("Toggle Sidebar")
                 ToolbarIconButton(icon: "server.rack") { onDisconnect() }
+                    .accessibilityLabel("Disconnect")
                 ToolbarIconButton(icon: "fn", isActive: showKeyBar) { showKeyBar.toggle() }
+                    .accessibilityLabel(showKeyBar ? "Hide Key Bar" : "Show Key Bar")
 
                 ConnectionQualityDot(quality: coordinator.connection.connectionQuality, size: 8)
 
@@ -116,6 +119,7 @@ struct ActiveTerminalView: View {
                     ToolbarIconButton(icon: "qrcode") {
                         showQROverlay = true
                     }
+                    .accessibilityLabel("Share Session")
                 }
 
                 if let id = coordinator.activeSessionId {
