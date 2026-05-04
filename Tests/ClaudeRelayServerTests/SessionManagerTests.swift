@@ -825,4 +825,41 @@ final class SessionManagerTests: XCTestCase {
         let afterCount = await manager._testOnly_observerCount
         XCTAssertEqual(afterCount, 0, "All observers should have been purged with 0s cutoff")
     }
+
+    func testCreateSessionEnforcesPerTokenLimit() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        var config = RelayConfig.default
+        config.maxSessionsPerToken = 3
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        for i in 0..<3 {
+            _ = try await manager.createSession(tokenId: tokenInfo.id, name: "s\(i)")
+        }
+
+        do {
+            _ = try await manager.createSession(tokenId: tokenInfo.id, name: "overflow")
+            XCTFail("Expected sessionLimitExceeded")
+        } catch SessionError.sessionLimitExceeded(let limit) {
+            XCTAssertEqual(limit, 3)
+        } catch {
+            XCTFail("Wrong error: \(error)")
+        }
+    }
+
+    func testCreateSessionUnlimitedWhenLimitIsZero() async throws {
+        let (_, tokenInfo) = try await createTestToken()
+        var config = RelayConfig.default
+        config.maxSessionsPerToken = 0
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        for i in 0..<10 {
+            _ = try await manager.createSession(tokenId: tokenInfo.id, name: "s\(i)")
+        }
+        let list = await manager.listSessionsForToken(tokenId: tokenInfo.id)
+        XCTAssertEqual(list.count, 10)
+    }
 }

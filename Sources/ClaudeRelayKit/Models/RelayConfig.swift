@@ -24,6 +24,9 @@ public struct RelayConfig: Codable, Sendable {
     /// Logging verbosity (e.g. "trace", "debug", "info", "warning", "error").
     public var logLevel: String
 
+    /// Maximum active (non-terminal) sessions per token. 0 means unlimited.
+    public var maxSessionsPerToken: Int
+
     // MARK: - Initializer
 
     public init(
@@ -33,7 +36,8 @@ public struct RelayConfig: Codable, Sendable {
         scrollbackSize: Int = 524288,
         tlsCert: String? = nil,
         tlsKey: String? = nil,
-        logLevel: String = "info"
+        logLevel: String = "info",
+        maxSessionsPerToken: Int = 50
     ) {
         self.wsPort = wsPort
         self.adminPort = adminPort
@@ -42,6 +46,7 @@ public struct RelayConfig: Codable, Sendable {
         self.tlsCert = tlsCert
         self.tlsKey = tlsKey
         self.logLevel = logLevel
+        self.maxSessionsPerToken = maxSessionsPerToken
     }
 
     // MARK: - Static Properties
@@ -65,4 +70,23 @@ public struct RelayConfig: Codable, Sendable {
 
     /// The tokens file: `~/.claude-relay/tokens.json`.
     public static let tokensFile: URL = configDirectory.appendingPathComponent("tokens.json")
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case wsPort, adminPort, detachTimeout, scrollbackSize
+        case tlsCert, tlsKey, logLevel, maxSessionsPerToken
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.wsPort = try c.decodeIfPresent(UInt16.self, forKey: .wsPort) ?? 9200
+        self.adminPort = try c.decodeIfPresent(UInt16.self, forKey: .adminPort) ?? 9100
+        self.detachTimeout = try c.decodeIfPresent(Int.self, forKey: .detachTimeout) ?? 0
+        self.scrollbackSize = try c.decodeIfPresent(Int.self, forKey: .scrollbackSize) ?? 524288
+        self.tlsCert = try c.decodeIfPresent(String.self, forKey: .tlsCert)
+        self.tlsKey = try c.decodeIfPresent(String.self, forKey: .tlsKey)
+        self.logLevel = try c.decodeIfPresent(String.self, forKey: .logLevel) ?? "info"
+        self.maxSessionsPerToken = try c.decodeIfPresent(Int.self, forKey: .maxSessionsPerToken) ?? 50
+    }
 }

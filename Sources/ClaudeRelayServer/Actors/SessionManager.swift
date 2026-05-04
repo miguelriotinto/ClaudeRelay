@@ -7,6 +7,7 @@ public enum SessionError: Error {
     case notFound(UUID)
     case ownershipViolation
     case invalidTransition(SessionState, SessionState)
+    case sessionLimitExceeded(limit: Int)
 }
 
 // MARK: - SessionManager Actor
@@ -66,6 +67,15 @@ public actor SessionManager {
         rows: UInt16 = 24,
         name: String? = nil
     ) async throws -> SessionInfo {
+        let limit = config.maxSessionsPerToken
+        if limit > 0 {
+            let active = sessions.values.filter {
+                $0.info.tokenId == tokenId && !$0.info.state.isTerminal
+            }.count
+            if active >= limit {
+                throw SessionError.sessionLimitExceeded(limit: limit)
+            }
+        }
         let id = UUID()
         let now = Date()
 
