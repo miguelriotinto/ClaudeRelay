@@ -862,4 +862,43 @@ final class SessionManagerTests: XCTestCase {
         let list = await manager.listSessionsForToken(tokenId: tokenInfo.id)
         XCTAssertEqual(list.count, 10)
     }
+
+    // MARK: - Concurrent Attach Race
+
+    /// When two tokens race to attach the same session, the actor must serialize
+    /// the calls — one attaches first (transferring ownership), the other
+    /// stealsfrom the first. Final ownership must be exactly one of the two
+    /// tokens, never a third value or a split/torn state.
+    func testConcurrentAttachSameSessionProducesSingleOwner() async throws {
+        let (_, tokenA) = try await createTestToken()
+        let (_, tokenB) = try await tokenStore.create(label: "device-b")
+
+        let manager = SessionManager(config: config, tokenStore: tokenStore, ptyFactory: { id, cols, rows, scrollback in
+            MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+        })
+
+        let session = try await manager.createSession(tokenId: tokenA.id)
+
+        async let resultA: Void = {
+            do {
+                _ = try await manager.attachSession(id: session.id, tokenId: tokenA.id)
+            } catch {
+                // One of the racers may lose depending on scheduling; ignore.
+            }
+        }()
+        async let resultB: Void = {
+            do {
+                _ = try await manager.attachSession(id: session.id, tokenId: tokenB.id)
+            } catch {
+                // One of the racers may lose depending on scheduling; ignore.
+            }
+        }()
+        _ = await (resultA, resultB)
+
+        let final = try await manager.inspectSession(id: session.id)
+        XCTAssertTrue(final.tokenId == tokenA.id || final.tokenId == tokenB.id,
+                      "Ownership should resolve to exactly one token, got \(final.tokenId)")
+        XCTAssertEqual(final.state, .activeAttached,
+                       "Session should end up attached to whichever token won the race")
+    }
 }
