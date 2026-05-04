@@ -61,7 +61,7 @@ final class AddEditServerViewModel: ObservableObject {
     /// Validates, persists to SavedConnectionStore + Keychain, returns the saved config.
     func save() -> ConnectionConfig? {
         guard isValid else { return nil }
-        guard let portNumber = UInt16(port), portNumber > 0 else { return nil }
+        guard let portNumber = UInt16(port), portNumber >= 1 else { return nil }
 
         let config = ConnectionConfig(
             id: existingId ?? UUID(),
