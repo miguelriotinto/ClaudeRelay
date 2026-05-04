@@ -14,7 +14,6 @@
 		0D5C609EB39AC81E2A65632B /* QRCodeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D21FADD27700A6E040337F /* QRCodeSheet.swift */; };
 		0DDD25DF810479BC88176F81 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 1306E716950146DD761EE8DC /* ClaudeRelayClient */; };
 		14879492694E389CB21E84A9 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DECD505C04D50E2D42420381 /* AppSettings.swift */; };
-		14FD30E5BB489325482D70A6 /* ActivityDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F119FD8B5ED14C3996A244E4 /* ActivityDot.swift */; };
 		160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */; };
 		208847B59339D16E6FE9C702 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE5CC46536E8CA8C49EB434 /* QRScannerView.swift */; };
 		299B416F1397BA56DE9F1BF6 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 2FA8AF8C498C1695C7EDA79A /* SwiftTerm */; };
@@ -35,7 +34,6 @@
 		63E3BCC85F93A4D12B9436B1 /* ServerListWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */; };
 		6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */; };
 		6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */; };
-		79E3FE7C11E7B6245B12C0CD /* ConnectionQualityDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61B39459418F45CCE4AA0BD /* ConnectionQualityDot.swift */; };
 		7C1BDD714B65C5AEFBCD74D6 /* QRCodeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3014236A9153620618B1A7 /* QRCodeComponents.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
 		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
@@ -55,14 +53,12 @@
 		BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */; };
 		CC50C840F4CB8B067339A21D /* ImagePasteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */; };
 		CCCBDB052AD5F9FFDFEE452F /* ClaudeRelaySpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 597BC4C72DD7FDEF83563F6F /* ClaudeRelaySpeech */; };
-		CE88CBCD5D023B02EEFE9F72 /* AgentColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C84CF211C05464556B7CF8 /* AgentColorPalette.swift */; };
 		D5D85EABC55C071F8597AA44 /* MockSpeechComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */; };
 		E5A9B0683CE8446B1F90DFB6 /* ClaudeRelayMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42FCDD4B9EDF313C4B8EC47F /* ClaudeRelayMacApp.swift */; };
 		E773E7EDA1271778ADC748E0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */; };
 		E9FBE1A1DE907E4CF7E23433 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
 		EFFCA49EDD9553791CAADCB9 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF311DE62F36AF5A19AB87E9 /* StatusBarView.swift */; };
 		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
-		F89990C04665D3D008004161 /* AgentColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C43BA9A801EC9450F20F3EE /* AgentColorPalette.swift */; };
 		FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */; };
 		FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD5621F82700100B9C4F53F /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
@@ -79,7 +75,6 @@
 
 /* Begin PBXFileReference section */
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
-		04C84CF211C05464556B7CF8 /* AgentColorPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentColorPalette.swift; sourceTree = "<group>"; };
 		09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
 		1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
@@ -102,7 +97,6 @@
 		7AD5621F82700100B9C4F53F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7B9B72D775E497F2FB66C38A /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
 		7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeRelayApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		7C43BA9A801EC9450F20F3EE /* AgentColorPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentColorPalette.swift; sourceTree = "<group>"; };
 		8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteHandler.swift; sourceTree = "<group>"; };
 		8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
 		91B48FD6DC9E458119F76B8E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -119,7 +113,6 @@
 		BCEC36B4A1645DB4968FE179 /* ServerListWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListWindow.swift; sourceTree = "<group>"; };
 		C3126D30262A416EE37DCA6E /* MockSpeechComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSpeechComponents.swift; sourceTree = "<group>"; };
 		C534081CE1B2BAEF48EA8ECC /* RelayApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayApplication.swift; sourceTree = "<group>"; };
-		C61B39459418F45CCE4AA0BD /* ConnectionQualityDot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionQualityDot.swift; sourceTree = "<group>"; };
 		C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCleanerStaticTests.swift; sourceTree = "<group>"; };
 		C869AB0FEAB465EB76190FC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C97EFAD8FF50D4650290995A /* MenuBarDropdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarDropdown.swift; sourceTree = "<group>"; };
@@ -134,7 +127,6 @@
 		DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
 		DECD505C04D50E2D42420381 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		EE15BB470918FEC539F58286 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
-		F119FD8B5ED14C3996A244E4 /* ActivityDot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityDot.swift; sourceTree = "<group>"; };
 		F3D21FADD27700A6E040337F /* QRCodeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -193,7 +185,6 @@
 		67648825BC334FE028B1F2D7 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				04C84CF211C05464556B7CF8 /* AgentColorPalette.swift */,
 				7B9B72D775E497F2FB66C38A /* AppCommands.swift */,
 				8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */,
 				1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */,
@@ -277,9 +268,6 @@
 		E7C7F2B75F10B4F3A2F3713A /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				F119FD8B5ED14C3996A244E4 /* ActivityDot.swift */,
-				7C43BA9A801EC9450F20F3EE /* AgentColorPalette.swift */,
-				C61B39459418F45CCE4AA0BD /* ConnectionQualityDot.swift */,
 				03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */,
 				CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */,
 				508D7CD8DCA41375E993CDA2 /* MicButton.swift */,
@@ -471,7 +459,6 @@
 			files = (
 				41F39C140085E25466F7428C /* AddEditServerView.swift in Sources */,
 				3C1FB57BAEEB29070F151C11 /* AddEditServerViewModel.swift in Sources */,
-				CE88CBCD5D023B02EEFE9F72 /* AgentColorPalette.swift in Sources */,
 				2BD76AD6A79D0ABC114DFF65 /* AppCommands.swift in Sources */,
 				FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */,
 				14879492694E389CB21E84A9 /* AppSettings.swift in Sources */,
@@ -512,13 +499,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */,
-				14FD30E5BB489325482D70A6 /* ActivityDot.swift in Sources */,
 				382DD387109329B4EC0DB56B /* AddEditServerView.swift in Sources */,
 				6529F1CAC9948761A14893E9 /* AddEditServerViewModel.swift in Sources */,
-				F89990C04665D3D008004161 /* AgentColorPalette.swift in Sources */,
 				E773E7EDA1271778ADC748E0 /* AppSettings.swift in Sources */,
 				A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */,
-				79E3FE7C11E7B6245B12C0CD /* ConnectionQualityDot.swift in Sources */,
 				160B187EE7D20A9CD01192BC /* KeyCaptureView.swift in Sources */,
 				2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */,
 				83965FD395DF96FA49CEEECD /* MicButton.swift in Sources */,

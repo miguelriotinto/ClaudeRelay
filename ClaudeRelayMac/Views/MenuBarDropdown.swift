@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ClaudeRelayClient
 import ClaudeRelayKit
 
 struct MenuBarDropdown: View {
