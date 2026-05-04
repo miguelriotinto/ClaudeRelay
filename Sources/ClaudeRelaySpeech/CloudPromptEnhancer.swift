@@ -6,7 +6,12 @@ public final class CloudPromptEnhancer: Sendable {
 
     /// Bedrock cross-region inference profile for Claude Haiku.
     /// On-demand throughput requires an inference profile ID, not the raw model ID.
-    private static let modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    public static let defaultModelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+    /// The Bedrock model/inference-profile ID used by this enhancer.
+    /// Defaults to `defaultModelId`, but can be overridden per instance (e.g.
+    /// to target a newer Haiku after an upgrade).
+    public let modelId: String
 
     /// System prompt that guides Haiku to enhance while staying faithful to intent.
     public static let systemPrompt = """
@@ -32,7 +37,9 @@ public final class CloudPromptEnhancer: Sendable {
         Focus on obvious inefficiencies and provide concise, actionable suggestions."
         """
 
-    public init() {}
+    public init(modelId: String = CloudPromptEnhancer.defaultModelId) {
+        self.modelId = modelId
+    }
 
     /// Enhance a transcribed text into a clear prompt using Bedrock Haiku.
     /// - Parameters:
@@ -78,7 +85,7 @@ public final class CloudPromptEnhancer: Sendable {
         }
 
         let endpoint = URL(
-            string: "https://bedrock-runtime.\(region).amazonaws.com/model/\(Self.modelId)/converse"
+            string: "https://bedrock-runtime.\(region).amazonaws.com/model/\(self.modelId)/converse"
         )!
 
         var request = URLRequest(url: endpoint)
@@ -164,8 +171,25 @@ public enum EnhancerError: Error, LocalizedError {
         case .refused:
             return "Could not enhance — input was unclear."
         case .bedrockError(let code, let message):
-            let truncated = message.prefix(200)
-            return "Bedrock error \(code): \(truncated)"
+            return "Bedrock error \(code): \(Self.sanitizeBedrockError(message))"
         }
+    }
+
+    /// Strips auth material and returns at most 200 characters of the Bedrock
+    /// error body. When the response is JSON-shaped we extract the `message`
+    /// field; otherwise we fall back to a length-capped copy with any
+    /// `Bearer <token>` fragments redacted.
+    private static func sanitizeBedrockError(_ body: String) -> String {
+        if let data = body.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let msg = json["message"] as? String {
+            return String(msg.prefix(200))
+        }
+        let truncated = String(body.prefix(200))
+        return truncated.replacingOccurrences(
+            of: "Bearer [A-Za-z0-9+/=._-]+",
+            with: "Bearer [REDACTED]",
+            options: .regularExpression
+        )
     }
 }
