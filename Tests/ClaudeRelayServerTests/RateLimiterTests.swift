@@ -64,4 +64,24 @@ final class RateLimiterTests: XCTestCase {
         let blocked = await limiter.isBlocked(ip: "X")
         XCTAssertFalse(blocked, "Should not be blocked after window expires")
     }
+
+    func testRateLimiterEvictsLRUEntries() async {
+        // maxTrackedIPs=10 triggers eviction only above 11 (10 + 10/10 headroom).
+        // Add 25 unique IPs and confirm the total is bounded well below 25.
+        let limiter = RateLimiter(maxAttempts: 5, windowSeconds: 600, maxTrackedIPs: 10)
+
+        for i in 0..<25 {
+            await limiter.recordFailure(ip: "10.0.0.\(i)")
+        }
+        let count = await limiter._testOnly_trackedIPCount
+        // We allow some slack because eviction only runs after crossing 11;
+        // the count will hover in the 12-20 range depending on how the
+        // amortization unfolds, but must never approach 25.
+        XCTAssertLessThanOrEqual(count, 20, "LRU cap should keep the map well below the unlimited case")
+        XCTAssertGreaterThanOrEqual(count, 10, "Should retain at least the configured capacity")
+
+        // Most recent entry should still be tracked but not blocked (1 failure < 5 threshold).
+        let blockedRecent = await limiter.isBlocked(ip: "10.0.0.24")
+        XCTAssertFalse(blockedRecent, "Recent IP with single failure should not be blocked")
+    }
 }
