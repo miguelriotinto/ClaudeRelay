@@ -215,6 +215,15 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             recoveryLog.debug("triggerUserRecovery: within cancel debounce, ignoring")
             return
         }
+        // If the transport is already up and we're not mid-recovery, skip the
+        // full handleForegroundTransition path — it would just fetchSessions()
+        // anyway. handleForegroundTransition still verifies with a real ping
+        // when reached via other entry points; this just fast-paths the very
+        // common scenePhase .active → .active hop case.
+        if connection.state == .connected && !isRecovering {
+            Task { @MainActor [weak self] in await self?.fetchSessions() }
+            return
+        }
         autoRecoverySuspended = false
         consecutiveAutoRecoveryFailures = 0
         isRecoveryDispatched = true
