@@ -46,11 +46,9 @@ struct WorkspaceView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
     @State private var showSidebarSheet = false
     @Environment(\.dismiss) private var dismiss
-    @Binding var showTimeoutAlert: Bool
     private let pendingAttachSessionId: UUID?
 
-    init(connection: RelayConnection, token: String, pendingAttachSessionId: UUID? = nil, showTimeoutAlert: Binding<Bool>) {
-        _showTimeoutAlert = showTimeoutAlert
+    init(connection: RelayConnection, token: String, pendingAttachSessionId: UUID? = nil) {
         self.pendingAttachSessionId = pendingAttachSessionId
         _coordinator = StateObject(wrappedValue: SessionCoordinator(
             connection: connection,
@@ -141,12 +139,19 @@ struct WorkspaceView: View {
             )
             .interactiveDismissDisabled()
         }
-        .onChange(of: coordinator.connectionTimedOut) { _, timedOut in
-            if timedOut {
-                coordinator.connectionTimedOut = false
-                showTimeoutAlert = true
+        .alert("Connection Timed Out",
+               isPresented: Binding(
+                   get: { coordinator.connectionTimedOut },
+                   set: { newValue in
+                       if !newValue {
+                           coordinator.connectionTimedOut = false
+                       }
+                   })) {
+            Button("OK", role: .cancel) {
                 dismiss()
             }
+        } message: {
+            Text("Connection timed out. Please reconnect.")
         }
         .alert("Error", isPresented: $coordinator.showError) {
             Button("OK", role: .cancel) {}

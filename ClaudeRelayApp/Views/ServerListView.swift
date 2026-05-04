@@ -7,7 +7,6 @@ struct ServerListView: View {
     @State private var showAddSheet = false
     @State private var showSettings = false
     @State private var serverToEdit: ConnectionConfig?
-    @State private var showTimeoutAlert = false
 
     var body: some View {
         NavigationStack {
@@ -107,15 +106,9 @@ struct ServerListView: View {
                     WorkspaceView(
                         connection: connection,
                         token: token,
-                        pendingAttachSessionId: consumePendingSession(),
-                        showTimeoutAlert: $showTimeoutAlert
+                        pendingAttachSessionId: consumePendingSession()
                     )
                 }
-            }
-            .alert("Connection Timed Out", isPresented: $showTimeoutAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Connection timed out. Please reconnect.")
             }
             .onAppear {
                 viewModel.refreshServers()
