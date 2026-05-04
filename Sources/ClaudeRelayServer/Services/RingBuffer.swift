@@ -29,8 +29,9 @@ public struct RingBuffer: Sendable {
         guard count > 0 else { return }
 
         if count >= capacity {
-            // Oversize write — only the last `capacity` bytes matter. Use
-            // unsafe mutable bytes to copy in place rather than allocating
+            // Fast path: the write is larger than the buffer, so the previous
+            // content is irrelevant — just keep the last `capacity` bytes.
+            // Use unsafe mutable bytes to copy in place rather than allocating
             // a fresh Array.
             let tail = data.suffix(capacity)
             storage.withUnsafeMutableBytes { raw in

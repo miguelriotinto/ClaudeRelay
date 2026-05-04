@@ -126,13 +126,18 @@ struct KeyboardAccessory: View {
         onKey(Data(bytes))
     }
 
+    /// Sixteen cycles is empirically enough to clear any reasonable
+    /// multi-line continuation. Extra cycles are harmless — Ctrl-U and
+    /// Backspace both become noops once the cursor is at the prompt start.
+    private static let maxContinuationClearCycles = 16
+
     /// Clears all input back to the prompt, including across continuation lines.
     /// Each cycle: Ctrl-U kills the current line, then Backspace deletes the
     /// newline joining it to the previous continuation line. Extra cycles are
     /// harmless — both are noops once the cursor is at the prompt start.
     private func clearToPrompt() {
         var bytes: [UInt8] = []
-        for _ in 0..<16 {
+        for _ in 0..<Self.maxContinuationClearCycles {
             bytes.append(0x15) // Ctrl-U: kill line
             bytes.append(0x7F) // Backspace: cross into previous continuation line
         }
