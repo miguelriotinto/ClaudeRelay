@@ -1,4 +1,8 @@
 import Foundation
+import os.log
+
+private let connectionStoreLog = Logger(
+    subsystem: "com.claude.relay.client", category: "SavedConnectionStore")
 
 /// Persists a user's list of server connection bookmarks in UserDefaults.
 ///
@@ -54,8 +58,13 @@ public struct SavedConnectionStore {
     }
 
     public func saveAll(_ connections: [ConnectionConfig]) {
-        guard let data = try? JSONEncoder().encode(connections) else { return }
-        defaults.set(data, forKey: key)
+        do {
+            let data = try JSONEncoder().encode(connections)
+            defaults.set(data, forKey: key)
+        } catch {
+            connectionStoreLog.error(
+                "Failed to encode \(connections.count, privacy: .public) saved connection(s) to UserDefaults key '\(self.key, privacy: .public)': \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// Adds or replaces (by `id`) a connection; returns the updated list.
