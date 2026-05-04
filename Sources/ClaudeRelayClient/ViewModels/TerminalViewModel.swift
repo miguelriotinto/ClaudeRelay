@@ -1,5 +1,9 @@
 import Foundation
 import Combine
+import os.log
+
+private let pendingOutputLog = Logger(subsystem: "com.claude.relay.client",
+                                       category: "TerminalViewModel")
 
 /// Configures the input-prompt silence detector. Production defaults match the
 /// empirically-tuned behavior (1.0 s normal, 2.0 s when Claude is running —
@@ -59,6 +63,7 @@ public final class TerminalViewModel: ObservableObject {
     private let connection: RelayConnection
     private var pendingOutput: [Data] = []
     private var pendingOutputBytes: Int = 0
+    private var didLogPendingCap = false
     private static let pendingOutputByteLimit: Int = 4 * 1024 * 1024 // 4 MB
 
     // MARK: - Input Detection
@@ -101,6 +106,11 @@ public final class TerminalViewModel: ObservableObject {
             // (layout stuck, bug, etc.), drop oldest chunks instead of growing
             // unboundedly. The server's ring buffer replays anything we drop
             // on next attach/resume.
+            if pendingOutputBytes > Self.pendingOutputByteLimit, !didLogPendingCap {
+                pendingOutputLog.warning(
+                    "Terminal pending buffer hit \(Self.pendingOutputByteLimit / 1024 / 1024, privacy: .public) MB cap for session \(self.sessionId.uuidString.prefix(8), privacy: .public) — dropping oldest chunks")
+                didLogPendingCap = true
+            }
             while pendingOutputBytes > Self.pendingOutputByteLimit, !pendingOutput.isEmpty {
                 let dropped = pendingOutput.removeFirst()
                 pendingOutputBytes -= dropped.count
@@ -114,6 +124,7 @@ public final class TerminalViewModel: ObservableObject {
     public func terminalReady() {
         guard !terminalSized, let handler = onTerminalOutput else { return }
         terminalSized = true
+        didLogPendingCap = false
         let buffered = pendingOutput
         pendingOutput.removeAll()
         pendingOutputBytes = 0
@@ -139,6 +150,7 @@ public final class TerminalViewModel: ObservableObject {
         terminalSized = false
         pendingOutput.removeAll()
         pendingOutputBytes = 0
+        didLogPendingCap = false
     }
 
     // MARK: - Input
