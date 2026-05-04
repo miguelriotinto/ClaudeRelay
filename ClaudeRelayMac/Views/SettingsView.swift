@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import ClaudeRelayClient
 import ClaudeRelaySpeech
 
@@ -105,6 +106,7 @@ private struct GeneralSettingsTab: View {
     @State private var isCapturing = false
     @State private var capturedModifiers: NSEvent.ModifierFlags = []
     @State private var capturedKey: String = ""
+    @State private var windowObserver: AnyCancellable?
 
     var body: some View {
         ScrollView {
@@ -247,15 +249,20 @@ private struct GeneralSettingsTab: View {
                 removeKeyMonitor()
             }
         }
+        .onAppear {
+            windowObserver = NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)
+                .sink { _ in
+                    if isCapturing {
+                        NSLog("[KeyCapture] window resigned key — cancelling capture")
+                        isCapturing = false
+                    }
+                }
+        }
         .onDisappear {
             removeKeyMonitor()
             isCapturing = false
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
-            if isCapturing {
-                NSLog("[KeyCapture] window resigned key — cancelling capture")
-                isCapturing = false
-            }
+            windowObserver?.cancel()
+            windowObserver = nil
         }
     }
 
