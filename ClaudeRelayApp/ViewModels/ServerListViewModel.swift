@@ -63,9 +63,11 @@ final class ServerListViewModel: ObservableObject {
         connectingServerId = server.id
         connectingServerName = server.name
         defer {
-            isConnecting = false
-            connectingServerId = nil
-            connectingServerName = nil
+            if !Task.isCancelled {
+                isConnecting = false
+                connectingServerId = nil
+                connectingServerName = nil
+            }
         }
 
         let connection = RelayConnection()
