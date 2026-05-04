@@ -133,12 +133,14 @@ public actor TokenStore {
     }
 
     /// Flush any pending lastUsedAt changes to disk. Call on server shutdown.
+    /// Cancels the scheduled dirty-flush task up-front so it cannot race us
+    /// or outlive the actor after shutdownGracefully returns.
     public func flushIfDirty() {
+        flushTask?.cancel()
+        flushTask = nil
         guard lastUsedDirty, let tokens = tokens else { return }
         try? save(tokens)
         lastUsedDirty = false
-        flushTask?.cancel()
-        flushTask = nil
     }
 
     // MARK: - Private Helpers
@@ -204,4 +206,10 @@ public actor TokenStore {
         let data = try encoder.encode(infos)
         try data.write(to: filePath, options: .atomic)
     }
+
+    // MARK: - Test Hooks
+
+    /// Exposed only for tests. Reads the internal dirty flag so tests can
+    /// verify flushIfDirty clears it synchronously. Do not call from production.
+    public var _testOnly_isDirty: Bool { lastUsedDirty }
 }
