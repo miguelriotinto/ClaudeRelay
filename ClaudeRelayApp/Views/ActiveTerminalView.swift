@@ -53,10 +53,10 @@ struct ActiveTerminalView: View {
             // Floating buttons: mic + keyboard toggle (only when a terminal session is active)
             if coordinator.activeSessionId != nil {
                 HStack(spacing: 10) {
-                    MicButton(engine: speechEngine, settings: AppSettings.shared, coordinator: coordinator)
+                    MicButton(engine: speechEngine, settings: settings, coordinator: coordinator)
 
                     Button {
-                        if AppSettings.shared.hapticFeedbackEnabled {
+                        if settings.hapticFeedbackEnabled {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
                         if isKeyboardVisible {
@@ -201,7 +201,7 @@ struct ActiveTerminalView: View {
                     let agentId = coordinator.activeAgent(for: session.id)
                     let needsAttention = coordinator.sessionsAwaitingInput.contains(session.id)
                     Button {
-                        if AppSettings.shared.hapticFeedbackEnabled {
+                        if settings.hapticFeedbackEnabled {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
                         Task { await coordinator.switchToSession(id: session.id) }
