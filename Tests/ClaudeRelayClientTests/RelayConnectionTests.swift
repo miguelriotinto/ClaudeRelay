@@ -144,6 +144,20 @@ final class RelayConnectionTests: XCTestCase {
         XCTAssertEqual(connection.state, .disconnected)
         XCTAssertEqual(connection.connectionQuality, .disconnected)
     }
+
+    // MARK: - RTT Window Boundedness
+
+    @MainActor
+    func testRTTWindowStaysBoundedUnderRepeatedMeasurePingRTT() async {
+        let connection = RelayConnection()
+        // Call recordRTT 100 times via the test hook. Without the cap
+        // being inside recordRTT, this would grow unbounded.
+        for i in 0..<100 {
+            connection._testOnly_recordRTT(rtt: i % 2 == 0 ? 0.05 : nil)
+        }
+        XCTAssertLessThanOrEqual(connection._testOnly_rttWindowCount, 6,
+            "rttWindow must be bounded to windowSize (6)")
+    }
 }
 
 // MARK: - SessionController Tests
