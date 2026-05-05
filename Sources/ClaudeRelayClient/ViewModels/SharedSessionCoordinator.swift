@@ -481,33 +481,29 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     public func switchToSession(id: UUID) async {
         guard !isRecovering, id != activeSessionId else { return }
         let previousId = activeSessionId
-        let haveLiveTerminal = sessionsWithLiveTerminal.contains(id)
         do {
             try await withAuth { controller in
                 if previousId != nil {
                     try? await controller.detach()
                 }
-                // If we already have a live terminal with full scrollback for
-                // this session, ask the server to skip its ring-buffer replay —
-                // otherwise output gets duplicated (or truncated to the last
-                // `scrollbackSize` bytes, losing history from before the cap).
-                try await controller.resumeSession(id: id, skipReplay: haveLiveTerminal)
+                // Always replay from the ring buffer. SwiftTerm's native view
+                // buffer does not reliably retain content while hidden, so the
+                // previous `skipReplay` optimisation caused lost scrollback.
+                try await controller.resumeSession(id: id, skipReplay: false)
             }
 
-            // Keep the previous session's view model alive so its cached native
-            // terminal view retains scrollback. prepareForSwitch clears pending
-            // output + callbacks so the detached VM stops receiving live data.
             if let currentId = previousId, currentId != id {
                 terminalViewModels[currentId]?.prepareForSwitch()
             }
 
             // For the incoming session: create the VM if missing, or reset its
-            // buffering state so a freshly-built terminal view (on platforms
-            // that rebuild on session change) can re-drain pending output.
+            // buffering state so the replay data lands cleanly. Seed a RIS
+            // (ESC c) into pendingOutput so the terminal clears before the
+            // server's ring-buffer replay arrives.
             if terminalViewModels[id] == nil {
                 terminalViewModels[id] = TerminalViewModel(sessionId: id, connection: connection)
             } else {
-                terminalViewModels[id]?.prepareForSwitch()
+                terminalViewModels[id]?.prepareForReplay()
             }
 
             wireTerminalOutput(to: id)

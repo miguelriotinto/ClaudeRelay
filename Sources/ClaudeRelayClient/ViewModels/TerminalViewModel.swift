@@ -153,6 +153,21 @@ public final class TerminalViewModel: ObservableObject {
         didLogPendingCap = false
     }
 
+    /// Resets buffering state and seeds a RIS (ESC c) so the terminal clears
+    /// before ring-buffer replay data arrives. Used when switching back to a
+    /// session whose native view buffer may have lost content while hidden.
+    public func prepareForReplay() {
+        promptDebounceTask?.cancel()
+        promptDebounceTask = nil
+        onTerminalOutput = nil
+        onTitleChanged = nil
+        onAwaitingInputChanged = nil
+        terminalSized = false
+        pendingOutput = [Data([0x1B, 0x63])]
+        pendingOutputBytes = 2
+        didLogPendingCap = false
+    }
+
     // MARK: - Input
 
     public func sendInput(_ data: Data) {

@@ -99,6 +99,27 @@ final class TerminalViewModelTests: XCTestCase {
         XCTAssertNil(vm.onAwaitingInputChanged)
     }
 
+    func testPrepareForReplaySeedsRISIntoPendingBuffer() {
+        let vm = makeVM()
+        vm.onTerminalOutput = { _ in }
+        vm.terminalReady()
+        vm.receiveOutput(Data([0x41]))
+
+        vm.prepareForReplay()
+
+        XCTAssertNil(vm.onTerminalOutput)
+        XCTAssertNil(vm.onTitleChanged)
+
+        // After prepareForReplay, the pending buffer should contain RIS.
+        // Re-wire and call terminalReady to flush it.
+        var received = [Data]()
+        vm.onTerminalOutput = { received.append($0) }
+        vm.terminalReady()
+
+        XCTAssertEqual(received.count, 1)
+        XCTAssertEqual(received[0], Data([0x1B, 0x63]))
+    }
+
     func testResetForReplaySendsRIS() {
         let vm = makeVM()
         var received = [Data]()
