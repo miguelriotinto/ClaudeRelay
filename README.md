@@ -16,8 +16,9 @@ A remote terminal relay server and CLI over WebSocket, enabling secure terminal 
 - **Multi-agent detection** - Pluggable coding agent registry (Claude Code, Codex) with per-agent tab colors
 - **On-device speech engine** - Offline speech-to-text via WhisperKit (CoreML/ANE) with LLM text cleanup (iOS + macOS)
 - **Cloud prompt enhancement** - Optional rewriting of transcriptions into clear prompts via Anthropic Haiku
-- **Admin API** - Localhost-only HTTP API for service management and monitoring
-- **Config validation** - Server-side validation of all configuration parameters
+- **Admin API** - Localhost-only HTTP API for service management and monitoring (64 KB request body cap)
+- **Config validation** - Two-layer validation: CLI client-side (fails fast on typos/bad values) + server-side (authoritative)
+- **Per-token session cap** - Configurable `maxSessionsPerToken` (default 50) prevents runaway clients from exhausting server resources
 
 ## Architecture
 
@@ -129,8 +130,12 @@ claude-relay logs tail                               # Follow log output
 claude-relay config show                             # Show current config
 claude-relay config set wsPort 9200                  # Set WebSocket port
 claude-relay config set adminPort 9100               # Set admin API port
-claude-relay config validate                         # Validate current config
+claude-relay config set maxSessionsPerToken 50       # Cap sessions per token (0 = unlimited)
+claude-relay config set logLevel info                # trace/debug/info/warning/error
+claude-relay config validate                         # Validate the saved config file
 ```
+
+`config set` validates keys and value ranges locally before forwarding to the admin API — unknown keys, out-of-range ports, and bad log levels are rejected immediately. `config validate` runs the same checks against `~/.claude-relay/config.json` without needing the server to be running.
 
 ## Configuration
 
@@ -144,7 +149,8 @@ Configuration is stored at `~/.claude-relay/config.json`:
   "scrollbackSize": 524288,
   "tlsCert": "~/.claude-relay/certs/cert.pem",
   "tlsKey": "~/.claude-relay/certs/key.pem",
-  "logLevel": "info"
+  "logLevel": "info",
+  "maxSessionsPerToken": 50
 }
 ```
 
@@ -152,10 +158,13 @@ Configuration is stored at `~/.claude-relay/config.json`:
 - `wsPort` - WebSocket server port (default: 9200)
 - `adminPort` - Admin HTTP API port (default: 9100)
 - `detachTimeout` - Session timeout in seconds, 0 = never expire (default: 0)
-- `scrollbackSize` - Maximum scrollback buffer size in bytes (default: 524288)
+- `scrollbackSize` - Maximum server-side scrollback ring-buffer size in bytes per session (default: 524288)
 - `tlsCert` - Path to TLS certificate file for WebSocket server (optional)
 - `tlsKey` - Path to TLS private key file for WebSocket server (optional)
 - `logLevel` - Logging verbosity: "trace", "debug", "info", "warning", "error" (default: "info")
+- `maxSessionsPerToken` - Maximum active (non-terminal) sessions per token; 0 = unlimited (default: 50)
+
+A corrupt `config.json` is tolerated: the server logs to stderr and falls back to `RelayConfig.default` so launchd-managed services stay up. App-side, `terminalScrollbackLines` (iOS + macOS Settings, default 5000, max 25000) controls the client's in-memory terminal history independent of the server's ring buffer.
 
 ### TLS Configuration
 
@@ -231,7 +240,8 @@ ClaudeRelay/
 │   ├── ClaudeRelayClient/      # Swift client library (shared across apps)
 │   │   ├── Protocols/          # SessionCoordinating protocol
 │   │   ├── Helpers/            # SessionNaming, SavedConnectionStore, NetworkMonitor, DeviceIdentifier
-│   │   └── ViewModels/         # SharedSessionCoordinator, TerminalViewModel, ServerStatusChecker
+│   │   ├── ViewModels/         # SharedSessionCoordinator, TerminalViewModel, ServerStatusChecker
+│   │   └── Views/              # Shared UI atoms: ConnectionQualityDot, ActivityDot, AgentColorPalette
 │   └── ClaudeRelaySpeech/      # Cross-platform on-device speech pipeline (WhisperKit + LLM + SpeechEngineState)
 ├── ClaudeRelayApp/             # iOS application (SwiftUI, XcodeGen-managed)
 │   ├── Views/                  # SwiftUI views + components
@@ -327,11 +337,12 @@ All responses are JSON. Token creation returns `201 Created`; all other successe
 
 - All WebSocket connections require token-based authentication
 - Tokens are stored securely with SHA-256 hashing (never plaintext)
-- Optional TLS encryption for WebSocket connections (NIO-SSL)
-- Admin API binds to localhost only (`127.0.0.1`)
-- Session isolation prevents cross-session access
-- IP-based rate limiting on failed authentication attempts
-- Server-side config validation prevents invalid/dangerous values
+- Optional TLS encryption for WebSocket connections (NIO-SSL, TLS 1.2 minimum)
+- Admin API binds to localhost only (`127.0.0.1`) with a 64 KB request body cap
+- Session isolation prevents cross-session access; `maxSessionsPerToken` caps fork-bomb risk per token
+- IP-based rate limiting on failed authentication attempts (LRU-capped tracking dictionary to bound memory under scanning traffic)
+- Server-side config validation prevents invalid/dangerous values; CLI validates client-side before forwarding
+- Bearer tokens in speech/Bedrock error bodies are redacted before logging
 - Configure firewall rules if exposing ports externally
 
 ### Folder Permissions

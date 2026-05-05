@@ -47,18 +47,24 @@ ClaudeRelayApp/
     SplashScreenView.swift          -- App launch splash
     WorkspaceView.swift             -- NavigationSplitView: sidebar + terminal
     SessionSidebarView.swift        -- Session list sidebar
-    ActiveTerminalView.swift        -- Terminal with keyboard accessory + mic
-    SettingsView.swift              -- App settings screen
-    QRCodeSheet.swift               -- QR code overlay for session sharing
+    ActiveTerminalView.swift        -- Outer orchestration + session tab bar (slim host)
+    SettingsView.swift              -- App settings screen (theme, scrollback lines, speech, shortcuts)
+    QRCodeSheet.swift               -- Full-screen QR code sheet for session sharing
     QRScannerView.swift             -- QR code scanner via AVFoundation camera
     Components/
       KeyboardAccessory.swift       -- Extra key row above keyboard
       KeyCaptureView.swift          -- Live key combination capture
-      ActivityDot.swift             -- Coding agent activity indicator
-      AgentColorPalette.swift      -- Per-agent tab/dot coloring
-      ConnectionQualityDot.swift    -- Connection quality indicator
+      MicButton.swift               -- Speech-to-text mic + recording state
+      QRCodeComponents.swift        -- QRCodeGenerator + QRCodeOverlay for session sharing
+      RelayTerminalView.swift       -- SwiftTerm NSViewRepresentable wrapper (uses terminalScrollbackLines)
 ```
 
 Shared types that previously lived here (`TerminalViewModel`, `ServerStatusChecker`,
-`SavedConnectionStore`, `NetworkMonitor`, speech pipeline) now live in
-`Sources/ClaudeRelayClient/` and `Sources/ClaudeRelaySpeech/`.
+`SavedConnectionStore`, `NetworkMonitor`, `ActivityDot`, `ConnectionQualityDot`,
+`AgentColorPalette`, speech pipeline) now live in `Sources/ClaudeRelayClient/`
+(Views/ + ViewModels/ + Helpers/) and `Sources/ClaudeRelaySpeech/`.
+
+`ActiveTerminalView` was split into three focused components
+(`MicButton`, `QRCodeComponents`, `RelayTerminalView`) in the 2026-05-04
+review-driven refactor pass; the outer file now holds only the session tab
+bar and orchestration.

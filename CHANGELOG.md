@@ -4,6 +4,89 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
 
+## [0.3.2] - 2026-05-04 — Review-driven hardening pass
+
+A 59-task sweep resolving 98 findings (26 HIGH, 46 MEDIUM, 26 LOW) from a full-codebase multi-agent review. No protocol or UX changes; the focus is lifecycle correctness, memory bounds, resource cleanup, and test coverage. See `docs/superpowers/plans/2026-05-04-full-codebase-review-fixes.md` for the full task matrix. SPM test count: 349 (was 331).
+
+### Reliability (client + apps)
+- **Foreground recovery never gets stuck** — `SharedSessionCoordinator.handleForegroundTransition` now uses an idempotent outer `defer` so mid-flight cancellation always clears `isRecovering`, unblocking all future recovery attempts
+- **Skip recovery when alive** — scenePhase `.active` now short-circuits before paying for a ping RTT if the connection is already healthy
+- **Auth path race eliminated** — `SessionController.sendAndWaitForResponse` response handler consolidation fixed a pending-value race; added error-path coverage
+- **Connection-quality window bounded** — `RelayConnection.rttWindow` bookkeeping centralized in `recordRTT`, guaranteeing the 6-measurement cap and failure counter are always enforced
+- **ConnectionConfig.wsURL returns optional** — malformed hosts from corrupted bookmarks or deep links no longer crash the app
+- **ServerStatusChecker probe cleans up on cancel** — wrapped in `withTaskCancellationHandler` so FDs aren't leaked when the 5 s timeout racer wins
+
+### Reliability (server)
+- **Non-blocking PTY writes with EAGAIN buffer** — master FD set to `O_NONBLOCK`; a `DispatchSourceWrite` drains a 4 MB queue when the FD is ready, preventing paste/rapid-input from starving the session actor
+- **PTY output backpressure** — cap inflight WebSocket-write bytes per session at 2 MB; skip frames while writes drain (server's ring buffer is authoritative and replays on resume)
+- **Stale observer dictionaries purged** — `SessionManager` evicts observer entries older than 1 h every 30 min, preventing unbounded growth when handlers die without running `cleanupSession()`
+- **`RateLimiter.attempts` LRU-capped at 10 k IPs** — under sustained scanning traffic the dictionary grew without bound; evicts oldest 10 % on overflow
+- **Graceful shutdown has a 10 s timeout** — `main.swift` races normal shutdown against a timer and force-exits with a log line rather than hanging on a stuck PTY
+- **`TokenStore.flushTask` cancelled up-front in `flushIfDirty`** — removes the race that could leave a dangling Task after `shutdownGracefully`
+- **Per-token session cap** — new `maxSessionsPerToken` config (default 50, 0 = unlimited); prevents a runaway client from fork-bombing the server with unlimited sessions
+- **`ConfigManager.load` returns defaults on corrupt file** — a bad edit to `config.json` no longer crashes launchd-managed services
+- **`LogStore` compacts at 5 % overshoot** — was +1000 entries, so the live array stayed within ~1.05× capacity instead of oscillating wildly
+
+### Reliability (CLI)
+- **`AdminClient` requests timeout at 10 s** — was URLSession default (~60 s); `claude-relay health` / `status` now feel instant when the server is hung
+- **Client-side `config set` validation** — CLI rejects unknown keys, out-of-range ports, bad log levels, and negative session limits before they reach the admin API
+- **`claude-relay config validate` command** — runs the same checks on the saved config file without touching the server
+
+### Reliability (speech)
+- **`TextCleaner` confined to `@MainActor`** — removed `@unchecked Sendable`; `clean()`/`unload()` concurrency is now enforced at compile time
+- **`AudioCaptureSession` auto-stops after 5 minutes** — a forgotten backgrounded recording was allocating ~77 MB of `Float` samples
+- **`OnDeviceSpeechEngine.stopAndProcess` cancels prior `processingTask`** — defensive guard against rapid double-taps orphaning the handle
+- **`CloudPromptEnhancer` error bodies sanitized** — `Bearer <token>` redacted from log lines; JSON parsed to extract clean error messages
+
+### Reliability (iOS + macOS apps)
+- **TerminalViewModel `terminalReady()` called once per session** — `updateUIView` was firing on every coordinator property change, triggering redundant pending-buffer flushes
+- **`ServerListViewModel.stopPolling()` in `deinit`** — poll task no longer survives VM deallocation
+- **`ServerListViewModel.cancelConnect` no longer resets `isConnecting` inside defer when cancelled**
+- **iOS port validation matches macOS (`>= 1`)** in `AddEditServerViewModel`
+- **iOS `connectionTimedOut` alert is binding-based** — was racy under rapid toggles; now tracks the `@Published` property directly
+- **iOS speech preload task cancelled on `ServerListView.onDisappear`** — stops the ~1 GB model download when the user navigates away
+- **iOS `AppSettings` accessed via `@ObservedObject` in closures** — was grabbing `.shared` at closure-capture time, missing later mutations
+- **macOS `coordinatorTasks` pre-cancelled before spawning new ones** in `followCoordinator`
+- **macOS key-capture window observer explicitly cancelled** on disappear
+- **macOS `TerminalContainerView` scrollback-clear behavior matched to iOS**
+
+### Memory bounds
+- **`TerminalViewModel.pendingOutput` capped at 4 MB** with a once-per-session warning when drops begin
+- **Terminal scrollback configurable via Settings** — `terminalScrollbackLines` (default 5000, up to 25000); iOS devices with 4 GB RAM no longer hold 10 k lines × N cached sessions. Server ring buffer still replays anything that fell off the edge on reattach.
+- **`SavedConnectionStore` encoding errors logged** instead of silently losing bookmarks
+- **`SpeechModelStore.totalModelSize` overflow-safe** and skips directories during enumeration
+
+### Performance
+- **Shared `JSONEncoder`/`JSONDecoder` in `RelayMessageHandler`** — 1000 concurrent connections previously allocated 2000 encoder+decoder pairs
+- **Zero-copy `RingBuffer.write` via `withUnsafeMutableBytes`** — shaves an 8 KB allocation per PTY output chunk at peak throughput
+- **`CodingAgent.processNames` pre-lowercased at init** — avoids a string allocation per hot-path foreground-process poll
+- **iOS session-tab `TimelineView` only ticks when a tab is flashing** — idle case is a static render
+
+### Refactors (behavior-neutral)
+- **`ActiveTerminalView` split into three components**: `MicButton`, `QRCodeGenerator`/`QRCodeOverlay`, and `RelayTerminalView` (now in `ClaudeRelayApp/Views/Components/`). The outer file now holds only orchestration + the session tab bar.
+- **`ConnectionQualityDot`, `ActivityDot`, `AgentColorPalette` moved to `ClaudeRelayClient/Views/`** — single source of truth shared by iOS and macOS (the two `AgentColorPalette` copies were byte-identical)
+- **`activityState(for:)` moved to `SharedSessionCoordinator`** — iOS sidebar, macOS sidebar, and macOS status bar had three copies of the same helper
+
+### Accessibility
+- iOS toolbar icon buttons now have accessibility labels
+- Renamed stale "ClaudeDock" header in macOS `SettingsView` to "ClaudeRelay"
+
+### Tests
+- New `WebSocketIntegrationTests` — real client ↔ real server round-trip, plus force-reconnect preserves auth flow
+- New `SessionManagerTests.testConcurrentAttachProducesSingleOwner`
+- New `RateLimiterTests` — IP released when window elapses
+- New `TerminalViewModelTests` — preserves data at cap, drops cleanly over cap
+- New `RelayConnectionTests` — alternating ping successes/failures stay bounded by `rttWindow`, error-path coverage for auth + lightweight reconnect
+- `SessionActivityMonitorTests.testTransitionsToIdleAfterSilence` de-flaked via backoff polling instead of callback-waiting
+- Opportunistic coverage added across SPM targets (SPM test count: 349, was 331)
+
+### Developer experience
+- Named constants across Kit / Server / iOS replacing magic numbers (`maxInflightOutputBytes`, `maximumDuration`, `pendingOutputByteLimit`, connection-quality thresholds, ring-buffer replay chunk, keyboard accessory sizes)
+- Expanded `UnsafeTransfer` doc comment with explicit event-loop-confinement warning
+- CLI `session list` uses `RelativeDateTimeFormatter` to match token timestamps
+- Dropped unused `import Foundation` from `ActivityState`
+- `ExportOptions.plist` gitignored
+
 ## [0.3.0] - 2026-05-03
 
 ### Added
