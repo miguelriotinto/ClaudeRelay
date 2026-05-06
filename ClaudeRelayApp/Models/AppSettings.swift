@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Combine
 import ClaudeRelayClient
 
 @MainActor
@@ -9,6 +10,19 @@ final class AppSettings: ObservableObject {
     private init() {
         migrateShortcutIfNeeded()
         migrateBedrockTokenIfNeeded()
+        // Seed the in-memory mirror from the Keychain (or legacy UserDefaults
+        // fallback if the migration above hit a Keychain failure).
+        self.bedrockBearerToken = loadBedrockTokenWithFallback()
+        // Debounce Keychain writes: rapid keystrokes collapse into a single
+        // save 500 ms after the last change. `dropFirst()` skips the seed
+        // value we just wrote above.
+        $bedrockBearerToken
+            .dropFirst()
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { token in
+                try? AuthManager.shared.saveBedrockToken(token)
+            }
+            .store(in: &bedrockTokenSubscriptions)
     }
 
     private func migrateShortcutIfNeeded() {
@@ -30,54 +44,61 @@ final class AppSettings: ObservableObject {
         defaults.removeObject(forKey: "recordingShortcutModifier")
     }
 
+    /// Legacy `UserDefaults` key that held the Bedrock token before the
+    /// Keychain migration. Also read as a fallback when Keychain ops fail.
+    private static let legacyBedrockKey = "bedrockBearerToken"
+
     /// One-time migration from `@AppStorage("bedrockBearerToken")` to the
-    /// Keychain. If a legacy UserDefaults value exists and the Keychain is
-    /// empty, copy into Keychain and scrub the plist. Idempotent — runs on
-    /// every launch but is a no-op after the first successful copy.
+    /// Keychain. Re-reads after save and only scrubs the legacy plist entry
+    /// when the Keychain round-trip confirms the value was stored. A failed
+    /// Keychain write leaves the legacy copy intact so
+    /// `loadBedrockTokenWithFallback()` can still surface it.
     private func migrateBedrockTokenIfNeeded() {
         let defaults = UserDefaults.standard
-        guard let legacy = defaults.string(forKey: "bedrockBearerToken"),
+        guard let legacy = defaults.string(forKey: Self.legacyBedrockKey),
               !legacy.isEmpty else {
             return
         }
         if let existing = try? AuthManager.shared.loadBedrockToken(), !existing.isEmpty {
             // Keychain already populated — just clear the plaintext copy.
-            defaults.removeObject(forKey: "bedrockBearerToken")
+            defaults.removeObject(forKey: Self.legacyBedrockKey)
             return
         }
         do {
             try AuthManager.shared.saveBedrockToken(legacy)
-            defaults.removeObject(forKey: "bedrockBearerToken")
+            if let reread = try? AuthManager.shared.loadBedrockToken(), reread == legacy {
+                defaults.removeObject(forKey: Self.legacyBedrockKey)
+            }
         } catch {
-            // Keep the UserDefaults copy intact so the user's token isn't lost;
-            // surface through `bedrockBearerToken`'s getter below.
+            // Keep the legacy copy in place — the fallback reader picks it up.
         }
+    }
+
+    /// Reads the Keychain, falling back to the legacy `UserDefaults` value so
+    /// a failed migration doesn't make the token vanish from the UI.
+    private func loadBedrockTokenWithFallback() -> String {
+        if let keychain = try? AuthManager.shared.loadBedrockToken(),
+           !keychain.isEmpty {
+            return keychain
+        }
+        return UserDefaults.standard.string(forKey: Self.legacyBedrockKey) ?? ""
     }
 
     @AppStorage("smartCleanupEnabled") var smartCleanupEnabled = true
     @AppStorage("promptEnhancementEnabled") var promptEnhancementEnabled = false
     @AppStorage("bedrockRegion") var bedrockRegion = "us-east-1"
 
-    /// Bump this after any Bedrock token save so SwiftUI views bound to the
-    /// computed `bedrockBearerToken` refresh. `@AppStorage` handles this
-    /// automatically for UserDefaults-backed keys; Keychain does not, so we
-    /// manually publish.
-    @Published private var bedrockTokenVersion = UUID()
-
     /// Bedrock bearer token, persisted in the Keychain (was UserDefaults).
-    /// Returns `""` when absent or on Keychain read failure — callers treat
-    /// empty as "not configured" and surface the missing-token error from the
-    /// enhancer itself.
-    var bedrockBearerToken: String {
-        get {
-            _ = bedrockTokenVersion  // publish dependency
-            return (try? AuthManager.shared.loadBedrockToken()) ?? ""
-        }
-        set {
-            try? AuthManager.shared.saveBedrockToken(newValue)
-            bedrockTokenVersion = UUID()
-        }
-    }
+    /// The stored value is seeded from the Keychain at `init`; writes are
+    /// debounced 500 ms before the Keychain save fires so rapid typing in a
+    /// `SecureField` collapses into one write. Returns `""` when the Keychain
+    /// is empty — callers treat empty as "not configured".
+    @Published var bedrockBearerToken: String = ""
+
+    /// Combine subscription store for the debounced Keychain save. Owned by
+    /// the singleton so it lives for the process lifetime.
+    private var bedrockTokenSubscriptions = Set<AnyCancellable>()
+
     @AppStorage("hapticFeedbackEnabled") var hapticFeedbackEnabled = true
     @AppStorage("autoConnectEnabled") var autoConnectEnabled = false
     @AppStorage("lastConnectedServerId") var lastConnectedServerId: String = ""
