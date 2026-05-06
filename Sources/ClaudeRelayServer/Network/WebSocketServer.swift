@@ -11,15 +11,18 @@ public final class WebSocketServer {
     private let group: EventLoopGroup
     private let sessionManager: SessionManager
     private let tokenStore: TokenStore
+    private let rateLimiter: RateLimiter
     private let config: RelayConfig
     private var channel: Channel?
 
     public init(group: EventLoopGroup, config: RelayConfig,
-                sessionManager: SessionManager, tokenStore: TokenStore) {
+                sessionManager: SessionManager, tokenStore: TokenStore,
+                rateLimiter: RateLimiter = RateLimiter(maxAttempts: 10, windowSeconds: 60)) {
         self.group = group
         self.config = config
         self.sessionManager = sessionManager
         self.tokenStore = tokenStore
+        self.rateLimiter = rateLimiter
     }
 
     /// Create SSL context from configured cert and key files.
@@ -55,6 +58,7 @@ public final class WebSocketServer {
     public func start() async throws {
         let sessionManager = self.sessionManager
         let tokenStore = self.tokenStore
+        let rateLimiter = self.rateLimiter
         let sslContext: NIOSSLContext? = try createSSLContextIfConfigured()
 
         let upgrader = NIOWebSocketServerUpgrader(
@@ -65,7 +69,8 @@ public final class WebSocketServer {
             upgradePipelineHandler: { channel, _ in
                 let handler = RelayMessageHandler(
                     sessionManager: sessionManager,
-                    tokenStore: tokenStore
+                    tokenStore: tokenStore,
+                    rateLimiter: rateLimiter
                 )
                 return channel.pipeline.addHandler(handler)
             }
@@ -101,11 +106,25 @@ public final class WebSocketServer {
             }
             .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
 
-        let ch = try await bootstrap.bind(host: "0.0.0.0", port: Int(config.wsPort)).get()
+        // Security default: bind to loopback unless the operator explicitly opts
+        // in to network-reachable mode via config.bindAll. When bindAll is set
+        // without TLS, tokens travel in plaintext on the bound network — we log
+        // an explicit warning so this isn't silent.
+        let host = config.bindAll ? "0.0.0.0" : "127.0.0.1"
+        let ch = try await bootstrap.bind(host: host, port: Int(config.wsPort)).get()
         self.channel = ch
 
         if sslContext != nil {
-            RelayLogger.log(category: "websocket", "TLS enabled on port \(config.wsPort)")
+            RelayLogger.log(category: "websocket",
+                "TLS enabled on \(host):\(config.wsPort)")
+        } else if config.bindAll {
+            RelayLogger.log(.error, category: "websocket",
+                "Server is listening on 0.0.0.0:\(config.wsPort) without TLS. "
+                + "Tokens will be transmitted in plaintext on this network.")
+        } else {
+            RelayLogger.log(category: "websocket",
+                "Server listening on 127.0.0.1:\(config.wsPort) (localhost only). "
+                + "Set bindAll=true to accept network connections.")
         }
     }
 
@@ -120,6 +139,14 @@ public final class WebSocketServer {
 
     public func stop() async throws {
         try await channel?.close()
+    }
+
+    // MARK: - Test Hooks
+
+    /// Exposed only for tests. The local SocketAddress the WebSocket server is
+    /// bound to. Do not call from production code.
+    public var _testOnly_boundAddress: SocketAddress? {
+        channel?.localAddress
     }
 }
 

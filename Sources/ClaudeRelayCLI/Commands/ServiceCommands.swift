@@ -77,23 +77,28 @@ struct LoadCommand: AsyncParsableCommand {
 
         let config = try ConfigManager.load()
         if !globals.quiet {
+            let wsHost = config.bindAll ? "0.0.0.0" : "127.0.0.1"
             print("Service installed and started.")
-            print("  WebSocket: 0.0.0.0:\(config.wsPort)")
+            print("  WebSocket: \(wsHost):\(config.wsPort)")
             print("  Admin API: 127.0.0.1:\(config.adminPort)")
             print("  Plist:     \(plistPath)")
+            if config.bindAll && (config.tlsCert?.isEmpty ?? true) {
+                print("")
+                print("  WARNING: bindAll=true without TLS — tokens travel in the clear on the network.")
+                print("           Configure tlsCert/tlsKey or reset with: claude-relay config set bindAll false")
+            }
         }
     }
 
-    /// If the user passed --ws-port or --admin-port, update config.json
-    /// so the server picks up the new values on startup.
+    /// If the user passed --ws-port, --admin-port, or --bind-all, update
+    /// config.json so the server picks up the new values on startup.
     private func updateConfigIfNeeded() throws {
-        // Only write if at least one port was explicitly provided.
-        // Check: adminPort has a non-default value or wsPort was specified.
         let wsPortProvided = globals.wsPort != nil
         let adminPortProvided = ProcessInfo.processInfo.arguments.contains("--admin-port")
             || ProcessInfo.processInfo.arguments.contains("-p")
+        let bindAllProvided = ProcessInfo.processInfo.arguments.contains("--bind-all")
 
-        guard wsPortProvided || adminPortProvided else { return }
+        guard wsPortProvided || adminPortProvided || bindAllProvided else { return }
 
         try ConfigManager.ensureDirectory()
         var config = (try? ConfigManager.load()) ?? .default
@@ -103,6 +108,9 @@ struct LoadCommand: AsyncParsableCommand {
         }
         if adminPortProvided {
             config.adminPort = globals.adminPort
+        }
+        if bindAllProvided {
+            config.bindAll = globals.bindAll
         }
 
         try ConfigManager.save(config)

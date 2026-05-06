@@ -79,6 +79,22 @@ final class ConfigValidationTests: XCTestCase {
         XCTAssertThrowsError(try AdminRoutes.applyConfigValue("", forKey: "logLevel", to: &config))
     }
 
+    // MARK: - bindAll
+
+    func testBindAllAcceptsBool() throws {
+        var config = RelayConfig.default
+        try AdminRoutes.applyConfigValue(true, forKey: "bindAll", to: &config)
+        XCTAssertTrue(config.bindAll)
+        try AdminRoutes.applyConfigValue(false, forKey: "bindAll", to: &config)
+        XCTAssertFalse(config.bindAll)
+    }
+
+    func testBindAllRejectsNonBool() {
+        var config = RelayConfig.default
+        XCTAssertThrowsError(try AdminRoutes.applyConfigValue("yes", forKey: "bindAll", to: &config))
+        XCTAssertThrowsError(try AdminRoutes.applyConfigValue(1, forKey: "bindAll", to: &config))
+    }
+
     // MARK: - Unknown Key
 
     func testUnknownConfigKey() {

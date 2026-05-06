@@ -130,6 +130,7 @@ claude-relay logs tail                               # Follow log output
 claude-relay config show                             # Show current config
 claude-relay config set wsPort 9200                  # Set WebSocket port
 claude-relay config set adminPort 9100               # Set admin API port
+claude-relay config set bindAll true                 # Bind 0.0.0.0 (LAN) instead of 127.0.0.1 (default)
 claude-relay config set maxSessionsPerToken 50       # Cap sessions per token (0 = unlimited)
 claude-relay config set logLevel info                # trace/debug/info/warning/error
 claude-relay config validate                         # Validate the saved config file
@@ -150,7 +151,8 @@ Configuration is stored at `~/.claude-relay/config.json`:
   "tlsCert": "~/.claude-relay/certs/cert.pem",
   "tlsKey": "~/.claude-relay/certs/key.pem",
   "logLevel": "info",
-  "maxSessionsPerToken": 50
+  "maxSessionsPerToken": 50,
+  "bindAll": false
 }
 ```
 
@@ -163,6 +165,7 @@ Configuration is stored at `~/.claude-relay/config.json`:
 - `tlsKey` - Path to TLS private key file for WebSocket server (optional)
 - `logLevel` - Logging verbosity: "trace", "debug", "info", "warning", "error" (default: "info")
 - `maxSessionsPerToken` - Maximum active (non-terminal) sessions per token; 0 = unlimited (default: 50)
+- `bindAll` - When `true`, the WebSocket server binds `0.0.0.0` (reachable from the network); when `false` (default) it binds `127.0.0.1` (localhost only). Enabling this without configuring TLS transmits tokens in plaintext on the bound network.
 
 A corrupt `config.json` is tolerated: the server logs to stderr and falls back to `RelayConfig.default` so launchd-managed services stay up. App-side, `terminalScrollbackLines` (iOS + macOS Settings, default 5000, max 25000) controls the client's in-memory terminal history independent of the server's ring buffer.
 

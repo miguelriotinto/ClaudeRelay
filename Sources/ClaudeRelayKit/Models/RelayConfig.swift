@@ -27,6 +27,12 @@ public struct RelayConfig: Codable, Sendable {
     /// Maximum active (non-terminal) sessions per token. 0 means unlimited.
     public var maxSessionsPerToken: Int
 
+    /// When true, the WebSocket server binds `0.0.0.0` (reachable from the network).
+    /// When false (default), it binds `127.0.0.1` only — tokens never leave the host.
+    /// Enabling this without configuring TLS transmits bearer tokens in the clear
+    /// on the bound network.
+    public var bindAll: Bool
+
     // MARK: - Initializer
 
     public init(
@@ -37,7 +43,8 @@ public struct RelayConfig: Codable, Sendable {
         tlsCert: String? = nil,
         tlsKey: String? = nil,
         logLevel: String = "info",
-        maxSessionsPerToken: Int = 50
+        maxSessionsPerToken: Int = 50,
+        bindAll: Bool = false
     ) {
         self.wsPort = wsPort
         self.adminPort = adminPort
@@ -47,6 +54,7 @@ public struct RelayConfig: Codable, Sendable {
         self.tlsKey = tlsKey
         self.logLevel = logLevel
         self.maxSessionsPerToken = maxSessionsPerToken
+        self.bindAll = bindAll
     }
 
     // MARK: - Static Properties
@@ -75,7 +83,7 @@ public struct RelayConfig: Codable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case wsPort, adminPort, detachTimeout, scrollbackSize
-        case tlsCert, tlsKey, logLevel, maxSessionsPerToken
+        case tlsCert, tlsKey, logLevel, maxSessionsPerToken, bindAll
     }
 
     public init(from decoder: Decoder) throws {
@@ -88,5 +96,9 @@ public struct RelayConfig: Codable, Sendable {
         self.tlsKey = try c.decodeIfPresent(String.self, forKey: .tlsKey)
         self.logLevel = try c.decodeIfPresent(String.self, forKey: .logLevel) ?? "info"
         self.maxSessionsPerToken = try c.decodeIfPresent(Int.self, forKey: .maxSessionsPerToken) ?? 50
+        // Default is false — new behavior is localhost-only. Existing configs that
+        // never mentioned bindAll get the safer default. Users who relied on the
+        // previous 0.0.0.0 default must explicitly set bindAll=true.
+        self.bindAll = try c.decodeIfPresent(Bool.self, forKey: .bindAll) ?? false
     }
 }

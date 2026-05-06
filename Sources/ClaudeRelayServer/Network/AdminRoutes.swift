@@ -285,6 +285,9 @@ enum AdminRoutes {
             guard let val = value as? Int else { throw ConfigError(message: "maxSessionsPerToken must be an integer") }
             guard val >= 0 else { throw ConfigError(message: "maxSessionsPerToken must be >= 0") }
             config.maxSessionsPerToken = val
+        case "bindAll":
+            guard let val = value as? Bool else { throw ConfigError(message: "bindAll must be a boolean") }
+            config.bindAll = val
         default:
             throw ConfigError(message: "Unknown config key: \(key)")
         }

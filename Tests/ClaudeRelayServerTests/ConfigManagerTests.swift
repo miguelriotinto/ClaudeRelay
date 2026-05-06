@@ -43,6 +43,24 @@ final class ConfigManagerTests: XCTestCase {
         XCTAssertEqual(config.wsPort, 9200)
         XCTAssertEqual(config.adminPort, 9100)
         XCTAssertEqual(config.detachTimeout, 0)
+        XCTAssertFalse(config.bindAll, "New default: localhost-only bind")
+    }
+
+    func testBindAllCodableRoundTrip() throws {
+        let original = RelayConfig(bindAll: true)
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(RelayConfig.self, from: data)
+        XCTAssertTrue(decoded.bindAll)
+    }
+
+    /// Older configs on disk predate the bindAll key. Decoding must succeed
+    /// and fall back to the safe default (localhost-only).
+    func testLegacyConfigWithoutBindAllDecodesAsLocalhost() throws {
+        let legacyJSON = """
+        {"wsPort":9200,"adminPort":9100,"detachTimeout":0,"scrollbackSize":524288,"logLevel":"info","maxSessionsPerToken":50}
+        """
+        let decoded = try JSONDecoder().decode(RelayConfig.self, from: Data(legacyJSON.utf8))
+        XCTAssertFalse(decoded.bindAll, "Missing key should default to localhost-only")
     }
 
     func testConfigDirectoryPath() {

@@ -13,6 +13,10 @@ public struct GlobalOptions: ParsableArguments {
     @Option(name: .long, help: "WebSocket port")
     var wsPort: UInt16?
 
+    @Flag(name: .customLong("bind-all"),
+          help: "Bind the WebSocket server on 0.0.0.0 (network-reachable) instead of 127.0.0.1.")
+    var bindAll: Bool = false
+
     /// Backward-compatible alias: commands that used `globals.port` now use this.
     var port: UInt16 { adminPort }
 

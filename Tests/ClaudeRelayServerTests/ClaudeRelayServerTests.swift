@@ -78,4 +78,49 @@ final class ClaudeRelayServerTests: XCTestCase {
         // Clean up
         try await wsServer.stop()
     }
+
+    // MARK: - bindAll
+
+    /// Default config (bindAll=false) must bind loopback only.
+    func testBindDefaultsToLoopback() async throws {
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        defer { try? group.syncShutdownGracefully() }
+
+        let tokenStore = TokenStore(directory: RelayConfig.configDirectory)
+        var config = RelayConfig.default
+        config.wsPort = UInt16.random(in: 19_300..<19_400)
+
+        let sessionManager = SessionManager(config: config, tokenStore: tokenStore)
+        let wsServer = WebSocketServer(
+            group: group, config: config,
+            sessionManager: sessionManager, tokenStore: tokenStore
+        )
+        try await wsServer.start()
+        defer { Task { try? await wsServer.stop() } }
+
+        XCTAssertEqual(wsServer._testOnly_boundAddress?.ipAddress, "127.0.0.1",
+            "Default config must bind loopback — bindAll is off")
+    }
+
+    /// With bindAll=true, the server binds 0.0.0.0.
+    func testBindAllBindsWildcard() async throws {
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        defer { try? group.syncShutdownGracefully() }
+
+        let tokenStore = TokenStore(directory: RelayConfig.configDirectory)
+        var config = RelayConfig.default
+        config.wsPort = UInt16.random(in: 19_400..<19_500)
+        config.bindAll = true
+
+        let sessionManager = SessionManager(config: config, tokenStore: tokenStore)
+        let wsServer = WebSocketServer(
+            group: group, config: config,
+            sessionManager: sessionManager, tokenStore: tokenStore
+        )
+        try await wsServer.start()
+        defer { Task { try? await wsServer.stop() } }
+
+        XCTAssertEqual(wsServer._testOnly_boundAddress?.ipAddress, "0.0.0.0",
+            "bindAll=true must bind 0.0.0.0")
+    }
 }

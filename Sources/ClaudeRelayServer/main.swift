@@ -15,6 +15,12 @@ let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 let tokenStore = TokenStore(directory: RelayConfig.configDirectory)
 let sessionManager = SessionManager(config: config, tokenStore: tokenStore)
 
+// Shared rate limiter for both the admin HTTP surface and the WebSocket
+// auth surface. A brute-force scanner that hits either path is throttled
+// by the same bucket. 10 failures / 60 s is generous for humans typing
+// tokens but cheap enough to stall credential-stuffing tools.
+let rateLimiter = RateLimiter(maxAttempts: 10, windowSeconds: 60)
+
 // Every 30 minutes, evict observers older than 1 hour. Prevents unbounded
 // growth if a channel dies without its ChannelInboundHandler running cleanup.
 let observerPurgeTask = Task {
@@ -27,19 +33,22 @@ let observerPurgeTask = Task {
 
 let wsServer = WebSocketServer(
     group: group, config: config,
-    sessionManager: sessionManager, tokenStore: tokenStore
+    sessionManager: sessionManager, tokenStore: tokenStore,
+    rateLimiter: rateLimiter
 )
 let adminServer = AdminHTTPServer(
     group: group, port: config.adminPort,
-    sessionManager: sessionManager, tokenStore: tokenStore
+    sessionManager: sessionManager, tokenStore: tokenStore,
+    rateLimiter: rateLimiter
 )
 
 try await wsServer.start()
 try await adminServer.start()
 
-RelayLogger.log(category: "server", "Server started — WebSocket: 0.0.0.0:\(config.wsPort), Admin: 127.0.0.1:\(config.adminPort)")
+let wsHost = config.bindAll ? "0.0.0.0" : "127.0.0.1"
+RelayLogger.log(category: "server", "Server started — WebSocket: \(wsHost):\(config.wsPort), Admin: 127.0.0.1:\(config.adminPort)")
 print("ClaudeRelay server running")
-print("  WebSocket: 0.0.0.0:\(config.wsPort)")
+print("  WebSocket: \(wsHost):\(config.wsPort)")
 print("  Admin API: 127.0.0.1:\(config.adminPort)")
 
 // Auto-reap child processes (PTY shells) to prevent zombies.

@@ -64,7 +64,8 @@ struct ConfigSetCommand: AsyncParsableCommand {
     func run() async throws {
         let validKeys: Set<String> = [
             "wsPort", "adminPort", "detachTimeout", "scrollbackSize",
-            "tlsCert", "tlsKey", "logLevel", "maxSessionsPerToken"
+            "tlsCert", "tlsKey", "logLevel", "maxSessionsPerToken",
+            "bindAll"
         ]
         guard validKeys.contains(key) else {
             FileHandle.standardError.write(Data(
