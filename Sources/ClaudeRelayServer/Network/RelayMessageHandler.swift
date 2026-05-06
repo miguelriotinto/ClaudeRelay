@@ -5,7 +5,6 @@ import Foundation
 import ClaudeRelayKit
 import AppKit
 
-// swiftlint:disable:next type_body_length
 final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = WebSocketFrame
     typealias OutboundOut = WebSocketFrame
