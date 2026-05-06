@@ -1,102 +1,8 @@
 import XCTest
 @testable import ClaudeRelayKit
 
-final class ProtocolMessageTests: XCTestCase {
-
-    private let encoder: JSONEncoder = {
-        let e = JSONEncoder()
-        e.outputFormatting = [.sortedKeys]
-        return e
-    }()
-    private let decoder = JSONDecoder()
-
-    // MARK: - Helper
-
-    private func jsonObject(_ data: Data) throws -> [String: Any] {
-        let obj = try JSONSerialization.jsonObject(with: data)
-        return try XCTUnwrap(obj as? [String: Any])
-    }
-
-    // MARK: - ClientMessage Encoding Structure
-
-    func testAuthRequestEncoding() throws {
-        let msg = ClientMessage.authRequest(token: "my-token")
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "auth_request")
-        let payload = obj["payload"] as? [String: Any]
-        XCTAssertNotNil(payload)
-        XCTAssertEqual(payload?["token"] as? String, "my-token")
-    }
-
-    func testSessionCreateEncoding() throws {
-        let msg = ClientMessage.sessionCreate()
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "session_create")
-        // payload should be empty object or absent
-        let payload = obj["payload"] as? [String: Any]
-        XCTAssertNotNil(payload)
-        XCTAssertTrue(payload?.isEmpty ?? true)
-    }
-
-    func testSessionAttachEncoding() throws {
-        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let msg = ClientMessage.sessionAttach(sessionId: id)
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "session_attach")
-        let payload = obj["payload"] as? [String: Any]
-        XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
-    }
-
-    func testSessionResumeEncoding() throws {
-        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let msg = ClientMessage.sessionResume(sessionId: id)
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "session_resume")
-        let payload = obj["payload"] as? [String: Any]
-        XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
-    }
-
-    func testSessionDetachEncoding() throws {
-        let msg = ClientMessage.sessionDetach
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "session_detach")
-    }
-
-    func testResizeEncoding() throws {
-        let msg = ClientMessage.resize(cols: 120, rows: 40)
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "resize")
-        let payload = obj["payload"] as? [String: Any]
-        XCTAssertEqual(payload?["cols"] as? Int, 120)
-        XCTAssertEqual(payload?["rows"] as? Int, 40)
-    }
-
-    func testPingEncoding() throws {
-        let msg = ClientMessage.ping
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "ping")
-    }
+/// Encoding, decoding, and round-trip tests for `ServerMessage`.
+final class ServerMessageTests: ProtocolTestCase {
 
     // MARK: - ServerMessage Encoding Structure
 
@@ -105,7 +11,6 @@ final class ProtocolMessageTests: XCTestCase {
         let envelope = MessageEnvelope.server(msg)
         let data = try encoder.encode(envelope)
         let obj = try jsonObject(data)
-
         XCTAssertEqual(obj["type"] as? String, "auth_success")
     }
 
@@ -164,7 +69,6 @@ final class ProtocolMessageTests: XCTestCase {
         let envelope = MessageEnvelope.server(msg)
         let data = try encoder.encode(envelope)
         let obj = try jsonObject(data)
-
         XCTAssertEqual(obj["type"] as? String, "session_detached")
     }
 
@@ -223,7 +127,6 @@ final class ProtocolMessageTests: XCTestCase {
         let envelope = MessageEnvelope.server(msg)
         let data = try encoder.encode(envelope)
         let obj = try jsonObject(data)
-
         XCTAssertEqual(obj["type"] as? String, "pong")
     }
 
@@ -239,34 +142,7 @@ final class ProtocolMessageTests: XCTestCase {
         XCTAssertEqual(payload?["message"] as? String, "not found")
     }
 
-    // MARK: - Round-trip ClientMessage
-
-    func testClientMessageRoundTrips() throws {
-        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let messages: [ClientMessage] = [
-            .authRequest(token: "abc123"),
-            .sessionCreate(),
-            .sessionAttach(sessionId: id),
-            .sessionResume(sessionId: id),
-            .sessionDetach,
-            .resize(cols: 80, rows: 24),
-            .ping
-        ]
-
-        for original in messages {
-            let envelope = MessageEnvelope.client(original)
-            let data = try encoder.encode(envelope)
-            let decoded = try decoder.decode(MessageEnvelope.self, from: data)
-
-            guard case .client(let roundTripped) = decoded else {
-                XCTFail("Expected .client envelope, got \(decoded)")
-                continue
-            }
-            XCTAssertEqual(original, roundTripped, "Round-trip failed for \(original)")
-        }
-    }
-
-    // MARK: - Round-trip ServerMessage
+    // MARK: - Round-trip
 
     func testServerMessageRoundTrips() throws {
         let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
@@ -303,16 +179,6 @@ final class ProtocolMessageTests: XCTestCase {
 
     // MARK: - Field Verification
 
-    func testAuthRequestFieldVerification() throws {
-        let json = #"{"type":"auth_request","payload":{"token":"secret-token-123"}}"#
-        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
-        guard case .client(.authRequest(let token, let protocolVersion)) = envelope else {
-            XCTFail("Expected authRequest"); return
-        }
-        XCTAssertEqual(token, "secret-token-123")
-        XCTAssertNil(protocolVersion)
-    }
-
     func testSessionCreatedFieldVerification() throws {
         let id = "12345678-1234-1234-1234-123456789ABC"
         let json = #"{"type":"session_created","payload":{"sessionId":"\#(id)","cols":132,"rows":50}}"#
@@ -335,16 +201,6 @@ final class ProtocolMessageTests: XCTestCase {
         XCTAssertEqual(message, "rate limited")
     }
 
-    func testResizeFieldVerification() throws {
-        let json = #"{"type":"resize","payload":{"cols":200,"rows":60}}"#
-        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
-        guard case .client(.resize(let cols, let rows)) = envelope else {
-            XCTFail("Expected resize"); return
-        }
-        XCTAssertEqual(cols, 200)
-        XCTAssertEqual(rows, 60)
-    }
-
     func testSessionTerminatedFieldVerification() throws {
         let id = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"
         let json = #"{"type":"session_terminated","payload":{"sessionId":"\#(id)","reason":"timeout"}}"#
@@ -354,27 +210,6 @@ final class ProtocolMessageTests: XCTestCase {
         }
         XCTAssertEqual(sessionId.uuidString, id)
         XCTAssertEqual(reason, "timeout")
-    }
-
-    // MARK: - session_list_result Regression
-
-    /// Regression test: session_list used to collide with client's session_list
-    /// type string. Server now uses "session_list_result". This test ensures
-    /// the server response decodes as .server, not .client.
-    func testSessionListResultDecodesAsServer() throws {
-        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let json = """
-        {"type":"session_list_result","payload":{"sessions":[{"id":"\(id.uuidString)","state":"active-attached","tokenId":"tok_1","createdAt":1735689600.0,"cols":80,"rows":24,"activity":"agent_active","agent":"claude"}]}}
-        """
-        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
-        guard case .server(.sessionList(let sessions)) = envelope else {
-            XCTFail("Expected .server(.sessionList), got \(envelope)")
-            return
-        }
-        XCTAssertEqual(sessions.count, 1)
-        XCTAssertEqual(sessions[0].id, id)
-        XCTAssertEqual(sessions[0].activity, .agentActive)
-        XCTAssertEqual(sessions[0].agent, "claude")
     }
 
     // MARK: - sessionActivity
@@ -403,20 +238,6 @@ final class ProtocolMessageTests: XCTestCase {
         XCTAssertEqual(sessionId.uuidString, id)
         XCTAssertEqual(activity, .agentActive)
         XCTAssertEqual(agent, "claude")
-    }
-
-    /// Backward compat: an old server that doesn't know about the `agent` field
-    /// still sends `{"activity":"claude_active"}`. The new client must decode
-    /// that to `.agentActive` with a nil agent ID.
-    func testSessionActivityLegacyDecodes() throws {
-        let id = "12345678-1234-1234-1234-123456789ABC"
-        let json = #"{"type":"session_activity","payload":{"sessionId":"\#(id)","activity":"claude_active"}}"#
-        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
-        guard case .server(.sessionActivity(_, let activity, let agent)) = envelope else {
-            XCTFail("Expected sessionActivity"); return
-        }
-        XCTAssertEqual(activity, .agentActive)
-        XCTAssertNil(agent)
     }
 
     func testSessionActivityRoundTrip() throws {
@@ -458,88 +279,6 @@ final class ProtocolMessageTests: XCTestCase {
         XCTAssertEqual(sessionId.uuidString, id)
     }
 
-    // MARK: - sessionCreate with name
-
-    func testSessionCreateWithNameEncoding() throws {
-        let msg = ClientMessage.sessionCreate(name: "Rhaegar")
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "session_create")
-        let payload = obj["payload"] as? [String: Any]
-        XCTAssertEqual(payload?["name"] as? String, "Rhaegar")
-    }
-
-    func testSessionCreateWithoutNameEncoding() throws {
-        let msg = ClientMessage.sessionCreate(name: nil)
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "session_create")
-    }
-
-    func testSessionCreateWithNameRoundTrip() throws {
-        let original = ClientMessage.sessionCreate(name: "Tyrion")
-        let envelope = MessageEnvelope.client(original)
-        let data = try encoder.encode(envelope)
-        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
-        guard case .client(let roundTripped) = decoded else {
-            XCTFail("Expected .client envelope"); return
-        }
-        XCTAssertEqual(original, roundTripped)
-    }
-
-    func testSessionCreateWithoutNameRoundTrip() throws {
-        let original = ClientMessage.sessionCreate(name: nil)
-        let envelope = MessageEnvelope.client(original)
-        let data = try encoder.encode(envelope)
-        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
-        guard case .client(let roundTripped) = decoded else {
-            XCTFail("Expected .client envelope"); return
-        }
-        XCTAssertEqual(original, roundTripped)
-    }
-
-    // MARK: - sessionRename
-
-    func testSessionRenameEncoding() throws {
-        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let msg = ClientMessage.sessionRename(sessionId: id, name: "Daenerys")
-        let envelope = MessageEnvelope.client(msg)
-        let data = try encoder.encode(envelope)
-        let obj = try jsonObject(data)
-
-        XCTAssertEqual(obj["type"] as? String, "session_rename")
-        let payload = obj["payload"] as? [String: Any]
-        XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
-        XCTAssertEqual(payload?["name"] as? String, "Daenerys")
-    }
-
-    func testSessionRenameRoundTrip() throws {
-        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
-        let original = ClientMessage.sessionRename(sessionId: id, name: "Sansa")
-        let envelope = MessageEnvelope.client(original)
-        let data = try encoder.encode(envelope)
-        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
-        guard case .client(let roundTripped) = decoded else {
-            XCTFail("Expected .client envelope"); return
-        }
-        XCTAssertEqual(original, roundTripped)
-    }
-
-    func testSessionRenameFieldVerification() throws {
-        let id = "12345678-1234-1234-1234-123456789ABC"
-        let json = #"{"type":"session_rename","payload":{"sessionId":"\#(id)","name":"Arya"}}"#
-        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
-        guard case .client(.sessionRename(let sessionId, let name)) = envelope else {
-            XCTFail("Expected sessionRename"); return
-        }
-        XCTAssertEqual(sessionId.uuidString, id)
-        XCTAssertEqual(name, "Arya")
-    }
-
     // MARK: - sessionRenamed
 
     func testSessionRenamedEncoding() throws {
@@ -579,16 +318,6 @@ final class ProtocolMessageTests: XCTestCase {
     }
 
     // MARK: - Equatable
-
-    func testClientMessageEquatable() {
-        let id = UUID()
-        XCTAssertEqual(ClientMessage.ping, ClientMessage.ping)
-        XCTAssertEqual(ClientMessage.sessionCreate(), ClientMessage.sessionCreate())
-        XCTAssertEqual(ClientMessage.authRequest(token: "a"), ClientMessage.authRequest(token: "a"))
-        XCTAssertNotEqual(ClientMessage.authRequest(token: "a"), ClientMessage.authRequest(token: "b"))
-        XCTAssertEqual(ClientMessage.sessionAttach(sessionId: id), ClientMessage.sessionAttach(sessionId: id))
-        XCTAssertNotEqual(ClientMessage.ping, ClientMessage.sessionCreate())
-    }
 
     func testServerMessageEquatable() {
         let id = UUID()

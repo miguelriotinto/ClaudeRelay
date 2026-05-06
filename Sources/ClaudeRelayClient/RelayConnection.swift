@@ -46,7 +46,51 @@ public final class RelayConnection: ObservableObject {
     // MARK: - Callbacks
 
     /// Called when a control (JSON) message is received from the server.
-    public var onServerMessage: ((ServerMessage) -> Void)?
+    ///
+    /// Prefer `addServerMessageSubscriber(_:)` for new code — it composes with
+    /// other subscribers instead of overwriting a single slot. This property
+    /// is retained for back-compat so existing callers (coordinator wiring,
+    /// tests) keep working; internally it reuses the same subscriber list.
+    public var onServerMessage: ((ServerMessage) -> Void)? {
+        get { legacyServerMessageHandler }
+        set {
+            if let existing = legacyServerMessageId {
+                subscribers.removeValue(forKey: existing)
+                legacyServerMessageId = nil
+            }
+            legacyServerMessageHandler = newValue
+            if let handler = newValue {
+                let id = UUID()
+                legacyServerMessageId = id
+                subscribers[id] = handler
+            }
+        }
+    }
+
+    /// Unique subscription id returned by `addServerMessageSubscriber`.
+    public typealias ServerMessageSubscription = UUID
+
+    /// Register a handler that receives every inbound `ServerMessage`.
+    /// Returns a token that must be passed to `removeSubscriber(_:)` to
+    /// detach — otherwise the handler lives until the connection is freed.
+    @discardableResult
+    public func addServerMessageSubscriber(
+        _ handler: @escaping (ServerMessage) -> Void
+    ) -> ServerMessageSubscription {
+        let id = UUID()
+        subscribers[id] = handler
+        return id
+    }
+
+    /// Detach a subscription previously returned by
+    /// `addServerMessageSubscriber`. No-op for unknown ids.
+    public func removeSubscriber(_ id: ServerMessageSubscription) {
+        subscribers.removeValue(forKey: id)
+    }
+
+    private var subscribers: [UUID: (ServerMessage) -> Void] = [:]
+    private var legacyServerMessageId: UUID?
+    private var legacyServerMessageHandler: ((ServerMessage) -> Void)?
 
     /// Called when terminal output (binary) data is received from the server.
     public var onTerminalOutput: ((Data) -> Void)?
@@ -65,6 +109,12 @@ public final class RelayConnection: ObservableObject {
     /// Internal pings (keepalive / liveness probes) do NOT trigger this — only
     /// user-initiated commands and the explicit death detector in the quality monitor.
     public var onSendFailed: (() -> Void)?
+
+    /// Fires each time the keepalive loop records a healthy ping RTT. Used by
+    /// the coordinator to reset the auto-recovery circuit breaker — a run of
+    /// successful pings after a transient outage should not leave the breaker
+    /// armed against the next legitimate `onSendFailed`.
+    public var onHealthyPing: (() -> Void)?
 
     // MARK: - Private Properties
 
@@ -363,6 +413,10 @@ public final class RelayConnection: ObservableObject {
             consecutiveFailures += 1
         } else {
             consecutiveFailures = 0
+            // A single healthy ping is enough to confirm the transport is live
+            // again; let the coordinator clear the auto-recovery breaker so a
+            // future `onSendFailed` can trigger a fresh recovery attempt.
+            onHealthyPing?()
         }
     }
 
@@ -410,7 +464,13 @@ public final class RelayConnection: ObservableObject {
                         return
                     }
 
-                    onServerMessage?(serverMessage)
+                    // Fan out to every registered subscriber. Copy the
+                    // dictionary's values first so a handler that calls
+                    // `removeSubscriber` during dispatch doesn't mutate the
+                    // collection we're iterating over.
+                    for handler in subscribers.values {
+                        handler(serverMessage)
+                    }
 
                     switch serverMessage {
                     case .sessionActivity(let sessionId, let activity, let agent):

@@ -99,3 +99,20 @@ int relay_get_parent_pid(int pid) {
     if (size == 0) return -1;
     return (int)info.kp_eproc.e_ppid;
 }
+
+long long relay_get_process_start_time(int pid) {
+    struct kinfo_proc info;
+    memset(&info, 0, sizeof(info));
+    size_t size = sizeof(info);
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid };
+    if (sysctl(mib, 4, &info, &size, NULL, 0) < 0) return -1;
+    if (size == 0) return -1;
+    // kp_proc.p_starttime is a struct timeval (seconds + microseconds).
+    // Returning seconds is more than enough for PID-reuse discrimination:
+    // the race window we're protecting against is 2 seconds, and PID reuse
+    // within the same wall-clock second is indistinguishable without the
+    // microsecond component — so include both, packed into microseconds.
+    long long secs = (long long)info.kp_proc.p_starttime.tv_sec;
+    long long usecs = (long long)info.kp_proc.p_starttime.tv_usec;
+    return secs * 1000000LL + usecs;
+}

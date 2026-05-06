@@ -34,7 +34,10 @@ struct SettingsView: View {
                     } header: {
                         Text("AWS Bedrock")
                     } footer: {
-                        Text("Prompt Enhancement uses Claude Haiku on AWS Bedrock. Paste your bearer token to enable cloud-based prompt rewriting.")
+                        Text(
+                            "Prompt Enhancement uses Claude Haiku on AWS Bedrock. "
+                            + "Paste your bearer token to enable cloud-based prompt rewriting."
+                        )
                     }
                 }
 

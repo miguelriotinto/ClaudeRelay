@@ -31,6 +31,14 @@ public enum ActivityState: String, Equatable, Sendable {
 // MARK: - Codable (backward-compatible)
 
 extension ActivityState: Codable {
+    /// Accepts the legacy `claude_active` / `claude_idle` raw values for
+    /// backward compatibility with servers predating multi-agent support.
+    /// Note the asymmetry: the synthesized `encode(to:)` (RawRepresentable)
+    /// always emits the canonical modern names — we never *write* legacy
+    /// values, so a v1+ server cannot talk to a v0 client that only
+    /// understands legacy values. Keep `minProtocolVersion = 0` while that
+    /// compatibility matters; re-evaluate the moment a breaking wire change
+    /// forces the minimum up.
     public init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         switch raw {

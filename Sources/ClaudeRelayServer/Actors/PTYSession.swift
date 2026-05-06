@@ -16,7 +16,10 @@ public protocol PTYSessionProtocol: Actor {
     func terminate()
     func getActivityState() -> ActivityState
     func getActiveAgent() -> CodingAgent?
-    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState, CodingAgent?) -> Void)
+    /// Activity updates carry a monotonic `revision`. Downstream observers
+    /// that cross isolation boundaries drop updates whose revision is older
+    /// than what they last recorded — see `SessionManager.reportActivityChange`.
+    func setActivityHandler(_ handler: @escaping @Sendable (ActivityState, CodingAgent?, UInt64) -> Void)
     func recordInput()
     /// 1.0 for attached (responsive entry detection); 5.0 for detached.
     func setPollCadence(_ seconds: TimeInterval)
@@ -35,7 +38,7 @@ public enum PTYError: Error {
 /// `onChange` closure captures this box (which is created before `self` is
 /// fully initialized), and `PTYSession` writes the real handler into it later.
 private final class ActivityCallbackBox: @unchecked Sendable {
-    var handler: (@Sendable (ActivityState, CodingAgent?) -> Void)?
+    var handler: (@Sendable (ActivityState, CodingAgent?, UInt64) -> Void)?
 }
 
 // MARK: - PTYSession Actor
@@ -53,6 +56,11 @@ public actor PTYSession: PTYSessionProtocol {
 
     private let masterFD: Int32
     private let childPID: Int32
+    /// Start time of `childPID`, captured right after `forkpty`. Used by
+    /// `terminate()` to detect PID reuse before sending SIGKILL (C-10). In
+    /// microseconds-since-epoch so sub-second restarts are distinguishable;
+    /// `-1` means the lookup failed at init and SIGKILL will skip the check.
+    private let childStartTime: Int64
     private var ringBuffer: RingBuffer
     private var readSource: DispatchSourceRead?
     private var outputHandler: (@Sendable (Data) -> Void)?
@@ -61,7 +69,7 @@ public actor PTYSession: PTYSessionProtocol {
     /// Shared box to bridge the monitor's synchronous onChange callback into the actor.
     /// The monitor captures this box (not `self`) so the closure doesn't require `self` to be fully initialized.
     private let activityCallbackBox = ActivityCallbackBox()
-    private var activityHandler: (@Sendable (ActivityState, CodingAgent?) -> Void)?
+    private var activityHandler: (@Sendable (ActivityState, CodingAgent?, UInt64) -> Void)?
     private var terminated: Bool = false
     private var foregroundPollTimer: DispatchSourceTimer?
 
@@ -152,6 +160,11 @@ public actor PTYSession: PTYSessionProtocol {
         // Parent process
         self.masterFD = fd
         self.childPID = pid
+        // Capture the child's start time immediately so `terminate()` can
+        // detect PID reuse before sending SIGKILL (C-10). sysctl is
+        // best-effort; if it fails we store -1 and skip the check at kill
+        // time, accepting the residual reuse risk.
+        self.childStartTime = relay_get_process_start_time(pid)
         // Put the master FD into non-blocking mode so write() never pins the
         // actor. write(2) returns EAGAIN when the shell's input buffer is full;
         // we buffer the remainder in writeQueue and drain from a DispatchSource.
@@ -161,8 +174,8 @@ public actor PTYSession: PTYSessionProtocol {
         self.activityMonitor = SessionActivityMonitor(
             silenceThreshold: 1.0,
             agentSilenceThreshold: 2.0,
-            onChange: { newState, agent in
-                box.handler?(newState, agent)
+            onChange: { newState, agent, revision in
+                box.handler?(newState, agent, revision)
             }
         )
     }
@@ -346,8 +359,10 @@ public actor PTYSession: PTYSessionProtocol {
         activityMonitor.activeAgent
     }
 
-    /// Set callback for activity state changes.
-    public func setActivityHandler(_ handler: @escaping @Sendable (ActivityState, CodingAgent?) -> Void) {
+    /// Set callback for activity state changes. The monitor emits a monotonic
+    /// `revision` with every change so downstream observers can drop out-of-order
+    /// updates that cross isolation boundaries.
+    public func setActivityHandler(_ handler: @escaping @Sendable (ActivityState, CodingAgent?, UInt64) -> Void) {
         self.activityHandler = handler
         self.activityCallbackBox.handler = handler
     }
@@ -489,14 +504,33 @@ public actor PTYSession: PTYSessionProtocol {
         // so the kernel auto-reaps — no waitpid needed.
         let pid = childPID
         let sid = sessionId
+        let startTime = childStartTime
         if kill(pid, SIGTERM) != 0 {
             RelayLogger.log(.error, category: "session", "PTYSession \(sid) SIGTERM failed for pid \(pid): errno \(errno)")
         }
 
-        // Schedule SIGKILL after 5 seconds if the process hasn't exited
-        DispatchQueue.global().asyncAfter(deadline: .now() + 5.0) {
+        // Schedule SIGKILL after 2 s if the process hasn't exited. zsh exits
+        // within ~100 ms of SIGTERM in practice, so 2 s is a generous safety
+        // margin.
+        //
+        // Before firing SIGKILL, verify the PID still belongs to our child
+        // by comparing its start time to what we captured at fork. If macOS
+        // has recycled the PID for an unrelated process in the last 2 s, the
+        // start times won't match and we skip the kill (C-10).
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
             // Check if process is still alive (kill with signal 0)
             if kill(pid, 0) == 0 {
+                // Start-time check: skip SIGKILL if the PID was recycled.
+                // `startTime == -1` means the init-time lookup failed, in
+                // which case we accept the residual reuse risk and proceed.
+                if startTime != -1 {
+                    let current = relay_get_process_start_time(pid)
+                    if current != -1 && current != startTime {
+                        RelayLogger.log(.error, category: "session",
+                            "PTYSession \(sid) PID \(pid) was recycled (start \(startTime) → \(current)); skipping SIGKILL")
+                        return
+                    }
+                }
                 if kill(pid, SIGKILL) != 0 {
                     RelayLogger.log(.error, category: "session", "PTYSession \(sid) SIGKILL failed for pid \(pid): errno \(errno)")
                 }

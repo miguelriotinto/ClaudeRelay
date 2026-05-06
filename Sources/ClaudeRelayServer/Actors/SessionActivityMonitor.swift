@@ -26,17 +26,26 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     private let silenceThreshold: TimeInterval
     private let agentSilenceThreshold: TimeInterval
-    private let onChange: @Sendable (ActivityState, CodingAgent?) -> Void
+    /// Monotonically-increasing change revision. Consumers that marshal callbacks
+    /// across isolation boundaries (PTY actor → SessionManager actor) use this
+    /// to drop updates that arrived out of order: an older revision must never
+    /// overwrite a newer one even if its enqueue-then-await was delayed.
+    public private(set) var revision: UInt64 = 0
+    private let onChange: @Sendable (ActivityState, CodingAgent?, UInt64) -> Void
 
-    /// Called by the silence timer from `timerQueue`. The owner (PTYSession) sets
-    /// this to a closure that re-enters the actor and calls `applySilenceTimeout()`,
-    /// ensuring all state mutations happen on a single isolation domain.
+    /// Invoked by the silence timer's Task when the threshold elapses. The
+    /// owner (PTYSession) sets this to a closure that re-enters the actor
+    /// and calls `applySilenceTimeout()`, ensuring all state mutations
+    /// happen on a single isolation domain.
     public var onSilenceTimeout: (@Sendable () -> Void)?
 
     // MARK: - Internals
 
-    private var silenceTimer: DispatchWorkItem?
-    private let timerQueue = DispatchQueue(label: "com.claude.relay.activity-monitor")
+    /// Replaces the previous `DispatchWorkItem`+`timerQueue` pair. Using a
+    /// cancellable Task lets `cancel()` / `forceExit()` / new-output resets
+    /// take effect without a secondary dispatch queue reading actor-guarded
+    /// state, closing the `cancelled`/`activeAgent` data race flagged by C-09.
+    private var silenceTask: Task<Void, Never>?
     private var cancelled = false
 
     /// Exit debounce: counts consecutive non-agent signals from **any source**
@@ -55,7 +64,7 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     public init(
         silenceThreshold: TimeInterval = 1.0,
         agentSilenceThreshold: TimeInterval = 2.0,
-        onChange: @escaping @Sendable (ActivityState, CodingAgent?) -> Void
+        onChange: @escaping @Sendable (ActivityState, CodingAgent?, UInt64) -> Void
     ) {
         self.silenceThreshold = silenceThreshold
         self.agentSilenceThreshold = agentSilenceThreshold
@@ -107,8 +116,8 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     /// Emits a final state change so clients see the definitive "not running" state.
     public func forceExit() {
         guard !cancelled else { return }
-        silenceTimer?.cancel()
-        silenceTimer = nil
+        silenceTask?.cancel()
+        silenceTask = nil
         if activeAgent != nil {
             activeAgent = nil
             consecutiveNoAgentPolls = 0
@@ -119,8 +128,8 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     /// Stop monitoring. Called on session termination.
     public func cancel() {
         cancelled = true
-        silenceTimer?.cancel()
-        silenceTimer = nil
+        silenceTask?.cancel()
+        silenceTask = nil
     }
 
     // MARK: - Foreground Process Detection
@@ -153,13 +162,18 @@ public final class SessionActivityMonitor: @unchecked Sendable {
 
     /// Scan for OSC title set sequences: ESC ] 0 ; <title> BEL (or ESC ] 2 ; <title> BEL)
     private func detectTitleChange(in data: Data) {
+        // Hot path: PTY output chunks that contain no ESC byte can never
+        // carry an OSC title sequence. Short-circuit using Data's memchr-
+        // backed `firstIndex(of:)` before materialising `[UInt8](data)`
+        // or running the index-by-index scan.
+        guard data.firstIndex(of: 0x1B) != nil else { return }
         let bytes = [UInt8](data)
         var i = 0
         while i < bytes.count - 4 {
             if bytes[i] == 0x1B, bytes[i + 1] == 0x5D {
                 let paramStart = i + 2
                 if paramStart < bytes.count,
-                   (bytes[paramStart] == 0x30 || bytes[paramStart] == 0x32),
+                   bytes[paramStart] == 0x30 || bytes[paramStart] == 0x32,
                    paramStart + 1 < bytes.count, bytes[paramStart + 1] == 0x3B {
                     let titleStart = paramStart + 2
                     var titleEnd = titleStart
@@ -223,19 +237,30 @@ public final class SessionActivityMonitor: @unchecked Sendable {
     }
 
     private func resetSilenceTimer() {
-        silenceTimer?.cancel()
+        silenceTask?.cancel()
         let threshold = activeAgent != nil ? agentSilenceThreshold : silenceThreshold
-        let item = DispatchWorkItem { [weak self] in
+        // Capture the callback once up-front. `onSilenceTimeout` is the
+        // owning actor's re-entrancy hook (`PTYSession.handleSilenceTimeout`)
+        // which awaits back into actor isolation before calling
+        // `applySilenceTimeout()`. If no owner installed a callback we fall
+        // back to transitioning directly — used only by tests that construct
+        // the monitor without a PTY around it.
+        let callback = onSilenceTimeout
+        silenceTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(threshold))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             guard let self, !self.cancelled else { return }
-            if let callback = self.onSilenceTimeout {
+            if let callback {
                 callback()
             } else {
                 let idleState: ActivityState = self.activeAgent != nil ? .agentIdle : .idle
                 self.transition(to: idleState)
             }
         }
-        silenceTimer = item
-        timerQueue.asyncAfter(deadline: .now() + threshold, execute: item)
     }
 
     // MARK: - State Transition
@@ -244,7 +269,9 @@ public final class SessionActivityMonitor: @unchecked Sendable {
         guard newState != state else { return }
         let oldState = state
         state = newState
-        RelayLogger.log(.debug, category: "activity", "State: \(oldState.rawValue) → \(newState.rawValue)")
-        onChange(newState, activeAgent)
+        revision &+= 1
+        RelayLogger.log(.debug, category: "activity",
+            "State: \(oldState.rawValue) → \(newState.rawValue) (rev=\(revision))")
+        onChange(newState, activeAgent, revision)
     }
 }

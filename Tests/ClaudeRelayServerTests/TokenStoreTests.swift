@@ -140,4 +140,59 @@ final class TokenStoreTests: XCTestCase {
         XCTAssertFalse(dirtyAfterFlush,
             "flushIfDirty must clear the dirty flag synchronously, not wait for the 30s timer")
     }
+
+    // MARK: - C-05: save-failure handling
+
+    /// If the disk save fails during `flushIfDirty` (readonly directory, disk full),
+    /// the dirty flag must remain set so the next successful write retries the flush.
+    /// Silently clearing the flag would strand the unsaved `lastUsedAt` update.
+    func testFlushIfDirtyKeepsDirtyFlagOnSaveFailure() async throws {
+        let store = TokenStore(directory: tempDir)
+        let (plaintext, _) = try await store.create(label: "rofail")
+
+        // Dirty the store via validate (updates lastUsedAt in-memory).
+        _ = await store.validate(token: plaintext)
+        let dirtyBefore = await store._testOnly_isDirty
+        XCTAssertTrue(dirtyBefore)
+
+        // Make the directory read-only so the atomic tempfile-rename inside
+        // `Data.write(to:options:.atomic)` fails.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: tempDir.path)
+        defer {
+            // Restore so tearDown can remove the directory.
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempDir.path)
+        }
+
+        await store.flushIfDirty()
+
+        let dirtyAfter = await store._testOnly_isDirty
+        XCTAssertTrue(dirtyAfter,
+            "flushIfDirty must keep the dirty flag set when the disk save fails")
+    }
+
+    /// Even if `create` cannot persist (readonly directory), the in-memory
+    /// cache must remain consistent with the disk state — callers who see
+    /// the error must not observe a cache that "already has" the new token.
+    func testCreateTokenFailureDoesNotCorruptCache() async throws {
+        let store = TokenStore(directory: tempDir)
+        _ = try await store.create(label: "first")
+        let countBefore = await store.list().count
+        XCTAssertEqual(countBefore, 1)
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: tempDir.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: tempDir.path)
+        }
+
+        do {
+            _ = try await store.create(label: "second")
+            XCTFail("Expected create to throw when the directory is read-only")
+        } catch {
+            // expected
+        }
+
+        let countAfter = await store.list().count
+        XCTAssertEqual(countAfter, 1,
+            "Failed create must not leak into the in-memory cache")
+    }
 }

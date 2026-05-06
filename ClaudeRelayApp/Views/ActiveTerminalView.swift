@@ -325,4 +325,3 @@ private struct SessionUptimeView: View {
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
-

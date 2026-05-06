@@ -6,11 +6,13 @@ import Foundation
 /// Raw values are stable identifiers suitable for `@AppStorage` persistence —
 /// don't rename a case without also providing a migration.
 public enum SessionNamingTheme: String, CaseIterable, Identifiable, Sendable {
-    case gameOfThrones = "gameOfThrones"
-    case viking = "viking"
-    case starWars = "starWars"
-    case dune = "dune"
-    case lordOfTheRings = "lordOfTheRings"
+    // Implicit raw values (case-name strings) are identical to the previous
+    // explicit literals, so existing `@AppStorage` values round-trip unchanged.
+    case gameOfThrones
+    case viking
+    case starWars
+    case dune
+    case lordOfTheRings
 
     public var id: String { rawValue }
 

@@ -13,6 +13,19 @@ final class SessionActivityMonitorTests: XCTestCase {
         SessionActivityMonitor(
             silenceThreshold: silenceThreshold,
             agentSilenceThreshold: agentSilenceThreshold,
+            onChange: { state, agent, _ in onChange(state, agent) }
+        )
+    }
+
+    /// Variant that exposes the monotonic revision to tests that care about it.
+    private func makeMonitorWithRevision(
+        silenceThreshold: TimeInterval = 0.1,
+        agentSilenceThreshold: TimeInterval = 0.2,
+        onChange: @escaping @Sendable (ActivityState, CodingAgent?, UInt64) -> Void
+    ) -> SessionActivityMonitor {
+        SessionActivityMonitor(
+            silenceThreshold: silenceThreshold,
+            agentSilenceThreshold: agentSilenceThreshold,
             onChange: onChange
         )
     }
@@ -50,6 +63,43 @@ final class SessionActivityMonitorTests: XCTestCase {
         let monitor = makeMonitor()
         XCTAssertEqual(monitor.state, .active)
         XCTAssertNil(monitor.activeAgent)
+        XCTAssertEqual(monitor.revision, 0, "Initial revision must be 0")
+    }
+
+    // MARK: - C-03 Revision Counter
+
+    /// Every real transition must emit a strictly increasing revision.
+    /// Consumers downstream rely on this ordering to reject stale updates.
+    func testRevisionsAreMonotonic() {
+        // Use a thread-safe recorder so Swift 6 strict-concurrency doesn't
+        // complain about captured-var mutation across the @Sendable boundary.
+        final class RevRecorder: @unchecked Sendable {
+            private var values: [UInt64] = []
+            private let lock = NSLock()
+            func append(_ value: UInt64) { lock.lock(); values.append(value); lock.unlock() }
+            func snapshot() -> [UInt64] { lock.lock(); defer { lock.unlock() }; return values }
+        }
+        let recorder = RevRecorder()
+        let monitor = makeMonitorWithRevision { _, _, rev in
+            recorder.append(rev)
+        }
+
+        // Drive a handful of real transitions.
+        monitor.updateForegroundProcess(agent: .claude)           // .active → .agentActive (rev 1)
+        monitor.updateForegroundProcess(agent: .codex)            // agent switch (rev unchanged — same state)
+        monitor.applySilenceTimeout()                              // .agentActive → .agentIdle (rev 2)
+        monitor.processOutput(output("anything"))                  // .agentIdle → .agentActive (rev 3)
+        monitor.forceExit()                                        // clear + .active → .idle OR direct .idle (rev 4)
+
+        let captured = recorder.snapshot()
+        XCTAssertFalse(captured.isEmpty, "Expected at least one revision emission")
+        var previous: UInt64 = 0
+        for rev in captured {
+            XCTAssertGreaterThan(rev, previous,
+                "Revisions must be strictly increasing: saw \(captured)")
+            previous = rev
+        }
+        XCTAssertEqual(monitor.revision, previous)
     }
 
     // MARK: - Agent Entry Detection
@@ -488,6 +538,36 @@ final class SessionActivityMonitorTests: XCTestCase {
         monitor.cancel()
         try? await Task.sleep(for: .milliseconds(100))
         XCTAssertTrue(states.isEmpty || !states.contains(.idle))
+    }
+
+    // MARK: - C-09: Task-based silence timer
+
+    /// Cancelling the monitor while a silence Task is pending must not let
+    /// the Task fire a late transition. Regression for C-09: the prior
+    /// `DispatchWorkItem` variant read `self.cancelled` from a dispatch
+    /// queue outside the owner's actor and could race with `cancel()`.
+    func testCancelDuringPendingSilenceTimerDoesNotFire() async {
+        // Thread-safe collector to avoid Swift-6 concurrent-capture warnings.
+        final class StateRecorder: @unchecked Sendable {
+            private var values: [ActivityState] = []
+            private let lock = NSLock()
+            func append(_ value: ActivityState) { lock.lock(); values.append(value); lock.unlock() }
+            func snapshot() -> [ActivityState] { lock.lock(); defer { lock.unlock() }; return values }
+        }
+        let recorder = StateRecorder()
+        let monitor = makeMonitorStateOnly(silenceThreshold: 0.1) { state in
+            recorder.append(state)
+        }
+
+        // Arm the timer, give it half the threshold, cancel before it fires,
+        // then wait well past the threshold.
+        monitor.processOutput(output("arm timer"))
+        try? await Task.sleep(for: .milliseconds(50))
+        monitor.cancel()
+        try? await Task.sleep(for: .milliseconds(200))
+
+        XCTAssertFalse(recorder.snapshot().contains(.idle),
+            "Cancelled silence Task must not fire a late .idle transition")
     }
 
     // MARK: - Fast path: regex/UTF-8 decode skipped when no agent running

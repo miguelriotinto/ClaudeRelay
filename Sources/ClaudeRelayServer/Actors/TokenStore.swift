@@ -37,6 +37,13 @@ public actor TokenStore {
 
     // MARK: - Public API
 
+    // Invariant for `create`/`delete`/`rotate`/`rename`: mutate a LOCAL copy
+    // first, `try save(...)`, and only assign `self.tokens = ...` after the
+    // save succeeds. If `save` throws, the in-memory cache stays consistent
+    // with disk. Never write `self.tokens` before `save` — a silent disk
+    // failure would otherwise leave the cache ahead of the persisted state,
+    // which is recovered on next restart.
+
     /// Generate a new token, persist it, and return the plaintext + info.
     public func create(label: String?, expiryDays: Int? = nil) throws -> (plaintext: String, info: TokenInfo) {
         let loaded = try ensureLoaded()
@@ -135,12 +142,22 @@ public actor TokenStore {
     /// Flush any pending lastUsedAt changes to disk. Call on server shutdown.
     /// Cancels the scheduled dirty-flush task up-front so it cannot race us
     /// or outlive the actor after shutdownGracefully returns.
+    ///
+    /// If the save throws (disk full, permission flip), the dirty flag STAYS
+    /// set — the next successful mutation will re-attempt. Silently clearing
+    /// the dirty flag on failure would strand unsaved lastUsedAt updates
+    /// until the next explicit write to the store.
     public func flushIfDirty() {
         flushTask?.cancel()
         flushTask = nil
         guard lastUsedDirty, let tokens = tokens else { return }
-        try? save(tokens)
-        lastUsedDirty = false
+        do {
+            try save(tokens)
+            lastUsedDirty = false
+        } catch {
+            RelayLogger.log(.error, category: "tokens",
+                "flushIfDirty: save failed, keeping dirty flag: \(error)")
+        }
     }
 
     // MARK: - Private Helpers
@@ -155,10 +172,19 @@ public actor TokenStore {
         }
     }
 
+    /// Background flush path. Same rule as `flushIfDirty`: on save failure,
+    /// we keep the dirty flag set so a subsequent mutation or `flushIfDirty`
+    /// call gets another chance to persist. `flushTask` is cleared either way
+    /// so a new dirty write can schedule a fresh sleep window.
     private func performDirtyFlush() {
         guard lastUsedDirty, let tokens = tokens else { return }
-        try? save(tokens)
-        lastUsedDirty = false
+        do {
+            try save(tokens)
+            lastUsedDirty = false
+        } catch {
+            RelayLogger.log(.error, category: "tokens",
+                "performDirtyFlush: save failed, will retry on next write: \(error)")
+        }
         flushTask = nil
     }
 

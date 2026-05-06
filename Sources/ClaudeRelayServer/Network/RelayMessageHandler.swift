@@ -12,6 +12,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private let sessionManager: SessionManager
     private let tokenStore: TokenStore
+    private let rateLimiter: RateLimiter
     private var isAuthenticated = false
     private var authenticatedTokenId: String?
     private var attachedSessionId: UUID?
@@ -19,6 +20,11 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private var context: ChannelHandlerContext?
     private var authTimeout: Scheduled<Void>?
     private var authAttempts = 0
+    /// Captured at `channelActive`. Used as the rate-limit key and as the
+    /// logged remote address on auth events. Prefer `ipAddress` over
+    /// `description` so repeated reconnects from the same host share a bucket
+    /// regardless of ephemeral source port.
+    private var remoteIP: String = "unknown"
     private var activityObserverId: UUID?
     private var stealObserverId: UUID?
     private var renameObserverId: UUID?
@@ -38,21 +44,61 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private var inflightOutputBytes = 0
     private static let maxInflightOutputBytes = 2 * 1024 * 1024  // 2 MB
 
-    init(sessionManager: SessionManager, tokenStore: TokenStore) {
+    init(sessionManager: SessionManager, tokenStore: TokenStore, rateLimiter: RateLimiter) {
         self.sessionManager = sessionManager
         self.tokenStore = tokenStore
+        self.rateLimiter = rateLimiter
     }
 
-    func channelActive(context: ChannelHandlerContext) {
+    /// This handler is installed by the WebSocket upgrade after the channel
+    /// is already active, so NIO does NOT call `channelActive` on us. We use
+    /// `handlerAdded` instead to capture the remote address, log the connect,
+    /// and arm the auth timer + rate-limit gate.
+    func handlerAdded(context: ChannelHandlerContext) {
         self.context = context
-        let remote = context.remoteAddress?.description ?? "unknown"
+        // Prefer the bare IP as the rate-limit key so repeated reconnects from
+        // the same host share a bucket regardless of ephemeral source port.
+        // Fall back to `description` (which includes :port) only if IP is
+        // unavailable — still better than "unknown".
+        let remote = context.remoteAddress?.ipAddress
+            ?? context.remoteAddress?.description
+            ?? "unknown"
+        self.remoteIP = remote
         RelayLogger.log(category: "connection", "WebSocket connected from \(remote)")
-        // Start 10-second auth timer
-        authTimeout = context.eventLoop.scheduleTask(in: .seconds(10)) { [weak self] in
-            guard let self = self, !self.isAuthenticated else { return }
-            RelayLogger.log(.error, category: "auth", "Auth timeout for \(remote)")
-            self.sendServerMessage(.error(code: 401, message: "Authentication timeout"), context: context)
-            context.close(promise: nil)
+
+        // Rate-limit check has to run on the limiter actor. Dispatch a task
+        // that checks first, then installs the auth timer on the event loop.
+        // If blocked, close the channel with 429 before arming the timer.
+        let limiter = rateLimiter
+        let ctx = UnsafeTransfer(context)
+        Task { [weak self] in
+            let blocked = await limiter.isBlocked(ip: remote)
+            ctx.value.eventLoop.execute {
+                guard let self = self else { return }
+                if blocked {
+                    RelayLogger.log(.error, category: "auth",
+                        "Connection from \(remote) rejected: rate-limited")
+                    self.sendServerMessage(.error(code: 429, message: "Too many failed attempts"), context: ctx.value)
+                    ctx.value.close(promise: nil)
+                    return
+                }
+                // Start 10-second auth timer
+                self.authTimeout = ctx.value.eventLoop.scheduleTask(in: .seconds(10)) { [weak self] in
+                    guard let self = self, !self.isAuthenticated else { return }
+                    RelayLogger.log(.error, category: "auth", "Auth timeout for \(remote)")
+                    self.sendServerMessage(.error(code: 401, message: "Authentication timeout"), context: ctx.value)
+                    ctx.value.close(promise: nil)
+                }
+            }
+        }
+    }
+
+    /// Retained for channels where the handler is added pre-activation (not
+    /// the typical WebSocket upgrade path). `handlerAdded` sets `remoteIP`
+    /// eagerly; guard against double-initialization.
+    func channelActive(context: ChannelHandlerContext) {
+        if self.context == nil {
+            handlerAdded(context: context)
         }
     }
 
@@ -261,8 +307,14 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                     }
                 } else {
                     self.authAttempts += 1
-                    let remote = ctx.value.remoteAddress?.description ?? "unknown"
+                    let remote = self.remoteIP
                     RelayLogger.log(.error, category: "auth", "Auth failed — invalid token (attempt \(self.authAttempts)/\(Self.maxAuthAttempts)) from \(remote)")
+                    // Record this failure against the shared rate limiter so
+                    // repeated reconnect-and-retry from the same IP eventually
+                    // hits the cross-connection cap (not just the per-connection
+                    // maxAuthAttempts).
+                    let limiter = self.rateLimiter
+                    Task { await limiter.recordFailure(ip: remote) }
                     self.sendServerMessage(.authFailure(reason: "Invalid token"), context: ctx.value)
                     if self.authAttempts >= Self.maxAuthAttempts {
                         RelayLogger.log(.error, category: "auth", "Max auth attempts reached, closing connection from \(remote)")

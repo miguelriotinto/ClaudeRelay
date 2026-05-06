@@ -32,6 +32,14 @@ public actor RateLimiter {
 
     /// Record a failed authentication attempt for the given IP.
     /// Returns `true` if the IP should now be blocked (threshold reached).
+    ///
+    /// NOTE: `recordFailure(ip:)` may return `true` and a subsequent
+    /// `isBlocked(ip:)` may return `false` if enough time passes for
+    /// failures to age out of the rolling window between the two calls.
+    /// This is by design — the window is rolling. Callers that need a
+    /// stable block verdict for a single request should consult
+    /// `isBlocked` only; `recordFailure`'s return value is a fast-path
+    /// for "you've just crossed the threshold right now."
     @discardableResult
     public func recordFailure(ip: String) -> Bool {
         cleanup(ip: ip)

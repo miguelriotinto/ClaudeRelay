@@ -14,14 +14,29 @@ public final class AdminClient {
     public var requestTimeout: TimeInterval = 10
 
     public init(port: UInt16 = 9100) {
-        self.baseURL = URL(string: "http://127.0.0.1:\(port)")!
+        // `http://127.0.0.1:<port>` is syntactically valid for any port in
+        // `UInt16`, so this URL initialisation cannot actually fail — but
+        // `preconditionFailure` surfaces a clear message if macOS ever
+        // changes its URL parser semantics, instead of a terse force-unwrap
+        // crash.
+        guard let base = URL(string: "http://127.0.0.1:\(port)") else {
+            preconditionFailure("AdminClient: could not construct base URL for port \(port)")
+        }
+        self.baseURL = base
         self.session = URLSession.shared
     }
 
     /// Build a URL from the base and a path that may contain query strings.
     /// Unlike `appendingPathComponent`, this preserves `?` and `&` in paths.
     private func buildURL(_ path: String) -> URL {
-        URL(string: baseURL.absoluteString + path)!
+        // All callers pass paths from a closed set ("/status", "/tokens/<id>",
+        // "/logs?lines=N"); nothing here comes from untrusted input. A failure
+        // means the admin surface has a programming error, not a runtime
+        // condition to recover from.
+        guard let url = URL(string: baseURL.absoluteString + path) else {
+            preconditionFailure("AdminClient: invalid URL path \(path)")
+        }
+        return url
     }
 
     /// GET request, returns decoded JSON.

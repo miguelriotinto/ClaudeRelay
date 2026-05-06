@@ -27,8 +27,8 @@ final class RecordingShortcutMonitor {
     }
 
     func stop() {
-        if let m = monitor {
-            NSEvent.removeMonitor(m)
+        if let current = monitor {
+            NSEvent.removeMonitor(current)
             monitor = nil
             NSLog("[RecordingShortcut] monitor removed")
         }

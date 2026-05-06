@@ -79,6 +79,56 @@ final class ConfigValidationTests: XCTestCase {
         XCTAssertThrowsError(try AdminRoutes.applyConfigValue("", forKey: "logLevel", to: &config))
     }
 
+    // MARK: - TLS path validation (C-11)
+
+    func testTLSCertPathMustExist() {
+        var config = RelayConfig.default
+        XCTAssertThrowsError(try AdminRoutes.applyConfigValue(
+            "/nonexistent/certificate.pem", forKey: "tlsCert", to: &config))
+    }
+
+    func testTLSKeyPathMustExist() {
+        var config = RelayConfig.default
+        XCTAssertThrowsError(try AdminRoutes.applyConfigValue(
+            "/nonexistent/private.key", forKey: "tlsKey", to: &config))
+    }
+
+    func testTLSPathAcceptsReadableFile() throws {
+        var config = RelayConfig.default
+        // A file guaranteed to exist and be readable.
+        try AdminRoutes.applyConfigValue("/etc/hosts", forKey: "tlsCert", to: &config)
+        XCTAssertEqual(config.tlsCert, "/etc/hosts")
+    }
+
+    func testEmptyTLSPathClearsField() throws {
+        var config = RelayConfig.default
+        config.tlsCert = "/etc/hosts"
+        // Empty string means "clear this field".
+        try AdminRoutes.applyConfigValue("", forKey: "tlsCert", to: &config)
+        XCTAssertNil(config.tlsCert)
+    }
+
+    func testTLSPathRejectsNonString() {
+        var config = RelayConfig.default
+        XCTAssertThrowsError(try AdminRoutes.applyConfigValue(42, forKey: "tlsCert", to: &config))
+        XCTAssertThrowsError(try AdminRoutes.applyConfigValue(true, forKey: "tlsKey", to: &config))
+    }
+
+    func testTLSPathRejectsUnreadableFile() throws {
+        var config = RelayConfig.default
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TLSValidation-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let path = dir.appendingPathComponent("cert.pem")
+        try Data([0x2D]).write(to: path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: path.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path.path)
+        }
+        XCTAssertThrowsError(try AdminRoutes.applyConfigValue(path.path, forKey: "tlsCert", to: &config))
+    }
+
     // MARK: - bindAll
 
     func testBindAllAcceptsBool() throws {

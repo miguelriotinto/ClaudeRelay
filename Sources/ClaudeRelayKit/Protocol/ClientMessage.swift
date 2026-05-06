@@ -41,8 +41,10 @@ public enum ClientMessage: Equatable, Sendable {
     // MARK: - Known type strings
 
     static let allTypeStrings: Set<String> = [
-        "auth_request", "session_create", "session_attach",
-        "session_resume", "session_detach", "session_terminate", "session_list", "session_list_all", "session_rename", "resize", "paste_image", "ping"
+        "auth_request",
+        "session_create", "session_attach", "session_resume", "session_detach",
+        "session_terminate", "session_list", "session_list_all", "session_rename",
+        "resize", "paste_image", "ping"
     ]
 }
 

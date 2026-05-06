@@ -5,7 +5,28 @@ import ClaudeRelayClient
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
-    private init() {}
+    private init() {
+        migrateBedrockTokenIfNeeded()
+    }
+
+    /// One-time migration from `@AppStorage("com.clauderelay.mac.bedrockBearerToken")`
+    /// to the Keychain. If a legacy UserDefaults value exists and the Keychain
+    /// is empty, copy over and scrub the plist. Idempotent after first run.
+    private func migrateBedrockTokenIfNeeded() {
+        let defaults = UserDefaults.standard
+        let legacyKey = "com.clauderelay.mac.bedrockBearerToken"
+        guard let legacy = defaults.string(forKey: legacyKey), !legacy.isEmpty else { return }
+        if let existing = try? AuthManager.shared.loadBedrockToken(), !existing.isEmpty {
+            defaults.removeObject(forKey: legacyKey)
+            return
+        }
+        do {
+            try AuthManager.shared.saveBedrockToken(legacy)
+            defaults.removeObject(forKey: legacyKey)
+        } catch {
+            // Keep legacy copy so the user's token isn't lost.
+        }
+    }
 
     /// UUID string of the last-used server, for auto-reconnect on launch.
     @AppStorage("com.clauderelay.mac.lastServerId") var lastServerId: String = ""
@@ -25,8 +46,23 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("com.clauderelay.mac.smartCleanupEnabled") var smartCleanupEnabled = true
     @AppStorage("com.clauderelay.mac.promptEnhancementEnabled") var promptEnhancementEnabled = false
-    @AppStorage("com.clauderelay.mac.bedrockBearerToken") var bedrockBearerToken = ""
     @AppStorage("com.clauderelay.mac.bedrockRegion") var bedrockRegion = "us-east-1"
+
+    @Published private var bedrockTokenVersion = UUID()
+
+    /// Bedrock bearer token, persisted in the Keychain. Returns `""` when
+    /// absent or on Keychain read failure; callers treat empty as "not
+    /// configured" and surface the missing-token error from the enhancer.
+    var bedrockBearerToken: String {
+        get {
+            _ = bedrockTokenVersion
+            return (try? AuthManager.shared.loadBedrockToken()) ?? ""
+        }
+        set {
+            try? AuthManager.shared.saveBedrockToken(newValue)
+            bedrockTokenVersion = UUID()
+        }
+    }
 
     @AppStorage("com.clauderelay.mac.terminalFontSize") var terminalFontSize: Double = 12
 
@@ -36,7 +72,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("com.clauderelay.mac.terminalScrollbackLines") var terminalScrollbackLines: Int = 5_000
 
     @AppStorage("com.clauderelay.mac.recordingShortcutEnabled") var recordingShortcutEnabled = true
-    @AppStorage("com.clauderelay.mac.recordingShortcutModifiers") var recordingShortcutModifiers: Int = Int(NSEvent.ModifierFlags([.command, .option]).rawValue)
+    @AppStorage("com.clauderelay.mac.recordingShortcutModifiers")
+    var recordingShortcutModifiers: Int = Int(NSEvent.ModifierFlags([.command, .option]).rawValue)
     @AppStorage("com.clauderelay.mac.recordingShortcutKey") var recordingShortcutKey = ""
 }
 

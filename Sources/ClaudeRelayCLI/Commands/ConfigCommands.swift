@@ -75,8 +75,8 @@ struct ConfigSetCommand: AsyncParsableCommand {
 
         let typedValue = ConfigValue.infer(from: value)
         switch (key, typedValue) {
-        case ("wsPort", .int(let p)), ("adminPort", .int(let p)):
-            guard (1024...65535).contains(p) else {
+        case ("wsPort", .int(let portValue)), ("adminPort", .int(let portValue)):
+            guard (1024...65535).contains(portValue) else {
                 FileHandle.standardError.write(Data("Error: port must be 1024..65535\n".utf8))
                 throw ExitCode.failure
             }
@@ -91,10 +91,27 @@ struct ConfigSetCommand: AsyncParsableCommand {
                 FileHandle.standardError.write(Data("Error: logLevel must be one of \(valid)\n".utf8))
                 throw ExitCode.failure
             }
-        case ("maxSessionsPerToken", .int(let n)):
-            guard n >= 0 else {
+        case ("maxSessionsPerToken", .int(let count)):
+            guard count >= 0 else {
                 FileHandle.standardError.write(Data("Error: maxSessionsPerToken must be >= 0\n".utf8))
                 throw ExitCode.failure
+            }
+        case ("tlsCert", .string(let path)), ("tlsKey", .string(let path)):
+            // Accept empty string (means "disable this TLS field"); otherwise
+            // fail fast if the path isn't readable. The server-side
+            // `applyConfigValue` runs the same check — this is just for a
+            // nicer error message without a round-trip.
+            if !path.isEmpty {
+                let expanded = NSString(string: path).expandingTildeInPath
+                let fm = FileManager.default
+                if !fm.fileExists(atPath: expanded) {
+                    FileHandle.standardError.write(Data("Error: \(key) path not found: \(path)\n".utf8))
+                    throw ExitCode.failure
+                }
+                if !fm.isReadableFile(atPath: expanded) {
+                    FileHandle.standardError.write(Data("Error: \(key) path exists but is not readable: \(path)\n".utf8))
+                    throw ExitCode.failure
+                }
             }
         default:
             break

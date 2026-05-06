@@ -43,7 +43,7 @@ class RelayTerminalView: TerminalView {
         if let origMethod = class_getInstanceMethod(TerminalView.self, delSel) {
             let origImp = method_getImplementation(origMethod)
             typealias DeleteFn = @convention(c) (AnyObject, Selector) -> Void
-            let delImp = imp_implementationWithBlock({ (self_: AnyObject) -> Void in
+            let delImp = imp_implementationWithBlock({ (self_: AnyObject) in
                 if let textInput = self_ as? UITextInput {
                     textInput.inputDelegate?.textWillChange(textInput)
                 }

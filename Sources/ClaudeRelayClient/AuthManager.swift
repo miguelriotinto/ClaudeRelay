@@ -82,6 +82,74 @@ public final class AuthManager: Sendable {
             throw AuthManagerError.keychainError(status: status)
         }
     }
+
+    // MARK: - Bedrock bearer token (C-25)
+
+    /// Account key used for the Bedrock bearer token entry. Kept as a
+    /// well-known string so both apps hit the same Keychain item and a future
+    /// sharing / preferences-migration flow can look it up without reflection.
+    private var bedrockAccount: String { "com.clauderelay.bedrock.bearerToken" }
+
+    /// Saves the Bedrock bearer token to the Keychain. Empty string deletes
+    /// the entry.
+    public func saveBedrockToken(_ token: String) throws {
+        if token.isEmpty {
+            try deleteBedrockToken()
+            return
+        }
+        guard let data = token.data(using: .utf8) else {
+            throw AuthManagerError.encodingFailed
+        }
+        try? deleteBedrockToken()
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: bedrockAccount,
+            kSecValueData as String: data
+        ]
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw AuthManagerError.keychainError(status: status)
+        }
+    }
+
+    /// Loads the Bedrock bearer token from the Keychain, or returns `nil` if
+    /// no entry exists.
+    public func loadBedrockToken() throws -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: bedrockAccount,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound {
+            return nil
+        }
+        guard status == errSecSuccess else {
+            throw AuthManagerError.keychainError(status: status)
+        }
+        guard let data = result as? Data,
+              let token = String(data: data, encoding: .utf8) else {
+            throw AuthManagerError.decodingFailed
+        }
+        return token
+    }
+
+    /// Deletes the Bedrock bearer token Keychain entry. No-op when absent.
+    public func deleteBedrockToken() throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: bedrockAccount
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw AuthManagerError.keychainError(status: status)
+        }
+    }
 }
 
 // MARK: - Errors

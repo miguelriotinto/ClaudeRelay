@@ -278,9 +278,13 @@ enum AdminRoutes {
             try validateLogLevel(val)
             config.logLevel = val
         case "tlsCert":
-            config.tlsCert = value as? String
+            guard let val = value as? String else { throw ConfigError(message: "tlsCert must be a string") }
+            try validateTLSPath(val, name: "tlsCert")
+            config.tlsCert = val.isEmpty ? nil : val
         case "tlsKey":
-            config.tlsKey = value as? String
+            guard let val = value as? String else { throw ConfigError(message: "tlsKey must be a string") }
+            try validateTLSPath(val, name: "tlsKey")
+            config.tlsKey = val.isEmpty ? nil : val
         case "maxSessionsPerToken":
             guard let val = value as? Int else { throw ConfigError(message: "maxSessionsPerToken must be an integer") }
             guard val >= 0 else { throw ConfigError(message: "maxSessionsPerToken must be >= 0") }
@@ -317,6 +321,21 @@ enum AdminRoutes {
         let validLevels = ["trace", "debug", "info", "warning", "error"]
         guard validLevels.contains(level) else {
             throw ConfigError(message: "logLevel must be one of: \(validLevels.joined(separator: ", ")), got \"\(level)\"")
+        }
+    }
+
+    /// Accept an empty string (means "disable TLS for this field"); otherwise
+    /// verify that the path — with `~` expansion — points at something the
+    /// server can actually read. Catches typos before the next restart.
+    private static func validateTLSPath(_ path: String, name: String) throws {
+        guard !path.isEmpty else { return }
+        let expanded = NSString(string: path).expandingTildeInPath
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: expanded) else {
+            throw ConfigError(message: "\(name) path not found: \(path)")
+        }
+        guard fm.isReadableFile(atPath: expanded) else {
+            throw ConfigError(message: "\(name) path exists but is not readable: \(path)")
         }
     }
 

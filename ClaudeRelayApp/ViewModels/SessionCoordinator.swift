@@ -10,6 +10,9 @@ import ClaudeRelayKit
 @MainActor
 final class SessionCoordinator: SharedSessionCoordinator {
 
+    // SwiftLint wants `static` on a final class, but the parent's declaration is
+    // `open class var`, so the override MUST use `class`.
+    // swiftlint:disable:next static_over_final_class
     override class var keyPrefix: String { "com.clauderelay" }
 
     override func sessionNamingTheme() -> SessionNamingTheme {

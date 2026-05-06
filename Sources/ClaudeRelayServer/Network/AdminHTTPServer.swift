@@ -9,16 +9,18 @@ public final class AdminHTTPServer {
     private let group: EventLoopGroup
     private let sessionManager: SessionManager
     private let tokenStore: TokenStore
-    private let rateLimiter = RateLimiter(maxAttempts: 30, windowSeconds: 60)
+    private let rateLimiter: RateLimiter
     private let port: UInt16
     private var channel: Channel?
 
     public init(group: EventLoopGroup, port: UInt16,
-                sessionManager: SessionManager, tokenStore: TokenStore) {
+                sessionManager: SessionManager, tokenStore: TokenStore,
+                rateLimiter: RateLimiter = RateLimiter(maxAttempts: 30, windowSeconds: 60)) {
         self.group = group
         self.port = port
         self.sessionManager = sessionManager
         self.tokenStore = tokenStore
+        self.rateLimiter = rateLimiter
     }
 
     public func start() async throws {

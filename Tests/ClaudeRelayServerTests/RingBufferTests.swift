@@ -66,4 +66,27 @@ final class RingBufferTests: XCTestCase {
         _ = buffer.flush()
         XCTAssertEqual(buffer.count, 0)
     }
+
+    /// Regression for C-14 — the single-allocation `read()` rewrite must still
+    /// produce correct output when the buffered range wraps past the end of
+    /// the backing storage. Write 6 bytes, flush, then write 5 more — the
+    /// second write wraps past the capacity=7 boundary, so reading must
+    /// stitch the two segments in the right order.
+    func testReadWrapBoundary() {
+        var buffer = RingBuffer(capacity: 7)
+        buffer.write(Data([1, 2, 3, 4, 5, 6]))
+        _ = buffer.flush()
+        // head = 0 now. Write 5 bytes that will wrap — head lands at 5
+        // after this write, and filled = 5.
+        buffer.write(Data([7, 8, 9, 10, 11]))
+        XCTAssertEqual(buffer.read(), Data([7, 8, 9, 10, 11]))
+
+        // Force an actual wrap: write 4 more, head advances 5→2 (wraps).
+        buffer.write(Data([12, 13, 14, 15]))
+        // Buffer is now [12,13,14,15,7,8,9,10,11] logically but stored with
+        // head past the end; read() must stitch the two segments.
+        // Expected logical contents: last 7 bytes written in order =
+        // [9, 10, 11, 12, 13, 14, 15].
+        XCTAssertEqual(buffer.read(), Data([9, 10, 11, 12, 13, 14, 15]))
+    }
 }

@@ -46,6 +46,10 @@ public actor SessionManager {
         var latestActivity: ActivityState = .active
         /// The coding agent detected in this session, if any.
         var latestAgent: String?
+        /// Monotonic revision of the last activity update we accepted.
+        /// `reportActivityChange` drops updates whose revision is not
+        /// strictly greater (see C-03).
+        var activityRevision: UInt64 = 0
     }
 
     // MARK: - Init
@@ -107,9 +111,12 @@ public actor SessionManager {
         }
 
         let sessionId = id
-        await pty.setActivityHandler { [weak self] newState, agent in
+        await pty.setActivityHandler { [weak self] newState, agent, revision in
             Task {
-                await self?.reportActivityChange(sessionId: sessionId, activity: newState, agent: agent?.id)
+                await self?.reportActivityChange(
+                    sessionId: sessionId, activity: newState, agent: agent?.id,
+                    revision: revision
+                )
             }
         }
 
@@ -437,9 +444,27 @@ public actor SessionManager {
         observerMetadata.removeValue(forKey: id)
     }
 
-    public func reportActivityChange(sessionId: UUID, activity: ActivityState, agent: String? = nil) {
+    /// Apply an activity update reported by a PTY's monitor. The `revision`
+    /// is monotonic within a single `SessionActivityMonitor`; if a later
+    /// update has already been applied (as can happen when the PTY actor and
+    /// the manager actor schedule work at different rates), this call is
+    /// dropped rather than rewinding the cached state.
+    ///
+    /// `revision` defaults to `.max` so tests / admin tooling can force an
+    /// update without having to mint a fresh sequence.
+    public func reportActivityChange(
+        sessionId: UUID,
+        activity: ActivityState,
+        agent: String? = nil,
+        revision: UInt64 = .max
+    ) {
         guard var managed = sessions[sessionId] else { return }
         guard !managed.info.state.isTerminal else { return }
+        // Drop strictly older updates. Equal revisions pass — the monitor
+        // never re-emits the same revision, but test harnesses sometimes
+        // replay the same fixed value.
+        if revision < managed.activityRevision { return }
+        managed.activityRevision = revision
         managed.latestActivity = activity
         managed.latestAgent = agent
         sessions[sessionId] = managed

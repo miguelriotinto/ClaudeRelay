@@ -65,7 +65,7 @@ public final class CloudPromptEnhancer: Sendable {
         "I would need",
         "Could you clarify",
         "Can you clarify",
-        "What specifically",
+        "What specifically"
     ]
 
     /// Substrings that reveal Haiku is asking the user clarifying questions
@@ -76,7 +76,7 @@ public final class CloudPromptEnhancer: Sendable {
         "what is \"this\"",
         "provide those details",
         "need more context",
-        "need more details",
+        "need more details"
     ]
 
     public func enhance(_ text: String, bearerToken: String, region: String) async throws -> String {

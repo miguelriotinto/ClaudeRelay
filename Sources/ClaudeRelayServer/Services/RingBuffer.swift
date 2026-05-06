@@ -61,21 +61,34 @@ public struct RingBuffer: Sendable {
     }
 
     /// Returns all buffered data in order without clearing.
+    ///
+    /// Hot path on every attach/resume. The old implementation built an
+    /// intermediate `[UInt8]` with two `append(contentsOf:)` calls, then
+    /// copied that into a fresh `Data` — three allocations and two
+    /// ArraySlice materialisations per call. This variant allocates `Data`
+    /// once at the exact target size and uses `memcpy` for each wrap
+    /// segment. Wire-compatible with the previous behavior.
     public func read() -> Data {
         guard filled > 0 else { return Data() }
 
         let start = (head - filled + capacity) % capacity
-        var result = [UInt8]()
-        result.reserveCapacity(filled)
+        let filledCount = filled
 
-        if start + filled <= capacity {
-            result.append(contentsOf: storage[start..<(start + filled)])
-        } else {
-            result.append(contentsOf: storage[start..<capacity])
-            result.append(contentsOf: storage[0..<head])
+        var out = Data(count: filledCount)
+        out.withUnsafeMutableBytes { dstRaw in
+            guard let dst = dstRaw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            storage.withUnsafeBytes { srcRaw in
+                guard let src = srcRaw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+                if start + filledCount <= capacity {
+                    dst.update(from: src + start, count: filledCount)
+                } else {
+                    let firstSegment = capacity - start
+                    dst.update(from: src + start, count: firstSegment)
+                    (dst + firstSegment).update(from: src, count: filledCount - firstSegment)
+                }
+            }
         }
-
-        return Data(result)
+        return out
     }
 
     /// Returns all buffered data in order and clears the buffer.

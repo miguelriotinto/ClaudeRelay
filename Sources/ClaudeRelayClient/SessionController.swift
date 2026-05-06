@@ -205,29 +205,32 @@ public final class SessionController: ObservableObject {
         "error"
     ]
 
-    /// Installs a single response handler synchronously on MainActor, then sends.
-    /// The handler resumes the continuation if available, or stores the value for
-    /// the synchronous check after send. No handler reinstallation needed.
+    /// Installs a response subscription synchronously on MainActor, then sends.
+    /// The subscriber resumes the continuation if available, or stores the
+    /// value for the synchronous check after send.
+    ///
+    /// Uses `addServerMessageSubscriber` + `removeSubscriber` rather than the
+    /// old save-restore pattern on `onServerMessage`. The subscriber list
+    /// composes multiple concurrent waiters correctly — if a caller like the
+    /// coordinator is also subscribed, both still receive every message, and
+    /// two overlapping `withAuth { ... }` retry flows no longer risk
+    /// restoring a stale handler in defer order.
     private func sendAndWaitForResponse(_ message: ClientMessage) async throws -> ServerMessage {
-        let previousHandler = connection.onServerMessage
-        defer { connection.onServerMessage = previousHandler }
-
         let guard_ = ResumeGuard()
 
-        // 1) Install handler SYNCHRONOUSLY on MainActor — guaranteed in place
-        //    before any suspension point. Handler either resumes the continuation
-        //    (if we're waiting) or stores the value (if response beats the await).
-        connection.onServerMessage = { serverMessage in
-            guard Self.responseTypes.contains(serverMessage.typeString) else {
-                previousHandler?(serverMessage)
-                return
-            }
+        // 1) Install subscription SYNCHRONOUSLY on MainActor — guaranteed in
+        //    place before any suspension point. The subscriber either
+        //    resumes the continuation (if we're waiting) or stores the
+        //    value (if the response beats the await).
+        let subscriptionId = connection.addServerMessageSubscriber { serverMessage in
+            guard Self.responseTypes.contains(serverMessage.typeString) else { return }
             if guard_.continuation != nil {
                 guard_.resume(returning: serverMessage)
             } else {
                 guard_.pendingValue = serverMessage
             }
         }
+        defer { connection.removeSubscriber(subscriptionId) }
 
         // 2) Send the message.
         try await connection.send(message)

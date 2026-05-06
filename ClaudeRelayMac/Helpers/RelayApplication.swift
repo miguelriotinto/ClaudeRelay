@@ -53,8 +53,8 @@ final class KeyCaptureInterceptor {
     }
 
     private func removeMonitor() {
-        if let m = eventMonitor {
-            NSEvent.removeMonitor(m)
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
             eventMonitor = nil
         }
     }

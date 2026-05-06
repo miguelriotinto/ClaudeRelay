@@ -132,4 +132,3 @@ private struct SessionRow: View {
         .padding(.vertical, 2)
     }
 }
-

@@ -41,7 +41,7 @@ final class SharedSessionCoordinatorTests: XCTestCase {
         let coordinator = SharedSessionCoordinator(connection: connection, token: "test-token")
 
         let sessionId = UUID()
-        coordinator.cachedTerminalViews[sessionId] = NSObject()
+        coordinator.registerLiveTerminal(for: sessionId, view: NSObject())
 
         coordinator.tearDown()
 
@@ -58,6 +58,51 @@ final class SharedSessionCoordinatorTests: XCTestCase {
         coordinator.tearDown()
 
         XCTAssertTrue(task.isCancelled)
+    }
+
+    // MARK: - C-19: auto-recovery breaker reset
+
+    func testHealthyPingResetsAutoRecoveryBreaker() {
+        let connection = RelayConnection()
+        let coordinator = SharedSessionCoordinator(connection: connection, token: "test-token")
+
+        // Force the breaker into the suspended state.
+        coordinator._testOnly_setAutoRecoverySuspended(true, failures: 3)
+        XCTAssertTrue(coordinator._testOnly_autoRecoverySuspended)
+        XCTAssertEqual(coordinator._testOnly_consecutiveAutoRecoveryFailures, 3)
+
+        // A single healthy ping must clear both flags.
+        connection._testOnly_recordRTT(rtt: 0.05)
+
+        // The breaker reset is dispatched via Task { @MainActor }; wait briefly.
+        let exp = expectation(description: "breaker reset")
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(50))
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 1.0)
+
+        XCTAssertFalse(coordinator._testOnly_autoRecoverySuspended)
+        XCTAssertEqual(coordinator._testOnly_consecutiveAutoRecoveryFailures, 0)
+    }
+
+    func testHealthyPingWithIdleBreakerIsNoop() {
+        let connection = RelayConnection()
+        let coordinator = SharedSessionCoordinator(connection: connection, token: "test-token")
+
+        // Breaker starts idle — healthy ping should do nothing observable.
+        XCTAssertFalse(coordinator._testOnly_autoRecoverySuspended)
+        connection._testOnly_recordRTT(rtt: 0.05)
+
+        let exp = expectation(description: "noop")
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(50))
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 1.0)
+
+        XCTAssertFalse(coordinator._testOnly_autoRecoverySuspended)
+        XCTAssertEqual(coordinator._testOnly_consecutiveAutoRecoveryFailures, 0)
     }
 
     // MARK: - Cancel Recovery
@@ -152,7 +197,7 @@ final class SharedSessionCoordinatorTests: XCTestCase {
         coordinator.sessions = [
             SessionInfo(id: ownedActive, state: .activeAttached, tokenId: "t1", createdAt: Date(), cols: 80, rows: 24),
             SessionInfo(id: ownedTerminated, state: .terminated, tokenId: "t1", createdAt: Date(), cols: 80, rows: 24),
-            SessionInfo(id: unowned, state: .activeAttached, tokenId: "t2", createdAt: Date(), cols: 80, rows: 24),
+            SessionInfo(id: unowned, state: .activeAttached, tokenId: "t2", createdAt: Date(), cols: 80, rows: 24)
         ]
 
         let active = coordinator.activeSessions

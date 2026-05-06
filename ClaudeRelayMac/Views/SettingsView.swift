@@ -378,7 +378,10 @@ private struct SpeechSettingsTab: View {
                                 .frame(maxWidth: 250)
                         }
                     }
-                    SettingsSectionFooter(text: "Prompt Enhancement uses Claude Haiku on AWS Bedrock. Paste your bearer token to enable cloud-based prompt rewriting.")
+                    SettingsSectionFooter(
+                        text: "Prompt Enhancement uses Claude Haiku on AWS Bedrock. "
+                            + "Paste your bearer token to enable cloud-based prompt rewriting."
+                    )
                 }
             }
             .padding(.horizontal, 20)

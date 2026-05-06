@@ -4,6 +4,23 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
 
+## [Unreleased] — Remediation plan, phases 0–1
+
+### Breaking defaults
+
+- **WebSocket server defaults to `127.0.0.1`** — previous builds bound `0.0.0.0` unconditionally, exposing bearer tokens in plaintext on any non-loopback network. New `bindAll` config key (default `false`) gates the old behavior. For LAN access, run `claude-relay config set bindAll true` or pass `--bind-all` to `claude-relay load`. Startup logs a clear warning when bindAll is enabled without TLS.
+- Existing configs on disk that never mentioned `bindAll` inherit the safe default (localhost-only). Users who depended on network access must explicitly opt in.
+
+### Security
+
+- **Shared rate limiter on WebSocket auth** — the admin HTTP surface's `RateLimiter` is now shared with the WebSocket server. Brute-force scanners that opened a fresh TCP connection per auth attempt (bypassing the per-connection 3-strike cap) are now rejected with a 429 frame before they can even send `auth_request`. `handlerAdded` captures the client IP, `isBlocked` is checked before arming the 10 s auth timer, and `auth_failure` records against the shared bucket.
+- **Apps scope ATS to local networking** — `NSAllowsArbitraryLoads` replaced with `NSAllowsLocalNetworking` on both iOS and macOS apps. Plaintext `ws://` is now allowed only to RFC1918 / link-local addresses (typical LAN servers); plaintext to a public hostname is refused. Users who need public-hostname plaintext must configure TLS on the server (`bindAll` + `tlsCert`/`tlsKey`).
+
+### Tooling
+
+- **PR-gated CI workflow** — `.github/workflows/ci.yml` runs `swift build`, `swift test`, `swiftlint`, and iOS/macOS Xcode builds on every pull request.
+- **SwiftLint clean baseline** — split `SessionManagerTests` into three focused suites (`SessionLifecycleTests`, `SessionObserverTests`, `SessionOwnershipTests`) with a shared `SessionManagerTestCase`; closed remaining file-length and type-body-length errors.
+
 ## [0.3.2] - 2026-05-04 — Review-driven hardening pass
 
 A 59-task sweep resolving 98 findings (26 HIGH, 46 MEDIUM, 26 LOW) from a full-codebase multi-agent review. No protocol or UX changes; the focus is lifecycle correctness, memory bounds, resource cleanup, and test coverage. See `docs/superpowers/plans/2026-05-04-full-codebase-review-fixes.md` for the full task matrix. SPM test count: 349 (was 331).

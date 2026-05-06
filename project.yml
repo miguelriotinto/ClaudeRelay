@@ -52,7 +52,11 @@ targets:
       path: ClaudeRelayApp/Info.plist
       properties:
         NSAppTransportSecurity:
-          NSAllowsArbitraryLoads: true
+          # Scoped ATS: plaintext WebSocket is allowed only to RFC1918 /
+          # link-local addresses (typical LAN server use). Plaintext to a
+          # public hostname is refused — users who need it should configure
+          # TLS on the server (see `bindAll` + `tlsCert`/`tlsKey`).
+          NSAllowsLocalNetworking: true
         CFBundleURLTypes:
           - CFBundleURLName: "com.claude.relay"
             CFBundleURLSchemes:
@@ -108,7 +112,8 @@ targets:
         NSMicrophoneUsageDescription: "ClaudeDock needs microphone access for voice-to-text input."
         NSCameraUsageDescription: "ClaudeDock uses the camera to scan QR codes for session sharing."
         NSAppTransportSecurity:
-          NSAllowsArbitraryLoads: true
+          # See iOS app note — same scoping applies to the Mac app.
+          NSAllowsLocalNetworking: true
         CFBundleURLTypes:
           - CFBundleURLName: "com.claude.relay.mac"
             CFBundleURLSchemes:

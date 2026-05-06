@@ -151,4 +151,168 @@ final class WebSocketIntegrationTests: XCTestCase {
         connection.disconnect()
         try? await server.stop()
     }
+
+    /// A brute-force scanner repeatedly reconnecting and sending the wrong
+    /// token must eventually hit the shared RateLimiter and be rejected with
+    /// a 429 on connect — the per-connection `maxAuthAttempts` cap alone is
+    /// not enough because an attacker can just reconnect.
+    @MainActor
+    func testBruteForceAuthIsRateLimited() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WSIntegrationRL-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        defer { try? group.syncShutdownGracefully() }
+
+        var config = RelayConfig.default
+        config.wsPort = UInt16.random(in: 19_000..<20_000)
+        config.adminPort = UInt16.random(in: 20_000..<21_000)
+
+        let tokenStore = TokenStore(directory: tempDir)
+        _ = try await tokenStore.create(label: "valid")
+
+        // Tight limiter so we hit the cap quickly in the test.
+        let limiter = RateLimiter(maxAttempts: 3, windowSeconds: 60)
+
+        let sessionManager = SessionManager(
+            config: config,
+            tokenStore: tokenStore,
+            ptyFactory: { id, cols, rows, scrollback in
+                MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+            }
+        )
+
+        let server = WebSocketServer(
+            group: group, config: config,
+            sessionManager: sessionManager, tokenStore: tokenStore,
+            rateLimiter: limiter
+        )
+        try await server.start()
+        defer { Task { try? await server.stop() } }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let clientConfig = ConnectionConfig(
+            name: "RLTest", host: "127.0.0.1", port: config.wsPort
+        )
+
+        // Drive three auth failures. Each uses a fresh connection — this is
+        // the brute-force pattern that the per-connection authAttempts cap
+        // alone could not stop.
+        for _ in 0..<3 {
+            let conn = RelayConnection()
+            let ctrl = SessionController(connection: conn)
+            try await conn.connect(config: clientConfig, token: "wrong")
+            do {
+                try await ctrl.authenticate(token: "wrong")
+                XCTFail("Expected auth failure")
+            } catch {
+                // expected
+            }
+            conn.disconnect()
+        }
+
+        // Wait for the async recordFailure Task to settle on the limiter.
+        var blocked = false
+        var trackedCount = 0
+        for _ in 0..<20 {
+            try? await Task.sleep(for: .milliseconds(50))
+            blocked = await limiter.isBlocked(ip: "127.0.0.1")
+            trackedCount = await limiter._testOnly_trackedIPCount
+            if blocked { break }
+        }
+        if !blocked {
+            let recent = RelayLogger.store.recent(count: 30).joined(separator: "\n")
+            XCTFail("Limiter not blocking 127.0.0.1. trackedIPs=\(trackedCount). Recent server log:\n\(recent)")
+            return
+        }
+
+        // A fresh connection attempt from the same IP should now be bounced
+        // with a 429 before the server even accepts an auth_request.
+        let blockedConn = RelayConnection()
+        let blockedCtrl = SessionController(connection: blockedConn)
+        try await blockedConn.connect(config: clientConfig, token: "wrong")
+        do {
+            try await blockedCtrl.authenticate(token: "wrong")
+            XCTFail("Expected rejection by rate limiter")
+        } catch {
+            // The server will either:
+            // (a) emit the 429 error frame and close, or
+            // (b) close before the auth round-trip completes.
+            // Both cases surface as an error here.
+        }
+        blockedConn.disconnect()
+
+        XCTAssertFalse(blockedCtrl.isAuthenticated,
+            "Rate-limited connection must not have authenticated")
+    }
+
+    /// C-13 regression: rapid session-attach churn on a single handler must
+    /// not leave `attachedSessionId`/`attachedPTY` in a torn state. Before
+    /// this fix, `autoDetachIfNeeded` wrote those fields from a Task context
+    /// rather than the event loop, so two back-to-back attaches could race.
+    @MainActor
+    func testRapidSessionSwitchKeepsHandlerStateConsistent() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WSIntegrationSwitch-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        defer { try? group.syncShutdownGracefully() }
+
+        var config = RelayConfig.default
+        config.wsPort = UInt16.random(in: 19_000..<20_000)
+        config.adminPort = UInt16.random(in: 20_000..<21_000)
+
+        let tokenStore = TokenStore(directory: tempDir)
+        let (plaintext, tokenInfo) = try await tokenStore.create(label: "switch")
+
+        let sessionManager = SessionManager(
+            config: config,
+            tokenStore: tokenStore,
+            ptyFactory: { id, cols, rows, scrollback in
+                MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+            }
+        )
+
+        // Pre-create three sessions so the attach churn has real targets.
+        let sessionA = try await sessionManager.createSession(tokenId: tokenInfo.id, name: "A")
+        let sessionB = try await sessionManager.createSession(tokenId: tokenInfo.id, name: "B")
+        let sessionC = try await sessionManager.createSession(tokenId: tokenInfo.id, name: "C")
+
+        let server = WebSocketServer(
+            group: group, config: config,
+            sessionManager: sessionManager, tokenStore: tokenStore
+        )
+        try await server.start()
+        defer { Task { try? await server.stop() } }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let connection = RelayConnection()
+        let controller = SessionController(connection: connection)
+        let clientConfig = ConnectionConfig(name: "switch", host: "127.0.0.1", port: config.wsPort)
+
+        try await connection.connect(config: clientConfig, token: plaintext)
+        try await controller.authenticate(token: plaintext)
+
+        // Alternate attaches faster than the server can finish auto-detach.
+        // We ignore per-call errors because the server may reject a race loser.
+        for _ in 0..<5 {
+            try? await controller.attachSession(id: sessionA.id)
+            try? await controller.attachSession(id: sessionB.id)
+            try? await controller.attachSession(id: sessionC.id)
+        }
+
+        // Final deterministic attach — after this call the server's view of
+        // ownership must be self-consistent (sessionC attached to our token).
+        try await controller.attachSession(id: sessionC.id)
+
+        let final = try await sessionManager.inspectSession(id: sessionC.id)
+        XCTAssertEqual(final.state, .activeAttached)
+        XCTAssertEqual(final.tokenId, tokenInfo.id)
+
+        connection.disconnect()
+    }
 }

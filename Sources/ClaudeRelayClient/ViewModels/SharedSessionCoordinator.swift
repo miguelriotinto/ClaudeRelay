@@ -59,34 +59,46 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     public let connection: RelayConnection
     public let token: String
-    public var sessionController: SessionController?
+    /// Owns the auth surface (single-flight authTask, SessionController
+    /// instance, withAuth retry helper). See `AuthCoordinator`.
+    public let authCoordinator: AuthCoordinator
+    public var sessionController: SessionController? {
+        get { authCoordinator.sessionController }
+        set { authCoordinator.sessionController = newValue }
+    }
     public var terminalViewModels: [UUID: TerminalViewModel] = [:]
     public var recoveryTask: Task<Void, Never>?
     public var isTornDown = false
+    /// UserDefaults persistence for sessionNames / ownedSessionIds /
+    /// agentSessions. Diff-checks before writing; coordinator keeps the
+    /// @Published mirrors for SwiftUI binding.
+    private let ownershipStore: SessionOwnershipStore
     private var lastFetchTime: Date = .distantPast
     private var networkMonitor: NetworkMonitor?
     private var networkObserver: NSObjectProtocol?
-    /// Shared in-flight auth task. Concurrent callers to `ensureAuthenticated` await
-    /// the same attempt instead of racing to send duplicate `auth_request`s (which
-    /// the server rejects with "Already authenticated" on the second one).
-    private var authTask: Task<SessionController, Error>?
-    /// Sessions whose terminal view has already received the initial ring-buffer
-    /// replay on first attach. On subsequent resume (tab switch back), the client
-    /// asks the server to skip the replay so scrollback isn't duplicated/truncated.
-    private var sessionsWithLiveTerminal: Set<UUID> = []
-    /// Platform-specific cache of native terminal views (NSView on macOS, UIView
-    /// on iOS). Kept alive across session switches so SwiftTerm's internal
-    /// scrollback persists. The coordinator owns these; platform hosts look up
-    /// or install entries via `terminalViewForSession`.
-    public var cachedTerminalViews: [UUID: AnyObject] = [:]
-    /// LRU order of session ids for the terminal cache. Most-recently used at the end.
-    /// When the cache exceeds `terminalCacheLimit`, the front (oldest) is evicted —
-    /// except the currently active session, which is never evicted.
-    private var terminalLRU: [UUID] = []
-    /// Maximum number of cached live terminal views. Beyond this, the
-    /// least-recently-used one is evicted (its SwiftTerm scrollback goes;
-    /// subsequent attach replays from the server's ring buffer).
-    private static let terminalCacheLimit: Int = 8
+    /// LRU-bounded cache of native terminal views (NSView on macOS, UIView on
+    /// iOS). Kept alive across session switches so SwiftTerm's internal
+    /// scrollback persists across tab-like navigation. The coordinator owns
+    /// this cache; platform hosts look up or install entries via
+    /// `registerLiveTerminal(for:view:)` / `cachedTerminalView(for:)`.
+    ///
+    /// Limit: 8 — beyond this, the least-recently-used entry is evicted, and
+    /// that session's next resume replays from the server's ring buffer.
+    public let terminalCache = TerminalCache(limit: 8)
+
+    /// Back-compat accessor for call sites and tests that read
+    /// `coordinator.cachedTerminalViews`. Production code should prefer the
+    /// `terminalCache` API directly.
+    public var cachedTerminalViews: [UUID: AnyObject] {
+        // Reconstruct the dictionary from the cache for read-only callers.
+        // The cache's cachedIds snapshot plus view(for:) is O(n) which is fine
+        // at n=8.
+        var out: [UUID: AnyObject] = [:]
+        for id in terminalCache.cachedIds {
+            if let view = terminalCache.view(for: id) { out[id] = view }
+        }
+        return out
+    }
 
     // MARK: - Recovery Control
 
@@ -150,9 +162,22 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     public init(connection: RelayConnection, token: String) {
         self.connection = connection
         self.token = token
-        sessionNames = Self.loadNames()
-        ownedSessionIds = Self.loadOwned()
-        agentSessions = Self.loadAgentSessions()
+        self.authCoordinator = AuthCoordinator(connection: connection, token: token)
+        let store = SessionOwnershipStore(
+            keyPrefix: Self.keyPrefix,
+            deviceId: DeviceIdentifier().currentID
+        )
+        self.ownershipStore = store
+        sessionNames = store.loadNames()
+        ownedSessionIds = store.loadOwned()
+        agentSessions = store.loadAgents()
+
+        // Forward the auth coordinator's hook to the subclass `didAuthenticate`
+        // override so the Mac app's `isAuthenticated` @Published flag still
+        // flips.
+        authCoordinator.onAuthenticated = { [weak self] in
+            self?.didAuthenticate()
+        }
 
         connection.onSessionActivity = { [weak self] sessionId, activity, agent in
             Task { @MainActor [weak self] in
@@ -174,6 +199,23 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 self?.scheduleAutoRecovery()
             }
         }
+        // Reset the auto-recovery circuit breaker on any healthy keepalive
+        // ping so a transient outage followed by real recovery doesn't leave
+        // the breaker armed against the next unrelated failure.
+        connection.onHealthyPing = { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.resetAutoRecoveryBreaker()
+            }
+        }
+    }
+
+    /// Clears the auto-recovery circuit breaker. No-op when the breaker is
+    /// already idle so healthy steady-state traffic doesn't thrash.
+    private func resetAutoRecoveryBreaker() {
+        guard autoRecoverySuspended || consecutiveAutoRecoveryFailures > 0 else { return }
+        consecutiveAutoRecoveryFailures = 0
+        autoRecoverySuspended = false
+        recoveryLog.info("Auto-recovery breaker reset after healthy ping")
     }
 
     /// Auto-triggered recovery entry point (called from `onSendFailed`).
@@ -240,7 +282,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     public func setName(_ name: String, for id: UUID) {
         sessionNames[id] = name
-        Self.saveNames(sessionNames)
+        ownershipStore.saveNames(sessionNames)
         Task {
             try? await sessionController?.renameSession(id: id, name: name)
         }
@@ -255,109 +297,34 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     }
 
     // MARK: - Persistence
-
-    private static var namesKey: String { "\(keyPrefix).sessionNames" }
-
-    static func loadNames() -> [UUID: String] {
-        guard let data = UserDefaults.standard.data(forKey: namesKey),
-              let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
-            return [:]
-        }
-        return dict.reduce(into: [:]) { result, pair in
-            if let uuid = UUID(uuidString: pair.key) {
-                result[uuid] = pair.value
-            }
-        }
-    }
-
-    public static func saveNames(_ names: [UUID: String]) {
-        let dict = names.reduce(into: [String: String]()) { $0[$1.key.uuidString] = $1.value }
-        if let data = try? JSONEncoder().encode(dict) {
-            UserDefaults.standard.set(data, forKey: namesKey)
-        }
-    }
-
-    private static var agentSessionsKey: String { "\(keyPrefix).agentSessions" }
-
-    static func loadAgentSessions() -> [UUID: String] {
-        guard let data = UserDefaults.standard.data(forKey: agentSessionsKey),
-              let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
-            return [:]
-        }
-        return dict.reduce(into: [UUID: String]()) { result, pair in
-            if let uuid = UUID(uuidString: pair.key) {
-                result[uuid] = pair.value
-            }
-        }
-    }
-
-    public func saveAgentSessions() {
-        let dict = agentSessions.reduce(into: [String: String]()) { $0[$1.key.uuidString] = $1.value }
-        if let data = try? JSONEncoder().encode(dict) {
-            UserDefaults.standard.set(data, forKey: Self.agentSessionsKey)
-        }
-    }
+    //
+    // Delegated to `SessionOwnershipStore`. The @Published dictionaries
+    // stay on the coordinator for SwiftUI binding; the store handles the
+    // UserDefaults encoding and diff-checked writes (C-21).
 
     // MARK: - Ownership
-
-    private static var ownedKey: String {
-        "\(keyPrefix).ownedSessions.\(DeviceIdentifier().currentID)"
-    }
-
-    static func loadOwned() -> Set<UUID> {
-        guard let arr = UserDefaults.standard.stringArray(forKey: ownedKey) else { return [] }
-        return Set(arr.compactMap { UUID(uuidString: $0) })
-    }
-
-    public func saveOwned() {
-        let arr = ownedSessionIds.map { $0.uuidString }
-        UserDefaults.standard.set(arr, forKey: Self.ownedKey)
-    }
 
     public func claimSession(_ id: UUID) {
         guard !ownedSessionIds.contains(id) else { return }
         ownedSessionIds.insert(id)
-        saveOwned()
+        ownershipStore.saveOwned(ownedSessionIds)
     }
 
     public func unclaimSession(_ id: UUID) {
         ownedSessionIds.remove(id)
-        saveOwned()
+        ownershipStore.saveOwned(ownedSessionIds)
     }
 
-    // MARK: - Auth
+    // MARK: - Auth (forwarders into AuthCoordinator)
 
     public func ensureAuthenticated() async throws -> SessionController {
-        if let controller = sessionController, controller.isAuthValid {
-            return controller
-        }
-        if let existing = authTask {
-            return try await existing.value
-        }
-        let task = Task<SessionController, Error> { [weak self] in
-            guard let self else { throw SessionController.SessionError.timeout }
-            let controller = self.sessionController ?? SessionController(connection: self.connection)
-            try await controller.authenticate(token: self.token)
-            self.sessionController = controller
-            self.didAuthenticate()
-            return controller
-        }
-        authTask = task
-        defer { if authTask == task { authTask = nil } }
-        return try await task.value
+        try await authCoordinator.ensureAuthenticated()
     }
 
     /// Runs a closure that requires an authenticated controller. If the server
     /// replies "Not authenticated" (stale auth), resets auth and retries once.
     public func withAuth<T>(_ body: (SessionController) async throws -> T) async throws -> T {
-        let controller = try await ensureAuthenticated()
-        do {
-            return try await body(controller)
-        } catch let error as SessionController.SessionError where error.isNotAuthenticated {
-            sessionController?.resetAuth()
-            let retryController = try await ensureAuthenticated()
-            return try await body(retryController)
-        }
+        try await authCoordinator.withAuth(body)
     }
 
     // MARK: - Session List
@@ -378,7 +345,9 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                     sessionNames[session.id] = serverName
                 }
             }
-            Self.saveNames(sessionNames)
+            // Diff-checked inside the store — no UserDefaults write when the
+            // names dictionary is unchanged since the last save (C-21).
+            ownershipStore.saveNames(sessionNames)
 
             for session in sessions {
                 let activity = session.activity ?? .idle
@@ -386,26 +355,25 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             }
 
             let serverIds = Set(sessions.map { $0.id })
-            let staleAgentIds = Set(agentSessions.keys).subtracting(serverIds)
-            if !staleAgentIds.isEmpty {
-                for id in staleAgentIds { agentSessions.removeValue(forKey: id) }
-                sessionsAwaitingInput.subtract(staleAgentIds)
-                saveAgentSessions()
-            }
-            let staleOwned = ownedSessionIds.subtracting(serverIds)
-            if !staleOwned.isEmpty {
-                ownedSessionIds.subtract(staleOwned)
-                saveOwned()
+            // Prune names/owned/agents in one pass through the store. Each
+            // `save*` inside `pruneToServerSessions` no-ops when nothing was
+            // stale, so this does not churn UserDefaults (C-21).
+            let pruned = ownershipStore.pruneToServerSessions(
+                serverIds: serverIds,
+                names: &sessionNames,
+                owned: &ownedSessionIds,
+                agents: &agentSessions
+            )
+            if !pruned.removedAgents.isEmpty {
+                sessionsAwaitingInput.subtract(pruned.removedAgents)
             }
             // Evict cached terminal views for sessions that no longer exist
             // on the server (exited, terminated elsewhere, server restarted).
-            let staleCached = Set(cachedTerminalViews.keys).subtracting(serverIds)
-            for id in staleCached { evictTerminal(for: id) }
-            let staleNames = Set(sessionNames.keys).subtracting(serverIds)
-            if !staleNames.isEmpty {
-                for id in staleNames { sessionNames.removeValue(forKey: id) }
-                Self.saveNames(sessionNames)
-            }
+            terminalCache.pruneStale(knownSessionIds: serverIds)
+            // Keep terminalViewModels in sync with the cache's evictions above.
+            let cachedNow = terminalCache.cachedIds
+            let staleVMs = Set(terminalViewModels.keys).subtracting(serverIds).subtracting(cachedNow)
+            for id in staleVMs { terminalViewModels.removeValue(forKey: id) }
         } catch {
             // Non-critical refresh.
         }
@@ -461,14 +429,14 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
             claimSession(sessionId)
             sessionNames[sessionId] = name
-            Self.saveNames(sessionNames)
+            ownershipStore.saveNames(sessionNames)
 
             let vm = TerminalViewModel(sessionId: sessionId, connection: connection)
             terminalViewModels[sessionId] = vm
             wireTerminalOutput(to: sessionId)
             activeSessionId = sessionId
-            touchTerminalLRU(sessionId)
-            enforceTerminalCacheLimit()
+            terminalCache.touch(sessionId)
+            terminalCache.enforceLimit(activeSessionId: activeSessionId)
 
             await fetchSessions()
         } catch {
@@ -508,8 +476,8 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
             wireTerminalOutput(to: id)
             activeSessionId = id
-            touchTerminalLRU(id)
-            enforceTerminalCacheLimit()
+            terminalCache.touch(id)
+            terminalCache.enforceLimit(activeSessionId: activeSessionId)
 
             await fetchSessions()
         } catch {
@@ -552,16 +520,16 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             terminalViewModels[id] = vm
             wireTerminalOutput(to: id)
             activeSessionId = id
-            touchTerminalLRU(id)
-            enforceTerminalCacheLimit()
+            terminalCache.touch(id)
+            terminalCache.enforceLimit(activeSessionId: activeSessionId)
 
             if let serverName {
                 sessionNames[id] = serverName
-                Self.saveNames(sessionNames)
+                ownershipStore.saveNames(sessionNames)
             } else if sessionNames[id] == nil {
                 let name = pickDefaultName()
                 sessionNames[id] = name
-                Self.saveNames(sessionNames)
+                ownershipStore.saveNames(sessionNames)
                 try? await controller.renameSession(id: id, name: name)
             }
 
@@ -634,7 +602,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
             sessionsAwaitingInput.remove(id)
-            Self.saveNames(sessionNames)
+            ownershipStore.saveNames(sessionNames)
             await fetchSessions()
         } catch {
             presentError(error.localizedDescription)
@@ -657,7 +625,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 changed = true
             }
         }
-        if changed { saveAgentSessions() }
+        if changed { ownershipStore.saveAgents(agentSessions) }
 
         if activity == .agentIdle, agentSessions[sessionId] != nil {
             sessionsAwaitingInput.insert(sessionId)
@@ -686,7 +654,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     private func handleSessionRenamed(sessionId: UUID, name: String) {
         sessionNames[sessionId] = name
-        Self.saveNames(sessionNames)
+        ownershipStore.saveNames(sessionNames)
     }
 
     // MARK: - Wire Output (subclasses may override to add platform callbacks)
@@ -703,49 +671,25 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         }
     }
 
-    // MARK: - Terminal View Cache
+    // MARK: - Terminal View Cache (thin forwarders over TerminalCache)
 
     /// Called by the platform host when it creates (or retrieves) a native
     /// terminal view for a session. After the first call for a given id, any
     /// subsequent `switchToSession` will ask the server to skip the replay.
     public func registerLiveTerminal(for sessionId: UUID, view: AnyObject) {
-        cachedTerminalViews[sessionId] = view
-        sessionsWithLiveTerminal.insert(sessionId)
-        touchTerminalLRU(sessionId)
-        enforceTerminalCacheLimit()
-    }
-
-    /// Mark this session as the most-recently-used.
-    private func touchTerminalLRU(_ id: UUID) {
-        terminalLRU.removeAll(where: { $0 == id })
-        terminalLRU.append(id)
-    }
-
-    /// If we're over the cache limit, evict the LRU entry, skipping the active session.
-    /// If every remaining entry is the active session, we stop — we never evict the
-    /// session the user is currently looking at, even if the cache is technically
-    /// one over the limit.
-    private func enforceTerminalCacheLimit() {
-        while cachedTerminalViews.count > Self.terminalCacheLimit {
-            guard let victim = terminalLRU.first(where: { $0 != activeSessionId }) else {
-                return
-            }
-            evictTerminal(for: victim)
-        }
+        terminalCache.register(view: view, for: sessionId, activeSessionId: activeSessionId)
     }
 
     /// Lookup the cached native view for a session, if any.
     public func cachedTerminalView(for sessionId: UUID) -> AnyObject? {
-        cachedTerminalViews[sessionId]
+        terminalCache.view(for: sessionId)
     }
 
     /// Drop all cached state tied to a single session. Used when a session is
     /// terminated, stolen, or the workspace is torn down.
     public func evictTerminal(for sessionId: UUID) {
-        cachedTerminalViews.removeValue(forKey: sessionId)
-        sessionsWithLiveTerminal.remove(sessionId)
+        terminalCache.evict(sessionId)
         terminalViewModels.removeValue(forKey: sessionId)
-        terminalLRU.removeAll(where: { $0 == sessionId })
     }
 
     public func presentError(_ message: String) {
@@ -798,7 +742,11 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             lastRecoveryEndedAt = Date()
         }
 
-        let delays: [UInt64] = [0, 1, 2, 4]
+        // Extended from [0, 1, 2, 4] to accommodate launchd's typical respawn
+        // latency. Coupled with `onHealthyPing`'s breaker reset, an immediate
+        // post-reconnect ping clears the auto-suspend state, so longer total
+        // backoff doesn't trap legitimate retries in the breaker.
+        let delays: [UInt64] = [0, 1, 2, 4, 8, 15]
         var reconnected = false
         for (attempt, delay) in delays.enumerated() {
             guard !isTornDown, myGeneration == recoveryGeneration, !Task.isCancelled else {
@@ -911,8 +859,9 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         recoveryGeneration &+= 1
         recoveryTask?.cancel()
         recoveryTask = nil
-        authTask?.cancel()
-        authTask = nil
+        // Cancel the in-flight authTask without dropping the SessionController —
+        // the user may reconnect without losing the controller state.
+        authCoordinator.cancelInFlight()
         isRecovering = false
         isRecoveryDispatched = false
         recoveryFailed = true
@@ -933,13 +882,26 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         stopNetworkRecovery()
         recoveryTask?.cancel()
         recoveryTask = nil
-        authTask?.cancel()
-        authTask = nil
+        authCoordinator.invalidate()
         if activeSessionId != nil {
             Task { try? await sessionController?.detach() }
         }
-        cachedTerminalViews.removeAll()
-        sessionsWithLiveTerminal.removeAll()
+        terminalCache.removeAll()
         connection.disconnect()
+    }
+
+    // MARK: - Test Hooks
+
+    /// Expose the auto-recovery breaker state so unit tests can verify
+    /// that a healthy ping clears it. Do not call from production code.
+    public var _testOnly_autoRecoverySuspended: Bool { autoRecoverySuspended }
+    public var _testOnly_consecutiveAutoRecoveryFailures: Int { consecutiveAutoRecoveryFailures }
+
+    /// Force the breaker into the suspended state for tests that exercise
+    /// the onHealthyPing → reset path without having to trip three auto-
+    /// recovery failures first.
+    public func _testOnly_setAutoRecoverySuspended(_ suspended: Bool, failures: Int) {
+        autoRecoverySuspended = suspended
+        consecutiveAutoRecoveryFailures = failures
     }
 }

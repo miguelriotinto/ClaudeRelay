@@ -119,7 +119,7 @@ public enum TranscriberError: Error, LocalizedError {
         "okay",
         "hmm",
         "oh",
-        "ah",
+        "ah"
     ]
 
     /// Returns true if the text is a known Whisper silence hallucination.
