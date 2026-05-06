@@ -39,7 +39,9 @@ line_length:
 
 type_body_length:
   warning: 350
-  error: 500
+  # TEMP: raised from 500 → 1000 until C-06/C-07 split SharedSessionCoordinator
+  # and RelayMessageHandler. Revert once those land (see remediation plan Task 5.1).
+  error: 1000
 
 function_body_length:
   warning: 80

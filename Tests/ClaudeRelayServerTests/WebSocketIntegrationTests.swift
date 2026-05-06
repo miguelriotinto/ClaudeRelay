@@ -10,8 +10,8 @@ import ClaudeRelayKit
 /// full client → server → client round trip via `RelayConnection` and
 /// `SessionController`.
 ///
-/// These tests share a test target with `SessionManagerTests`, which defines
-/// `MockPTYSession` for PTY-free session management (see that file).
+/// `MockPTYSession` is defined in `SessionManagerTestCase.swift` and shared
+/// across the session-management test suites.
 final class WebSocketIntegrationTests: XCTestCase {
 
     /// End-to-end smoke test: start a real `WebSocketServer`, connect a

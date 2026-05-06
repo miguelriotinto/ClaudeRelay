@@ -49,9 +49,12 @@ public enum ServerMessage: Equatable, Sendable {
     // MARK: - Known type strings
 
     static let allTypeStrings: Set<String> = [
-        "auth_success", "auth_failure", "session_created", "session_attached",
-        "session_resumed", "session_detached", "session_terminated",
-        "session_expired", "session_state", "session_activity", "session_stolen", "session_renamed", "session_list_result", "session_list_all_result", "resize_ack", "paste_image_result", "pong", "error"
+        "auth_success", "auth_failure",
+        "session_created", "session_attached", "session_resumed", "session_detached",
+        "session_terminated", "session_expired", "session_state", "session_activity",
+        "session_stolen", "session_renamed",
+        "session_list_result", "session_list_all_result",
+        "resize_ack", "paste_image_result", "pong", "error"
     ]
 }
 
