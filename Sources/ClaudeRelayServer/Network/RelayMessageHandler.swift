@@ -376,18 +376,19 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private func handleSessionRename(sessionId: UUID, name: String, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            do {
-                try await sessionManager.renameSession(id: sessionId, tokenId: tokenId, name: name)
+        let mgr = self.sessionManager
+        bridgeToEventLoop(
+            context: context,
+            work: {
+                try await mgr.renameSession(id: sessionId, tokenId: tokenId, name: name)
+            },
+            onSuccess: { _, _, _ in
                 RelayLogger.log(category: "session", "Session renamed: \(sessionId) -> \(name)")
-            } catch {
-                ctx.value.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 404, message: "Rename failed: \(error)"), context: ctx.value)
-                }
+            },
+            onFailure: { handler, ctx, error in
+                handler.sendServerMessage(.error(code: 404, message: "Rename failed: \(error)"), context: ctx)
             }
-        }
+        )
     }
 
     // MARK: - Session Attach
@@ -518,26 +519,28 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private func handleSessionList(context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            let sessions = await sessionManager.listSessionsForToken(tokenId: tokenId)
-            ctx.value.eventLoop.execute {
-                self?.sendServerMessage(.sessionList(sessions: sessions), context: ctx.value)
-            }
-        }
+        let mgr = self.sessionManager
+        bridgeToEventLoop(
+            context: context,
+            work: { await mgr.listSessionsForToken(tokenId: tokenId) },
+            onSuccess: { handler, ctx, sessions in
+                handler.sendServerMessage(.sessionList(sessions: sessions), context: ctx)
+            },
+            onFailure: { _, _, _ in /* listSessionsForToken doesn't throw */ }
+        )
     }
 
     private func handleSessionListAll(context: ChannelHandlerContext) {
         guard isAuthenticated else { return }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            let sessions = await sessionManager.listAllSessions()
-            ctx.value.eventLoop.execute {
-                self?.sendServerMessage(.sessionListAll(sessions: sessions), context: ctx.value)
-            }
-        }
+        let mgr = self.sessionManager
+        bridgeToEventLoop(
+            context: context,
+            work: { await mgr.listAllSessions() },
+            onSuccess: { handler, ctx, sessions in
+                handler.sendServerMessage(.sessionListAll(sessions: sessions), context: ctx)
+            },
+            onFailure: { _, _, _ in /* listAllSessions doesn't throw */ }
+        )
     }
 
     // MARK: - Resize
@@ -547,13 +550,14 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             sendServerMessage(.error(code: 400, message: "No session attached"), context: context)
             return
         }
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            await pty.resize(cols: cols, rows: rows)
-            ctx.value.eventLoop.execute {
-                self?.sendServerMessage(.resizeAck(cols: cols, rows: rows), context: ctx.value)
-            }
-        }
+        bridgeToEventLoop(
+            context: context,
+            work: { await pty.resize(cols: cols, rows: rows) },
+            onSuccess: { handler, ctx, _ in
+                handler.sendServerMessage(.resizeAck(cols: cols, rows: rows), context: ctx)
+            },
+            onFailure: { _, _, _ in /* resize doesn't throw */ }
+        )
     }
 
     // MARK: - Auto-Detach
