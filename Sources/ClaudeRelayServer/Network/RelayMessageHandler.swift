@@ -470,49 +470,46 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             sendServerMessage(.error(code: 400, message: "No session attached"), context: context)
             return
         }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            do {
-                try await sessionManager.detachSession(id: sessionId)
+        let mgr = self.sessionManager
+        bridgeToEventLoop(
+            context: context,
+            work: {
+                try await mgr.detachSession(id: sessionId)
                 RelayLogger.log(category: "session", "Session detached: \(sessionId)")
-                ctx.value.eventLoop.execute {
-                    guard let self = self else { return }
-                    self.attachedSessionId = nil
-                    self.attachedPTY = nil
-                    self.sendServerMessage(.sessionDetached, context: ctx.value)
-                }
-            } catch {
-                ctx.value.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 500, message: "Detach failed: \(error)"), context: ctx.value)
-                }
+            },
+            onSuccess: { handler, ctx, _ in
+                handler.attachedSessionId = nil
+                handler.attachedPTY = nil
+                handler.sendServerMessage(.sessionDetached, context: ctx)
+            },
+            onFailure: { handler, ctx, error in
+                handler.sendServerMessage(.error(code: 500, message: "Detach failed: \(error)"), context: ctx)
             }
-        }
+        )
     }
 
     // MARK: - Session Terminate
 
     private func handleSessionTerminate(sessionId: UUID, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            do {
-                try await sessionManager.terminateSession(id: sessionId, tokenId: tokenId)
+        let mgr = self.sessionManager
+        bridgeToEventLoop(
+            context: context,
+            work: {
+                try await mgr.terminateSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session terminated: \(sessionId)")
-                ctx.value.eventLoop.execute {
-                    self?.sendServerMessage(.sessionTerminated(sessionId: sessionId, reason: "client_request"), context: ctx.value)
-                    if self?.attachedSessionId == sessionId {
-                        self?.attachedSessionId = nil
-                        self?.attachedPTY = nil
-                    }
+            },
+            onSuccess: { handler, ctx, _ in
+                handler.sendServerMessage(.sessionTerminated(sessionId: sessionId, reason: "client_request"), context: ctx)
+                if handler.attachedSessionId == sessionId {
+                    handler.attachedSessionId = nil
+                    handler.attachedPTY = nil
                 }
-            } catch {
-                ctx.value.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 404, message: "Terminate failed: \(error)"), context: ctx.value)
-                }
+            },
+            onFailure: { handler, ctx, error in
+                handler.sendServerMessage(.error(code: 404, message: "Terminate failed: \(error)"), context: ctx)
             }
-        }
+        )
     }
 
     // MARK: - Session List
