@@ -200,6 +200,19 @@ For production deployments, use a valid certificate from a trusted CA (Let's Enc
 
 **Note:** TLS is only applied to the WebSocket server (port 9200). The Admin API (port 9100) remains localhost-only without TLS.
 
+### When TLS is required
+
+Both the iOS and macOS apps scope App Transport Security via `NSAllowsLocalNetworking`, which permits plaintext WebSocket (`ws://`) only to:
+
+- Loopback (`127.0.0.1`, `::1`)
+- `.local` mDNS hostnames
+- RFC 1918 private IPv4 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)
+- Link-local IPv6 (`fe80::/10`)
+
+Plaintext `ws://` to any other address — including **Tailscale CGNAT addresses (`100.64.0.0/10`)**, IPv6 ULA (`fc00::/7`), VPN overlays whose endpoints sit outside the ranges above, and public hostnames — is refused by iOS/macOS before the WebSocket handshake reaches the server. If you reach the server from a non-private network, you must configure TLS on the server (see the steps above) and use a `wss://` URL in the app.
+
+This is an iOS/macOS platform constraint: the `NSAppTransportSecurity` plist entry does not support CIDR ranges, so we cannot transparently allow CGNAT or ULA plaintext. TLS is the supported path for any non-LAN deployment.
+
 ## Development
 
 ### Build

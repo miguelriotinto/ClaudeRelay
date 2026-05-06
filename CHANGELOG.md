@@ -6,6 +6,10 @@ The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI u
 
 ## [Unreleased] — Remediation plan, phases 0–1
 
+### Documentation
+
+- **ATS scoping documented** — README now carries a "When TLS is required" subsection explaining that the apps' `NSAllowsLocalNetworking` ATS entry only covers RFC1918, loopback, `.local`, and link-local addresses. Tailscale CGNAT (`100.64/10`), IPv6 ULA, and public hostnames require TLS on the server (`tlsCert` + `tlsKey`) and a `wss://` URL in the app — ATS does not support CIDR ranges, so this is the supported path for non-LAN deployments.
+
 ### Configuration
 
 - **`bindAll` config key controls WebSocket bind host** — previously the server bound `0.0.0.0` unconditionally. The behavior is now gated by a config key (default `true`, network-reachable on every interface, matching the previous behavior) so operators can tighten to `127.0.0.1` with one toggle. Set `bindAll=false` (via `claude-relay config set bindAll false` or `--no-bind-all` on `claude-relay load`) to restrict to localhost. Startup logs identify the bound host, and emit a clear `[ERROR]` line when `bindAll=true` without TLS to surface the plaintext-on-network risk.

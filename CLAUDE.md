@@ -57,6 +57,8 @@ The WebSocket server uses default `JSONEncoder` (Double timestamps). The Admin H
 
 `WebSocketServer` supports optional TLS via NIO-SSL. When `tlsCert` and `tlsKey` are set in config, an `NIOSSLServerHandler` is inserted at the front of the channel pipeline before HTTP handlers. Without TLS config, the server runs plain WebSocket. TLS minimum version is 1.2.
 
+The iOS/macOS apps scope plaintext `ws://` to RFC1918 / loopback / `.local` / link-local via `NSAllowsLocalNetworking` in Info.plist. Tailscale CGNAT (`100.64/10`), IPv6 ULA, and public hostnames require TLS (`wss://`) — ATS does not support CIDR-based allowlists, so this is enforced by Apple at the platform layer. See README "When TLS is required".
+
 ### PTY Sessions
 
 `PTYSession` is an actor that uses `forkpty` via the C shim (`CPTYShim`) to spawn an interactive zsh login shell. Output goes to a `RingBuffer` for session resume scrollback (zero-copy writes via `withUnsafeMutableBytes`). Sessions never expire by default (`detachTimeout=0`).
