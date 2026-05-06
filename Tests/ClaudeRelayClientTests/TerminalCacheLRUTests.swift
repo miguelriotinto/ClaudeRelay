@@ -24,7 +24,7 @@ final class TerminalCacheLRUTests: XCTestCase {
             coordinator.registerLiveTerminal(for: id, view: NSObject())
         }
 
-        XCTAssertEqual(coordinator.cachedTerminalViews.count, 8,
+        XCTAssertEqual(coordinator.terminalCache.cachedIds.count, 8,
             "cache should be capped at 8")
         XCTAssertNil(coordinator.cachedTerminalView(for: ids[0]),
             "oldest entry should be evicted")
@@ -49,12 +49,11 @@ final class TerminalCacheLRUTests: XCTestCase {
 
         XCTAssertNotNil(coordinator.cachedTerminalView(for: pinned),
             "active session must not be evicted")
-        // `enforceTerminalCacheLimit` can in principle leave the cache at +1
+        // `TerminalCache.enforceLimit` can in principle leave the cache at +1
         // over the limit if the only eviction candidate is the active session —
-        // but given `terminalLRU` and `cachedTerminalViews` are always kept
-        // 1-to-1 in sync, that degenerate case isn't reachable, and eviction
-        // always finds a non-active victim, bringing count back to exactly 8.
-        XCTAssertEqual(coordinator.cachedTerminalViews.count, 8,
+        // but eviction always finds a non-active victim, bringing count back
+        // to exactly 8.
+        XCTAssertEqual(coordinator.terminalCache.cachedIds.count, 8,
             "protection prevents evicting the active session; a non-active victim is always available")
     }
 }

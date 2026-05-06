@@ -45,7 +45,7 @@ final class SharedSessionCoordinatorTests: XCTestCase {
 
         coordinator.tearDown()
 
-        XCTAssertTrue(coordinator.cachedTerminalViews.isEmpty)
+        XCTAssertTrue(coordinator.terminalCache.cachedIds.isEmpty)
     }
 
     func testTearDownCancelsRecoveryTask() {
