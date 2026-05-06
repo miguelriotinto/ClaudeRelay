@@ -86,20 +86,6 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     /// that session's next resume replays from the server's ring buffer.
     public let terminalCache = TerminalCache(limit: 8)
 
-    /// Back-compat accessor for call sites and tests that read
-    /// `coordinator.cachedTerminalViews`. Production code should prefer the
-    /// `terminalCache` API directly.
-    public var cachedTerminalViews: [UUID: AnyObject] {
-        // Reconstruct the dictionary from the cache for read-only callers.
-        // The cache's cachedIds snapshot plus view(for:) is O(n) which is fine
-        // at n=8.
-        var out: [UUID: AnyObject] = [:]
-        for id in terminalCache.cachedIds {
-            if let view = terminalCache.view(for: id) { out[id] = view }
-        }
-        return out
-    }
-
     // MARK: - Recovery Control
 
     /// Monotonic token bumped at the start of every recovery pass. A scheduled
