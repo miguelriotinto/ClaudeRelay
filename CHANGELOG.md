@@ -4,7 +4,28 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
 
-## [Unreleased] — Remediation plan, phases 0–1
+## [Unreleased] — Hardening review follow-ups
+
+Executes the plan captured in `docs/superpowers/plans/2026-05-07-hardening-review-followups.md`.
+
+### Server
+
+- **`RelayMessageHandler` concurrency discipline formalised** — introduced a `bridgeToEventLoop` helper that names the "Task → await → eventLoop.execute" pattern used across nine request handlers. The pattern was previously duplicated inline; now every migrated handler expresses handler-state mutations inside an `onSuccess` / `onFailure` closure that the helper guarantees to run on the channel event loop. `@unchecked Sendable` discipline is now one reviewable shape rather than nine copy-pasted snippets.
+- **`SessionRequestHandlers` extracted** — the nine session-lifecycle handlers now live in a sibling `SessionRequestHandlers.swift` as an extension on `RelayMessageHandler`. The primary file shrunk 849 → 646 lines (class body 462, under the 500-line `type_body_length` ceiling without a `swiftlint:disable` pragma). No behaviour change.
+
+### Client
+
+- **`RecoveryController` extracted** — the auto-recovery circuit breaker, generation tokens, cooldown tracking, reconnect backoff, and `restoreSession` flow moved from `SharedSessionCoordinator` into a sibling `RecoveryController` type. Coordinator shrank 907 → 681 lines (class body 474, under the 500-line ceiling). The `@Published` recovery UI flags still live on the coordinator because SwiftUI binds to them.
+- **`cachedTerminalViews` back-compat shim removed** — three test call-sites now read `terminalCache.cachedIds.count`. No production code ever read the shim.
+
+### Apps
+
+- **Bedrock token Keychain writes debounced** — both iOS and macOS `AppSettings` now store a stored `@Published var bedrockBearerToken` seeded from the Keychain at launch; writes flow through a 500 ms Combine debounce so typing a 40-character token results in one `SecItemAdd`, not 40. Migration is now resilient to a partial Keychain failure: the legacy `UserDefaults` copy is only scrubbed after save-plus-reread confirms the value landed, so a partial save no longer makes the token vanish from the UI.
+- **iOS test coverage** — 9 new tests in `AppSettingsBedrockTests` exercise the pure migration + fallback helpers. Fixed pre-existing test-target compile failures (added `ClaudeRelaySpeech` dep + imports, marked `TextCleanerStaticTests` `@MainActor`).
+
+### Tooling
+
+- **SwiftLint `type_body_length.error` tightened back to 500** — was temporarily 1000 during the v0.3.2 hardening pass pending the `RelayMessageHandler` + `SharedSessionCoordinator` splits. Full `Sources/` lint is 15 warnings, 0 errors across 65 files.
 
 ### Documentation
 
