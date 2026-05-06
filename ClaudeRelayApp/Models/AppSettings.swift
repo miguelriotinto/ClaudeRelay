@@ -18,12 +18,16 @@ final class AppSettings: ObservableObject {
         // value we just wrote above.
         $bedrockBearerToken
             .dropFirst()
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .debounce(for: Self.bedrockDebounce, scheduler: DispatchQueue.main)
             .sink { token in
                 try? AuthManager.shared.saveBedrockToken(token)
             }
             .store(in: &bedrockTokenSubscriptions)
     }
+
+    /// Debounce interval for Bedrock token Keychain writes. Exposed so tests
+    /// can validate it without hardcoding a ms count in assertions.
+    static let bedrockDebounce: DispatchQueue.SchedulerTimeType.Stride = .milliseconds(500)
 
     private func migrateShortcutIfNeeded() {
         let defaults = UserDefaults.standard
@@ -46,42 +50,64 @@ final class AppSettings: ObservableObject {
 
     /// Legacy `UserDefaults` key that held the Bedrock token before the
     /// Keychain migration. Also read as a fallback when Keychain ops fail.
-    private static let legacyBedrockKey = "bedrockBearerToken"
+    static let legacyBedrockKey = "bedrockBearerToken"
 
-    /// One-time migration from `@AppStorage("bedrockBearerToken")` to the
-    /// Keychain. Re-reads after save and only scrubs the legacy plist entry
-    /// when the Keychain round-trip confirms the value was stored. A failed
-    /// Keychain write leaves the legacy copy intact so
-    /// `loadBedrockTokenWithFallback()` can still surface it.
     private func migrateBedrockTokenIfNeeded() {
-        let defaults = UserDefaults.standard
-        guard let legacy = defaults.string(forKey: Self.legacyBedrockKey),
+        Self.migrateBedrockToken(
+            defaults: UserDefaults.standard,
+            keychainLoad: { try AuthManager.shared.loadBedrockToken() },
+            keychainSave: { try AuthManager.shared.saveBedrockToken($0) }
+        )
+    }
+
+    private func loadBedrockTokenWithFallback() -> String {
+        Self.loadBedrockToken(
+            defaults: UserDefaults.standard,
+            keychainLoad: { try AuthManager.shared.loadBedrockToken() }
+        )
+    }
+
+    /// Pure migration helper. Exposed for unit tests: `defaults` and the two
+    /// Keychain closures are the only side-effectful dependencies, so tests
+    /// can exercise every branch without touching the real Keychain or the
+    /// shared `UserDefaults`.
+    ///
+    /// Re-reads after save and only scrubs the legacy plist entry when the
+    /// round-trip confirms the value was stored. A failed Keychain write
+    /// leaves the legacy copy intact so `loadBedrockToken` can surface it.
+    static func migrateBedrockToken(
+        defaults: UserDefaults,
+        keychainLoad: () throws -> String?,
+        keychainSave: (String) throws -> Void
+    ) {
+        guard let legacy = defaults.string(forKey: legacyBedrockKey),
               !legacy.isEmpty else {
             return
         }
-        if let existing = try? AuthManager.shared.loadBedrockToken(), !existing.isEmpty {
-            // Keychain already populated — just clear the plaintext copy.
-            defaults.removeObject(forKey: Self.legacyBedrockKey)
+        if let existing = try? keychainLoad(), !existing.isEmpty {
+            defaults.removeObject(forKey: legacyBedrockKey)
             return
         }
         do {
-            try AuthManager.shared.saveBedrockToken(legacy)
-            if let reread = try? AuthManager.shared.loadBedrockToken(), reread == legacy {
-                defaults.removeObject(forKey: Self.legacyBedrockKey)
+            try keychainSave(legacy)
+            if let reread = try? keychainLoad(), reread == legacy {
+                defaults.removeObject(forKey: legacyBedrockKey)
             }
         } catch {
             // Keep the legacy copy in place — the fallback reader picks it up.
         }
     }
 
-    /// Reads the Keychain, falling back to the legacy `UserDefaults` value so
-    /// a failed migration doesn't make the token vanish from the UI.
-    private func loadBedrockTokenWithFallback() -> String {
-        if let keychain = try? AuthManager.shared.loadBedrockToken(),
-           !keychain.isEmpty {
+    /// Pure read helper with `UserDefaults` fallback. See `migrateBedrockToken`
+    /// above for the rationale.
+    static func loadBedrockToken(
+        defaults: UserDefaults,
+        keychainLoad: () throws -> String?
+    ) -> String {
+        if let keychain = try? keychainLoad(), !keychain.isEmpty {
             return keychain
         }
-        return UserDefaults.standard.string(forKey: Self.legacyBedrockKey) ?? ""
+        return defaults.string(forKey: legacyBedrockKey) ?? ""
     }
 
     @AppStorage("smartCleanupEnabled") var smartCleanupEnabled = true

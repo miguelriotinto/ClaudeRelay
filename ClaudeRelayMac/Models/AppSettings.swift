@@ -23,39 +23,58 @@ final class AppSettings: ObservableObject {
 
     /// Legacy `UserDefaults` key that held the Bedrock token before the
     /// Keychain migration. Also read as a fallback when Keychain ops fail.
-    private static let legacyBedrockKey = "com.clauderelay.mac.bedrockBearerToken"
+    static let legacyBedrockKey = "com.clauderelay.mac.bedrockBearerToken"
 
-    /// One-time migration from `@AppStorage("com.clauderelay.mac.bedrockBearerToken")`
-    /// to the Keychain. Re-reads after save and only scrubs the legacy plist
-    /// entry when the Keychain round-trip confirms the value was stored. A
-    /// failed Keychain write leaves the legacy copy intact so
-    /// `loadBedrockTokenWithFallback()` can still surface it.
     private func migrateBedrockTokenIfNeeded() {
-        let defaults = UserDefaults.standard
-        guard let legacy = defaults.string(forKey: Self.legacyBedrockKey),
+        Self.migrateBedrockToken(
+            defaults: UserDefaults.standard,
+            legacyKey: Self.legacyBedrockKey,
+            keychainLoad: { try AuthManager.shared.loadBedrockToken() },
+            keychainSave: { try AuthManager.shared.saveBedrockToken($0) }
+        )
+    }
+
+    private func loadBedrockTokenWithFallback() -> String {
+        Self.loadBedrockToken(
+            defaults: UserDefaults.standard,
+            legacyKey: Self.legacyBedrockKey,
+            keychainLoad: { try AuthManager.shared.loadBedrockToken() }
+        )
+    }
+
+    /// Pure migration helper. See iOS `AppSettings.migrateBedrockToken` for
+    /// the rationale — identical behaviour; only the legacy key differs.
+    static func migrateBedrockToken(
+        defaults: UserDefaults,
+        legacyKey: String,
+        keychainLoad: () throws -> String?,
+        keychainSave: (String) throws -> Void
+    ) {
+        guard let legacy = defaults.string(forKey: legacyKey),
               !legacy.isEmpty else { return }
-        if let existing = try? AuthManager.shared.loadBedrockToken(), !existing.isEmpty {
-            defaults.removeObject(forKey: Self.legacyBedrockKey)
+        if let existing = try? keychainLoad(), !existing.isEmpty {
+            defaults.removeObject(forKey: legacyKey)
             return
         }
         do {
-            try AuthManager.shared.saveBedrockToken(legacy)
-            if let reread = try? AuthManager.shared.loadBedrockToken(), reread == legacy {
-                defaults.removeObject(forKey: Self.legacyBedrockKey)
+            try keychainSave(legacy)
+            if let reread = try? keychainLoad(), reread == legacy {
+                defaults.removeObject(forKey: legacyKey)
             }
         } catch {
             // Keep legacy copy so the user's token isn't lost.
         }
     }
 
-    /// Reads the Keychain, falling back to the legacy `UserDefaults` value so
-    /// a failed migration doesn't make the token vanish from the UI.
-    private func loadBedrockTokenWithFallback() -> String {
-        if let keychain = try? AuthManager.shared.loadBedrockToken(),
-           !keychain.isEmpty {
+    static func loadBedrockToken(
+        defaults: UserDefaults,
+        legacyKey: String,
+        keychainLoad: () throws -> String?
+    ) -> String {
+        if let keychain = try? keychainLoad(), !keychain.isEmpty {
             return keychain
         }
-        return UserDefaults.standard.string(forKey: Self.legacyBedrockKey) ?? ""
+        return defaults.string(forKey: legacyKey) ?? ""
     }
 
     /// UUID string of the last-used server, for auto-reconnect on launch.

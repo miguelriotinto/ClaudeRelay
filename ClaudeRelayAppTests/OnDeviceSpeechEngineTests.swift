@@ -1,4 +1,5 @@
 import XCTest
+import ClaudeRelaySpeech
 @testable import ClaudeRelayApp
 
 @MainActor

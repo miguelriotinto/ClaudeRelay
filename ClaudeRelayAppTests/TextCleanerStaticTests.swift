@@ -1,6 +1,8 @@
 import XCTest
+import ClaudeRelaySpeech
 @testable import ClaudeRelayApp
 
+@MainActor
 final class TextCleanerStaticTests: XCTestCase {
 
     func testSanitizeResponseStripsThinkBlocks() {
