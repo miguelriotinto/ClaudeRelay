@@ -249,14 +249,14 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                         return
                     }
 
-                    self.isAuthenticated = true
-                    self.authenticatedTokenId = info.id
-                    self.authTimeout?.cancel()
-                    self.authTimeout = nil
-                    RelayLogger.log(category: "auth", "Auth success for token \(info.id) (protocol v\(clientVersion))")
-                    self.sendServerMessage(.authSuccess(protocolVersion: ClaudeRelayKit.protocolVersion), context: ctx.value)
-
-                    // Subscribe to activity updates for all sessions owned by this token.
+                    // Register observers BEFORE emitting auth_success. This closes
+                    // the race where a successful auth response was visible to the
+                    // client while the server's activity/steal/rename observers
+                    // were not yet installed — a concurrent steal from another
+                    // device in that window would never surface to this handler.
+                    //
+                    // The channel can still go inactive while the three actor
+                    // calls are in flight; `isCleanedUp` below covers that case.
                     let manager = self.sessionManager
                     let observerCtx = UnsafeTransfer(ctx.value)
                     Task { [weak self] in
@@ -287,11 +287,17 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                             }
                         }
                         observerCtx.value.eventLoop.execute {
-                            guard let self = self else { return }
-                            // If the channel went inactive while the observer
-                            // registrations were in flight, `cleanupSession()`
-                            // already ran with nil IDs. Unregister now so the
-                            // observers aren't leaked inside SessionManager.
+                            guard let self = self else {
+                                // Channel was torn down before we could finish
+                                // registering. Unregister observers so they don't
+                                // leak inside SessionManager.
+                                Task {
+                                    await manager.removeActivityObserver(id: observerId)
+                                    await manager.removeStealObserver(id: stealId)
+                                    await manager.removeRenameObserver(id: renameId)
+                                }
+                                return
+                            }
                             if self.isCleanedUp {
                                 Task {
                                     await manager.removeActivityObserver(id: observerId)
@@ -300,9 +306,22 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                                 }
                                 return
                             }
+                            // Observer IDs are now stored before the client sees
+                            // auth_success. Any steal/rename/activity event from
+                            // here on is guaranteed to reach this connection.
                             self.activityObserverId = observerId
                             self.stealObserverId = stealId
                             self.renameObserverId = renameId
+                            self.isAuthenticated = true
+                            self.authenticatedTokenId = info.id
+                            self.authTimeout?.cancel()
+                            self.authTimeout = nil
+                            RelayLogger.log(category: "auth",
+                                "Auth success for token \(info.id) (protocol v\(clientVersion))")
+                            self.sendServerMessage(
+                                .authSuccess(protocolVersion: ClaudeRelayKit.protocolVersion),
+                                context: observerCtx.value
+                            )
                         }
                     }
                 } else {
@@ -333,7 +352,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
-                await self?.autoDetachIfNeeded()
+                await self?.autoDetachIfNeeded(ctx: ctx)
                 let info = try await sessionManager.createSession(tokenId: tokenId, name: name)
                 let sessionId = info.id
                 // Attach immediately
@@ -380,7 +399,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         let myStealId = self.stealObserverId
         Task { [weak self] in
             do {
-                await self?.autoDetachIfNeeded()
+                await self?.autoDetachIfNeeded(ctx: ctx)
                 let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId, excludeObserver: myStealId)
                 let buffered = await pty.readBuffer()
                 let filtered = Self.filterEscapeResponses(buffered)
@@ -415,7 +434,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         let ctx = UnsafeTransfer(context)
         Task { [weak self] in
             do {
-                await self?.autoDetachIfNeeded()
+                await self?.autoDetachIfNeeded(ctx: ctx)
                 let (_, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session resumed: \(sessionId) (skipReplay=\(skipReplay))")
                 // Read scrollback history to send to client, unless the client
@@ -540,16 +559,38 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     // MARK: - Auto-Detach
 
     /// Detaches the currently attached session (if any) before attaching a new one.
-    /// Must be called from the event loop (inside context.eventLoop.execute or channelRead).
-    private func autoDetachIfNeeded() async {
-        guard let sessionId = attachedSessionId else { return }
-        let sessionManager = self.sessionManager
-        if let pty = attachedPTY {
+    ///
+    /// Reads and writes to `attachedSessionId`/`attachedPTY` must happen on
+    /// the channel's event loop — this handler is `@unchecked Sendable` and
+    /// the compiler does not enforce isolation for us. Callers from a Task
+    /// context must pass their `ctx` so we can hop back to the event loop
+    /// for both the snapshot and the cleanup writeback.
+    private func autoDetachIfNeeded(ctx: UnsafeTransfer<ChannelHandlerContext>) async {
+        // Snapshot on the event loop.
+        let captured: (UUID, (any PTYSessionProtocol)?)? = await withCheckedContinuation { cont in
+            ctx.value.eventLoop.execute {
+                if let id = self.attachedSessionId {
+                    cont.resume(returning: (id, self.attachedPTY))
+                } else {
+                    cont.resume(returning: nil)
+                }
+            }
+        }
+        guard let (sessionId, pty) = captured else { return }
+
+        if let pty = pty {
             await pty.clearOutputHandler()
         }
-        attachedSessionId = nil
-        attachedPTY = nil
         try? await sessionManager.detachSession(id: sessionId)
+
+        // Writeback on the event loop, guarded against a concurrent caller
+        // having already overwritten `attachedSessionId` with a different id.
+        ctx.value.eventLoop.execute {
+            if self.attachedSessionId == sessionId {
+                self.attachedSessionId = nil
+                self.attachedPTY = nil
+            }
+        }
     }
 
     // MARK: - PTY Output Wiring
@@ -671,8 +712,12 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     /// Send a potentially-large binary payload as a series of small frames.
     /// Uses `write` (no flush) on each chunk and a single `flush` at the end
-    /// so NIO can coalesce where possible. All chunks share a single failure
-    /// promise so we don't spam the log with one error per chunk on closure.
+    /// so NIO can coalesce where possible. A promise is attached ONLY to the
+    /// final flush — per-chunk failures propagate through the channel's
+    /// `errorCaught` path, and a closed channel drops into the
+    /// `isActive` guard on the next call. (The previous implementation
+    /// called `flushPromise.succeed(())` unconditionally, which meant the
+    /// `whenFailure` block was unreachable.)
     private func sendChunkedBinaryData(_ data: Data, context: ChannelHandlerContext) {
         guard !data.isEmpty else { return }
         guard context.channel.isActive else { return }
@@ -684,16 +729,20 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             var buffer = context.channel.allocator.buffer(capacity: slice.count)
             buffer.writeBytes(slice)
             let frame = WebSocketFrame(fin: true, opcode: .binary, data: buffer)
-            context.write(wrapOutboundOut(frame), promise: nil)
+            let isLast = end == data.endIndex
+            if isLast {
+                // Real promise on the final frame so flush failures reach the log.
+                let promise = context.eventLoop.makePromise(of: Void.self)
+                promise.futureResult.whenFailure { error in
+                    RelayLogger.log(.error, category: "connection",
+                        "Chunked binary write failed (\(totalBytes) bytes): \(error)")
+                }
+                context.writeAndFlush(wrapOutboundOut(frame), promise: promise)
+            } else {
+                context.write(wrapOutboundOut(frame), promise: nil)
+            }
             offset = end
         }
-        let flushPromise = context.eventLoop.makePromise(of: Void.self)
-        flushPromise.futureResult.whenFailure { error in
-            RelayLogger.log(.error, category: "connection",
-                "Chunked binary write failed (\(totalBytes) bytes): \(error)")
-        }
-        context.channel.flush()
-        flushPromise.succeed(())
     }
 
     private func sendBinaryData(_ data: Data, context: ChannelHandlerContext) {
@@ -723,50 +772,11 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     }
 
     // MARK: - Escape Sequence Filtering
-
-    /// Filters out stale escape sequence responses (DA, DSR, etc.) that may have accumulated
-    /// in the scrollback buffer while the session was detached. These responses would otherwise
-    /// appear as garbage characters when the terminal reattaches.
+    //
+    // The implementation lives in `EscapeResponseFilter` (sibling file).
+    // This wrapper keeps the existing `Self.filterEscapeResponses(...)` call
+    // sites unchanged.
     private static func filterEscapeResponses(_ data: Data) -> Data {
-        guard !data.isEmpty else { return data }
-
-        let bytes = [UInt8](data)
-        var filtered = [UInt8]()
-        filtered.reserveCapacity(bytes.count)
-
-        var i = 0
-        while i < bytes.count {
-            // Look for CSI (ESC [ or 0x9B)
-            if i < bytes.count - 1 && bytes[i] == 0x1B && bytes[i + 1] == 0x5B {
-                // ESC [ sequence
-                var j = i + 2
-                // Scan parameter bytes (0x30-0x3F) and intermediate bytes (0x20-0x2F)
-                while j < bytes.count && (
-                    (bytes[j] >= 0x30 && bytes[j] <= 0x3F) ||
-                    (bytes[j] >= 0x20 && bytes[j] <= 0x2F)
-                ) {
-                    j += 1
-                }
-                // Final byte is 0x40-0x7E
-                if j < bytes.count && bytes[j] >= 0x40 && bytes[j] <= 0x7E {
-                    let finalByte = bytes[j]
-                    // Filter out common response sequences:
-                    // - 'c' = DA (Device Attributes)
-                    // - 'R' = CPR (Cursor Position Report)
-                    // - 'n' = DSR (Device Status Report)
-                    // - 'y' = DECREQTPARM response
-                    if finalByte == 0x63 || finalByte == 0x52 || finalByte == 0x6E || finalByte == 0x79 {
-                        // Skip this entire sequence
-                        i = j + 1
-                        continue
-                    }
-                }
-            }
-            // Not a filtered sequence, keep the byte
-            filtered.append(bytes[i])
-            i += 1
-        }
-
-        return Data(filtered)
+        EscapeResponseFilter.filter(data)
     }
 }
