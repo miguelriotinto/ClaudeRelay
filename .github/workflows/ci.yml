@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift:
+    name: swift build + test + lint
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SPM artifacts
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
+      - name: Swift version
+        run: swift --version
+
+      - name: swift build
+        run: swift build
+
+      - name: swift test
+        # Serial mode emits per-test XCTest counts that are visible in CI logs.
+        # The full suite currently runs in ~5 s; parallel's speed win doesn't
+        # justify losing the per-test output.
+        run: swift test
+
+      - name: SwiftLint
+        run: |
+          brew install swiftlint
+          swiftlint --config .swiftlint.yml
+
+  ios-build:
+    name: iOS app build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen
+
+      - name: Build iOS app for simulator
+        run: |
+          xcodebuild \
+            -project ClaudeRelay.xcodeproj \
+            -scheme ClaudeRelayApp \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+  mac-build:
+    name: macOS app build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen
+
+      - name: Build macOS app
+        run: |
+          xcodebuild \
+            -project ClaudeRelay.xcodeproj \
+            -scheme ClaudeRelayMac \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
