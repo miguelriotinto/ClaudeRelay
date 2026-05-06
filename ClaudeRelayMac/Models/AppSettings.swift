@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import ClaudeRelayClient
 
 @MainActor
@@ -7,25 +8,54 @@ final class AppSettings: ObservableObject {
 
     private init() {
         migrateBedrockTokenIfNeeded()
+        // Seed from the Keychain (or legacy UserDefaults if migration failed).
+        self.bedrockBearerToken = loadBedrockTokenWithFallback()
+        // Debounce Keychain writes so rapid keystrokes collapse into a single
+        // save. `dropFirst()` skips the seed value we just wrote above.
+        $bedrockBearerToken
+            .dropFirst()
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { token in
+                try? AuthManager.shared.saveBedrockToken(token)
+            }
+            .store(in: &bedrockTokenSubscriptions)
     }
 
+    /// Legacy `UserDefaults` key that held the Bedrock token before the
+    /// Keychain migration. Also read as a fallback when Keychain ops fail.
+    private static let legacyBedrockKey = "com.clauderelay.mac.bedrockBearerToken"
+
     /// One-time migration from `@AppStorage("com.clauderelay.mac.bedrockBearerToken")`
-    /// to the Keychain. If a legacy UserDefaults value exists and the Keychain
-    /// is empty, copy over and scrub the plist. Idempotent after first run.
+    /// to the Keychain. Re-reads after save and only scrubs the legacy plist
+    /// entry when the Keychain round-trip confirms the value was stored. A
+    /// failed Keychain write leaves the legacy copy intact so
+    /// `loadBedrockTokenWithFallback()` can still surface it.
     private func migrateBedrockTokenIfNeeded() {
         let defaults = UserDefaults.standard
-        let legacyKey = "com.clauderelay.mac.bedrockBearerToken"
-        guard let legacy = defaults.string(forKey: legacyKey), !legacy.isEmpty else { return }
+        guard let legacy = defaults.string(forKey: Self.legacyBedrockKey),
+              !legacy.isEmpty else { return }
         if let existing = try? AuthManager.shared.loadBedrockToken(), !existing.isEmpty {
-            defaults.removeObject(forKey: legacyKey)
+            defaults.removeObject(forKey: Self.legacyBedrockKey)
             return
         }
         do {
             try AuthManager.shared.saveBedrockToken(legacy)
-            defaults.removeObject(forKey: legacyKey)
+            if let reread = try? AuthManager.shared.loadBedrockToken(), reread == legacy {
+                defaults.removeObject(forKey: Self.legacyBedrockKey)
+            }
         } catch {
             // Keep legacy copy so the user's token isn't lost.
         }
+    }
+
+    /// Reads the Keychain, falling back to the legacy `UserDefaults` value so
+    /// a failed migration doesn't make the token vanish from the UI.
+    private func loadBedrockTokenWithFallback() -> String {
+        if let keychain = try? AuthManager.shared.loadBedrockToken(),
+           !keychain.isEmpty {
+            return keychain
+        }
+        return UserDefaults.standard.string(forKey: Self.legacyBedrockKey) ?? ""
     }
 
     /// UUID string of the last-used server, for auto-reconnect on launch.
@@ -48,21 +78,14 @@ final class AppSettings: ObservableObject {
     @AppStorage("com.clauderelay.mac.promptEnhancementEnabled") var promptEnhancementEnabled = false
     @AppStorage("com.clauderelay.mac.bedrockRegion") var bedrockRegion = "us-east-1"
 
-    @Published private var bedrockTokenVersion = UUID()
+    /// Bedrock bearer token, persisted in the Keychain. Seeded at init;
+    /// writes are debounced 500 ms before the Keychain save fires so rapid
+    /// typing in a `SecureField` collapses into one write. Returns `""`
+    /// when the Keychain is empty — callers treat empty as "not configured".
+    @Published var bedrockBearerToken: String = ""
 
-    /// Bedrock bearer token, persisted in the Keychain. Returns `""` when
-    /// absent or on Keychain read failure; callers treat empty as "not
-    /// configured" and surface the missing-token error from the enhancer.
-    var bedrockBearerToken: String {
-        get {
-            _ = bedrockTokenVersion
-            return (try? AuthManager.shared.loadBedrockToken()) ?? ""
-        }
-        set {
-            try? AuthManager.shared.saveBedrockToken(newValue)
-            bedrockTokenVersion = UUID()
-        }
-    }
+    /// Combine subscription store for the debounced Keychain save.
+    private var bedrockTokenSubscriptions = Set<AnyCancellable>()
 
     @AppStorage("com.clauderelay.mac.terminalFontSize") var terminalFontSize: Double = 12
 
