@@ -106,10 +106,11 @@ public final class WebSocketServer {
             }
             .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
 
-        // Security default: bind to loopback unless the operator explicitly opts
-        // in to network-reachable mode via config.bindAll. When bindAll is set
-        // without TLS, tokens travel in plaintext on the bound network — we log
-        // an explicit warning so this isn't silent.
+        // Default: bind 0.0.0.0 so the server accepts connections from any
+        // network interface. Set `bindAll=false` to restrict to loopback.
+        // Without TLS, tokens travel in plaintext on whatever network we
+        // bind — log an explicit warning in the default-but-untls case so
+        // operators can decide whether to configure TLS or tighten bindAll.
         let host = config.bindAll ? "0.0.0.0" : "127.0.0.1"
         let ch = try await bootstrap.bind(host: host, port: Int(config.wsPort)).get()
         self.channel = ch
@@ -120,11 +121,11 @@ public final class WebSocketServer {
         } else if config.bindAll {
             RelayLogger.log(.error, category: "websocket",
                 "Server is listening on 0.0.0.0:\(config.wsPort) without TLS. "
-                + "Tokens will be transmitted in plaintext on this network.")
+                + "Tokens will be transmitted in plaintext on this network. "
+                + "Set bindAll=false to restrict to localhost, or configure tlsCert/tlsKey.")
         } else {
             RelayLogger.log(category: "websocket",
-                "Server listening on 127.0.0.1:\(config.wsPort) (localhost only). "
-                + "Set bindAll=true to accept network connections.")
+                "Server listening on 127.0.0.1:\(config.wsPort) (localhost only, bindAll=false).")
         }
     }
 

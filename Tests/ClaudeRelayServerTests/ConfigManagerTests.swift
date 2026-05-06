@@ -43,24 +43,28 @@ final class ConfigManagerTests: XCTestCase {
         XCTAssertEqual(config.wsPort, 9200)
         XCTAssertEqual(config.adminPort, 9100)
         XCTAssertEqual(config.detachTimeout, 0)
-        XCTAssertFalse(config.bindAll, "New default: localhost-only bind")
+        XCTAssertTrue(config.bindAll, "Default: accept connections from any interface")
     }
 
     func testBindAllCodableRoundTrip() throws {
-        let original = RelayConfig(bindAll: true)
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(RelayConfig.self, from: data)
-        XCTAssertTrue(decoded.bindAll)
+        // Round-trip both possible values so we don't lose fidelity either way.
+        for value in [true, false] {
+            let original = RelayConfig(bindAll: value)
+            let data = try JSONEncoder().encode(original)
+            let decoded = try JSONDecoder().decode(RelayConfig.self, from: data)
+            XCTAssertEqual(decoded.bindAll, value)
+        }
     }
 
     /// Older configs on disk predate the bindAll key. Decoding must succeed
-    /// and fall back to the safe default (localhost-only).
-    func testLegacyConfigWithoutBindAllDecodesAsLocalhost() throws {
+    /// and fall back to the default (accept any interface) so upgrading users
+    /// keep the previous behavior.
+    func testLegacyConfigWithoutBindAllDecodesAsBindAll() throws {
         let legacyJSON = """
         {"wsPort":9200,"adminPort":9100,"detachTimeout":0,"scrollbackSize":524288,"logLevel":"info","maxSessionsPerToken":50}
         """
         let decoded = try JSONDecoder().decode(RelayConfig.self, from: Data(legacyJSON.utf8))
-        XCTAssertFalse(decoded.bindAll, "Missing key should default to localhost-only")
+        XCTAssertTrue(decoded.bindAll, "Missing key must default to network-reachable (previous behavior)")
     }
 
     func testConfigDirectoryPath() {

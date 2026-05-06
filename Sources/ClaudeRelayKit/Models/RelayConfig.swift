@@ -27,10 +27,14 @@ public struct RelayConfig: Codable, Sendable {
     /// Maximum active (non-terminal) sessions per token. 0 means unlimited.
     public var maxSessionsPerToken: Int
 
-    /// When true, the WebSocket server binds `0.0.0.0` (reachable from the network).
-    /// When false (default), it binds `127.0.0.1` only — tokens never leave the host.
-    /// Enabling this without configuring TLS transmits bearer tokens in the clear
-    /// on the bound network.
+    /// When true (default), the WebSocket server binds `0.0.0.0` — reachable
+    /// from every network interface on the host (loopback + LAN + any VPN or
+    /// bridge addresses). Set to `false` to bind `127.0.0.1` only, which
+    /// restricts the server to the local machine.
+    ///
+    /// Security note: without TLS configured, tokens are transmitted in the
+    /// clear on whatever network the server is bound to. The startup log
+    /// warns explicitly when `bindAll` is true without TLS.
     public var bindAll: Bool
 
     // MARK: - Initializer
@@ -44,7 +48,7 @@ public struct RelayConfig: Codable, Sendable {
         tlsKey: String? = nil,
         logLevel: String = "info",
         maxSessionsPerToken: Int = 50,
-        bindAll: Bool = false
+        bindAll: Bool = true
     ) {
         self.wsPort = wsPort
         self.adminPort = adminPort
@@ -96,9 +100,10 @@ public struct RelayConfig: Codable, Sendable {
         self.tlsKey = try c.decodeIfPresent(String.self, forKey: .tlsKey)
         self.logLevel = try c.decodeIfPresent(String.self, forKey: .logLevel) ?? "info"
         self.maxSessionsPerToken = try c.decodeIfPresent(Int.self, forKey: .maxSessionsPerToken) ?? 50
-        // Default is false — new behavior is localhost-only. Existing configs that
-        // never mentioned bindAll get the safer default. Users who relied on the
-        // previous 0.0.0.0 default must explicitly set bindAll=true.
-        self.bindAll = try c.decodeIfPresent(Bool.self, forKey: .bindAll) ?? false
+        // Default is true — the server accepts connections from any interface
+        // (0.0.0.0). Existing configs that never mentioned bindAll inherit
+        // this default and keep their previous behavior. Set `bindAll=false`
+        // explicitly to bind loopback only.
+        self.bindAll = try c.decodeIfPresent(Bool.self, forKey: .bindAll) ?? true
     }
 }

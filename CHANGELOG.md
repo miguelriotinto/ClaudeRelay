@@ -6,10 +6,10 @@ The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI u
 
 ## [Unreleased] — Remediation plan, phases 0–1
 
-### Breaking defaults
+### Configuration
 
-- **WebSocket server defaults to `127.0.0.1`** — previous builds bound `0.0.0.0` unconditionally, exposing bearer tokens in plaintext on any non-loopback network. New `bindAll` config key (default `false`) gates the old behavior. For LAN access, run `claude-relay config set bindAll true` or pass `--bind-all` to `claude-relay load`. Startup logs a clear warning when bindAll is enabled without TLS.
-- Existing configs on disk that never mentioned `bindAll` inherit the safe default (localhost-only). Users who depended on network access must explicitly opt in.
+- **`bindAll` config key controls WebSocket bind host** — previously the server bound `0.0.0.0` unconditionally. The behavior is now gated by a config key (default `true`, network-reachable on every interface, matching the previous behavior) so operators can tighten to `127.0.0.1` with one toggle. Set `bindAll=false` (via `claude-relay config set bindAll false` or `--no-bind-all` on `claude-relay load`) to restrict to localhost. Startup logs identify the bound host, and emit a clear `[ERROR]` line when `bindAll=true` without TLS to surface the plaintext-on-network risk.
+- Existing configs on disk that never mentioned `bindAll` inherit the default (`true`) so upgrading users keep their previous reachability.
 
 ### Security
 

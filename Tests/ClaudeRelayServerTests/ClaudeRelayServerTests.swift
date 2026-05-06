@@ -81,8 +81,9 @@ final class ClaudeRelayServerTests: XCTestCase {
 
     // MARK: - bindAll
 
-    /// Default config (bindAll=false) must bind loopback only.
-    func testBindDefaultsToLoopback() async throws {
+    /// Default config (bindAll=true) must bind 0.0.0.0 — accept connections
+    /// from any interface.
+    func testBindDefaultsToAllInterfaces() async throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         defer { try? group.syncShutdownGracefully() }
 
@@ -98,19 +99,19 @@ final class ClaudeRelayServerTests: XCTestCase {
         try await wsServer.start()
         defer { Task { try? await wsServer.stop() } }
 
-        XCTAssertEqual(wsServer._testOnly_boundAddress?.ipAddress, "127.0.0.1",
-            "Default config must bind loopback — bindAll is off")
+        XCTAssertEqual(wsServer._testOnly_boundAddress?.ipAddress, "0.0.0.0",
+            "Default config must bind 0.0.0.0 (bindAll=true)")
     }
 
-    /// With bindAll=true, the server binds 0.0.0.0.
-    func testBindAllBindsWildcard() async throws {
+    /// With bindAll=false, the server binds 127.0.0.1 only.
+    func testBindAllFalseBindsLoopback() async throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         defer { try? group.syncShutdownGracefully() }
 
         let tokenStore = TokenStore(directory: RelayConfig.configDirectory)
         var config = RelayConfig.default
         config.wsPort = UInt16.random(in: 19_400..<19_500)
-        config.bindAll = true
+        config.bindAll = false
 
         let sessionManager = SessionManager(config: config, tokenStore: tokenStore)
         let wsServer = WebSocketServer(
@@ -120,7 +121,7 @@ final class ClaudeRelayServerTests: XCTestCase {
         try await wsServer.start()
         defer { Task { try? await wsServer.stop() } }
 
-        XCTAssertEqual(wsServer._testOnly_boundAddress?.ipAddress, "0.0.0.0",
-            "bindAll=true must bind 0.0.0.0")
+        XCTAssertEqual(wsServer._testOnly_boundAddress?.ipAddress, "127.0.0.1",
+            "bindAll=false must bind 127.0.0.1 only")
     }
 }

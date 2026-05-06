@@ -90,13 +90,15 @@ struct LoadCommand: AsyncParsableCommand {
         }
     }
 
-    /// If the user passed --ws-port, --admin-port, or --bind-all, update
-    /// config.json so the server picks up the new values on startup.
+    /// If the user passed --ws-port, --admin-port, --bind-all, or
+    /// --no-bind-all, update config.json so the server picks up the new
+    /// values on startup.
     private func updateConfigIfNeeded() throws {
         let wsPortProvided = globals.wsPort != nil
         let adminPortProvided = ProcessInfo.processInfo.arguments.contains("--admin-port")
             || ProcessInfo.processInfo.arguments.contains("-p")
         let bindAllProvided = ProcessInfo.processInfo.arguments.contains("--bind-all")
+            || ProcessInfo.processInfo.arguments.contains("--no-bind-all")
 
         guard wsPortProvided || adminPortProvided || bindAllProvided else { return }
 
