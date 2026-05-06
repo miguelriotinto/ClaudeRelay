@@ -31,7 +31,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     @Published public var isRecovering = false
     @Published public var recoveryPhase: RecoveryPhase = .reconnecting
-    @Published public private(set) var recoveryFailed = false
+    @Published public internal(set) var recoveryFailed = false
     @Published public var errorMessage: String?
     @Published public var showError = false
     /// True when recovery could not restore the connection itself (reconnect attempts
@@ -87,31 +87,16 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     public let terminalCache = TerminalCache(limit: 8)
 
     // MARK: - Recovery Control
+    //
+    // The recovery state machine (breaker, generations, cooldown, backoff
+    // loop, restoreSession) lives on `recoveryController`. This coordinator
+    // owns the `@Published` recovery UI flags and the `recoveryTask` slot so
+    // SwiftUI bindings still live next to the properties they depend on.
 
-    /// Monotonic token bumped at the start of every recovery pass. A scheduled
-    /// `onSendFailed`-triggered recovery only runs if the token it captured still
-    /// matches — prevents a failed recovery from immediately queueing another.
-    private var recoveryGeneration: UInt64 = 0
-    /// Timestamp of the last recovery completion (success or failure). Used to
-    /// enforce a cooldown on auto-triggered recoveries via `onSendFailed`.
-    private var lastRecoveryEndedAt: Date = .distantPast
-    /// Consecutive auto-triggered recovery failures. Reset on success or on any
-    /// user-initiated recovery (foreground, network restored, explicit action).
-    private var consecutiveAutoRecoveryFailures = 0
-    /// Minimum delay between `onSendFailed`-triggered recoveries, in seconds.
-    private let autoRecoveryCooldown: TimeInterval = 3
-    /// After this many back-to-back auto-recovery failures we stop responding to
-    /// `onSendFailed` until an explicit user/foreground/network signal arrives.
-    private let maxAutoRecoveryFailures = 3
-    /// True when auto-retry has been circuit-broken. Cleared on explicit recovery entry.
-    private var autoRecoverySuspended = false
-    /// Synchronous entry lock, distinct from `isRecovering` (which is set after
-    /// `await isAlive()`). Prevents concurrent recovery dispatches from racing
-    /// across the suspension point at the top of `handleForegroundTransition`.
-    private var isRecoveryDispatched = false
-    /// Timestamp set by `cancelRecovery`. `triggerUserRecovery` ignores calls
-    /// within 1 s of a cancel to avoid sheet-dismiss → scenePhase → re-trigger.
-    private var lastCancelledAt: Date = .distantPast
+    /// Owns the auto-recovery circuit breaker, generation tokens, and the
+    /// reconnect + restore flow. Installed in `init` once the coordinator's
+    /// required fields are populated.
+    private(set) var recoveryController: RecoveryController!
 
     // MARK: - Subclass Hooks
 
@@ -165,6 +150,12 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             self?.didAuthenticate()
         }
 
+        // Install the recovery controller now that all required fields are
+        // populated. `self` is fully initialized from Swift's perspective;
+        // the controller's `unowned` ref is safe for the lifetime of the
+        // coordinator (the controller is stored here).
+        self.recoveryController = RecoveryController(coordinator: self, connection: connection)
+
         connection.onSessionActivity = { [weak self] sessionId, activity, agent in
             Task { @MainActor [weak self] in
                 self?.handleActivityUpdate(sessionId: sessionId, activity: activity, agent: agent)
@@ -182,7 +173,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         }
         connection.onSendFailed = { [weak self] in
             Task { @MainActor [weak self] in
-                self?.scheduleAutoRecovery()
+                self?.recoveryController.scheduleAutoRecovery()
             }
         }
         // Reset the auto-recovery circuit breaker on any healthy keepalive
@@ -190,74 +181,15 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         // the breaker armed against the next unrelated failure.
         connection.onHealthyPing = { [weak self] in
             Task { @MainActor [weak self] in
-                self?.resetAutoRecoveryBreaker()
+                self?.recoveryController.resetAutoRecoveryBreaker()
             }
         }
     }
 
-    /// Clears the auto-recovery circuit breaker. No-op when the breaker is
-    /// already idle so healthy steady-state traffic doesn't thrash.
-    private func resetAutoRecoveryBreaker() {
-        guard autoRecoverySuspended || consecutiveAutoRecoveryFailures > 0 else { return }
-        consecutiveAutoRecoveryFailures = 0
-        autoRecoverySuspended = false
-        recoveryLog.info("Auto-recovery breaker reset after healthy ping")
-    }
-
-    /// Auto-triggered recovery entry point (called from `onSendFailed`).
-    /// Gated by: torn-down state, already-recovering, auto-suspend (circuit broken),
-    /// and a cooldown since the last recovery ended. User-initiated recovery
-    /// (foreground/network/explicit) goes through `handleForegroundTransition`
-    /// directly, bypassing these gates — see `triggerUserRecovery`.
-    private func scheduleAutoRecovery() {
-        guard !isTornDown else { return }
-        guard !isRecoveryDispatched else {
-            recoveryLog.debug("scheduleAutoRecovery: already dispatched, ignoring")
-            return
-        }
-        guard !autoRecoverySuspended else {
-            recoveryLog.info("scheduleAutoRecovery: auto-suspend active — awaiting user signal")
-            return
-        }
-        let elapsed = Date().timeIntervalSince(lastRecoveryEndedAt)
-        guard elapsed >= autoRecoveryCooldown else {
-            recoveryLog.debug("scheduleAutoRecovery: cooldown (\(elapsed, format: .fixed(precision: 2))s < \(self.autoRecoveryCooldown)s)")
-            return
-        }
-        recoveryLog.info("scheduleAutoRecovery: queuing recovery attempt")
-        isRecoveryDispatched = true
-        recoveryTask = Task { [weak self] in
-            await self?.handleForegroundTransition(userInitiated: false)
-        }
-    }
-
-    /// Explicit user-initiated recovery: foreground, network restored, QR rescan, etc.
-    /// Clears the auto-suspend circuit breaker so auto-retry resumes after this attempt.
+    /// Explicit user-initiated recovery: foreground, network restored, QR
+    /// rescan, etc. Delegates to `RecoveryController`.
     public func triggerUserRecovery() {
-        guard !isTornDown else { return }
-        guard !isRecoveryDispatched else {
-            recoveryLog.debug("triggerUserRecovery: already dispatched, ignoring")
-            return
-        }
-        if Date().timeIntervalSince(lastCancelledAt) < 1 {
-            recoveryLog.debug("triggerUserRecovery: within cancel debounce, ignoring")
-            return
-        }
-        // If the transport is already up and we're not mid-recovery, skip the
-        // full handleForegroundTransition path — it would just fetchSessions()
-        // anyway. handleForegroundTransition still verifies with a real ping
-        // when reached via other entry points; this just fast-paths the very
-        // common scenePhase .active → .active hop case.
-        if connection.state == .connected && !isRecovering {
-            Task { @MainActor [weak self] in await self?.fetchSessions() }
-            return
-        }
-        autoRecoverySuspended = false
-        consecutiveAutoRecoveryFailures = 0
-        isRecoveryDispatched = true
-        recoveryTask = Task { [weak self] in
-            await self?.handleForegroundTransition(userInitiated: true)
-        }
+        recoveryController.triggerUserRecovery()
     }
 
     // MARK: - Names
@@ -535,7 +467,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         }
     }
 
-    private static func isApplicationLevelError(_ error: Error) -> Bool {
+    static func isApplicationLevelError(_ error: Error) -> Bool {
         if let sessionErr = error as? SessionController.SessionError {
             switch sessionErr {
             case .unexpectedResponse, .authenticationFailed, .versionIncompatible:
@@ -555,7 +487,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         return false
     }
 
-    private func friendlyAttachErrorMessage(_ error: Error) -> String {
+    func friendlyAttachErrorMessage(_ error: Error) -> String {
         if let sessionErr = error as? SessionController.SessionError,
            case .unexpectedResponse(let detail) = sessionErr {
             if detail.localizedCaseInsensitiveContains("not found") {
@@ -683,7 +615,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         showError = true
     }
 
-    private func suppressAllViewModelSends(_ suppress: Bool) {
+    func suppressAllViewModelSends(_ suppress: Bool) {
         for (_, vm) in terminalViewModels {
             vm.isSendingSuppressed = suppress
         }
@@ -692,179 +624,32 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     // MARK: - Recovery
 
     public func handleForegroundTransition() async {
-        await handleForegroundTransition(userInitiated: true)
+        await recoveryController.handleForegroundTransition(userInitiated: true)
     }
 
-    /// - Parameter userInitiated: true when triggered by an explicit user-intent
-    ///   signal (scenePhase active, network restored, manual retry). Such signals
-    ///   clear the auto-suspend circuit breaker. Auto-triggered calls (send failed)
-    ///   increment the failure counter on loss.
+    /// - Parameter userInitiated: true when triggered by an explicit
+    ///   user-intent signal (scenePhase active, network restored, manual
+    ///   retry). Delegates to `RecoveryController`.
     public func handleForegroundTransition(userInitiated: Bool) async {
-        defer { isRecoveryDispatched = false }
-        guard !isTornDown else { return }
-        guard !isRecovering else {
-            recoveryLog.debug("handleForegroundTransition: already recovering, skipping")
-            return
-        }
-
-        let alive = await connection.isAlive()
-        if alive {
-            recoveryLog.info("handleForegroundTransition: connection alive, fetching sessions")
-            await fetchSessions()
-            return
-        }
-
-        recoveryGeneration &+= 1
-        let myGeneration = recoveryGeneration
-        recoveryLog.info("Recovery start gen=\(myGeneration) userInitiated=\(userInitiated)")
-
-        recoveryPhase = .reconnecting
-        recoveryFailed = false
-        isRecovering = true
-        suppressAllViewModelSends(true)
-        defer {
-            isRecovering = false
-            suppressAllViewModelSends(false)
-            lastRecoveryEndedAt = Date()
-        }
-
-        // Extended from [0, 1, 2, 4] to accommodate launchd's typical respawn
-        // latency. Coupled with `onHealthyPing`'s breaker reset, an immediate
-        // post-reconnect ping clears the auto-suspend state, so longer total
-        // backoff doesn't trap legitimate retries in the breaker.
-        let delays: [UInt64] = [0, 1, 2, 4, 8, 15]
-        var reconnected = false
-        for (attempt, delay) in delays.enumerated() {
-            guard !isTornDown, myGeneration == recoveryGeneration, !Task.isCancelled else {
-                recoveryLog.info("Recovery aborted during reconnect (gen=\(myGeneration))")
-                return
-            }
-            if delay > 0 {
-                do {
-                    try await Task.sleep(for: .seconds(delay))
-                } catch {
-                    recoveryLog.info("Recovery cancelled during backoff (gen=\(myGeneration))")
-                    return
-                }
-                guard !isTornDown, myGeneration == recoveryGeneration else { return }
-            }
-
-            do {
-                try await connection.forceReconnect()
-                reconnected = true
-                break
-            } catch is CancellationError {
-                recoveryLog.info("Recovery cancelled during forceReconnect (gen=\(myGeneration))")
-                return
-            } catch {
-                recoveryLog.error("forceReconnect attempt \(attempt + 1) failed: \(error.localizedDescription, privacy: .public)")
-                if attempt == delays.count - 1 {
-                    guard !isTornDown, myGeneration == recoveryGeneration else { return }
-                    recoveryFailed = true
-                    connectionTimedOut = true
-                    recordAutoRecoveryOutcome(success: false, userInitiated: userInitiated)
-                    return
-                }
-            }
-        }
-
-        guard reconnected, !isTornDown, myGeneration == recoveryGeneration else { return }
-        await restoreSession(generation: myGeneration, userInitiated: userInitiated)
+        await recoveryController.handleForegroundTransition(userInitiated: userInitiated)
     }
 
-    /// Records the outcome of a recovery pass and updates the circuit breaker.
-    private func recordAutoRecoveryOutcome(success: Bool, userInitiated: Bool) {
-        if success {
-            consecutiveAutoRecoveryFailures = 0
-            autoRecoverySuspended = false
-            recoveryLog.info("Recovery succeeded — counters reset")
-            return
-        }
-        if userInitiated {
-            // User signalled they want a retry; don't count toward auto-suspend.
-            recoveryLog.info("User-initiated recovery failed — not counting toward auto-suspend")
-            return
-        }
-        consecutiveAutoRecoveryFailures += 1
-        recoveryLog.info("Auto-recovery failure \(self.consecutiveAutoRecoveryFailures)/\(self.maxAutoRecoveryFailures)")
-        if consecutiveAutoRecoveryFailures >= maxAutoRecoveryFailures {
-            autoRecoverySuspended = true
-            recoveryLog.error("Auto-recovery suspended after \(self.maxAutoRecoveryFailures) consecutive failures")
-        }
-    }
-
-    /// Restores auth + active session on the current connection.
-    /// Caller is responsible for setting/clearing `isRecovering` around this call.
+    /// Delegates to `RecoveryController`. Exposed publicly because the Mac
+    /// app's recovery sheet calls this path.
     public func restoreSession(generation: UInt64, userInitiated: Bool) async {
-        recoveryPhase = .authenticating
-        sessionController?.resetAuth()
-        do {
-            let controller = try await ensureAuthenticated()
-            guard !isTornDown, generation == recoveryGeneration else { return }
-            if let activeId = activeSessionId {
-                recoveryPhase = .resuming
-                terminalViewModels[activeId]?.resetForReplay()
-                try await controller.resumeSession(id: activeId)
-                guard !isTornDown, generation == recoveryGeneration else { return }
-                wireTerminalOutput(to: activeId)
-            }
-        } catch is CancellationError {
-            recoveryLog.info("restoreSession cancelled (gen=\(generation))")
-            return
-        } catch {
-            recoveryLog.error("restoreSession failed (gen=\(generation)): \(error.localizedDescription, privacy: .public)")
-            guard !isTornDown, generation == recoveryGeneration else { return }
-            recoveryFailed = true
-            if Self.isApplicationLevelError(error) {
-                // Session no longer exists / invalid transition / etc. The socket
-                // itself is fine — clear the active session and surface a recoverable
-                // error. Don't tear the workspace down via connectionTimedOut.
-                if let activeId = activeSessionId {
-                    evictTerminal(for: activeId)
-                    activeSessionId = nil
-                }
-                sessionAttachError = friendlyAttachErrorMessage(error)
-                sessionAttachFailed = true
-            } else {
-                connectionTimedOut = true
-            }
-            recordAutoRecoveryOutcome(success: false, userInitiated: userInitiated)
-            return
-        }
-
-        recoveryLog.info("restoreSession success (gen=\(generation))")
-        recordAutoRecoveryOutcome(success: true, userInitiated: userInitiated)
-        guard !isTornDown, generation == recoveryGeneration else { return }
-        await fetchSessions()
+        await recoveryController.restoreSession(generation: generation, userInitiated: userInitiated)
     }
 
     /// Cancels any in-flight recovery and clears recovery UI state.
-    /// Bumps the generation so in-flight tasks bail at their next checkpoint.
     public func cancelRecovery() {
-        recoveryLog.info("cancelRecovery requested")
-        recoveryGeneration &+= 1
-        recoveryTask?.cancel()
-        recoveryTask = nil
-        // Cancel the in-flight authTask without dropping the SessionController —
-        // the user may reconnect without losing the controller state.
-        authCoordinator.cancelInFlight()
-        isRecovering = false
-        isRecoveryDispatched = false
-        recoveryFailed = true
-        let now = Date()
-        lastRecoveryEndedAt = now
-        lastCancelledAt = now
-        // Explicit cancel means the user doesn't want us re-entering auto-recovery
-        // immediately on the next send failure — let them re-enter via scenePhase
-        // or a fresh network restore.
-        autoRecoverySuspended = true
+        recoveryController.cancel()
     }
 
     // MARK: - Cleanup
 
     open func tearDown() {
         isTornDown = true
-        isRecoveryDispatched = false
+        recoveryController.invalidate()
         stopNetworkRecovery()
         recoveryTask?.cancel()
         recoveryTask = nil
@@ -878,16 +663,19 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
     // MARK: - Test Hooks
 
-    /// Expose the auto-recovery breaker state so unit tests can verify
-    /// that a healthy ping clears it. Do not call from production code.
-    public var _testOnly_autoRecoverySuspended: Bool { autoRecoverySuspended }
-    public var _testOnly_consecutiveAutoRecoveryFailures: Int { consecutiveAutoRecoveryFailures }
+    /// Expose the auto-recovery breaker state so unit tests can verify that
+    /// a healthy ping clears it. Forwards to `RecoveryController`.
+    public var _testOnly_autoRecoverySuspended: Bool {
+        recoveryController._testOnly_autoRecoverySuspended
+    }
+    public var _testOnly_consecutiveAutoRecoveryFailures: Int {
+        recoveryController._testOnly_consecutiveAutoRecoveryFailures
+    }
 
     /// Force the breaker into the suspended state for tests that exercise
-    /// the onHealthyPing → reset path without having to trip three auto-
-    /// recovery failures first.
+    /// the onHealthyPing → reset path without having to trip three
+    /// auto-recovery failures first.
     public func _testOnly_setAutoRecoverySuspended(_ suspended: Bool, failures: Int) {
-        autoRecoverySuspended = suspended
-        consecutiveAutoRecoveryFailures = failures
+        recoveryController._testOnly_setAutoRecoverySuspended(suspended, failures: failures)
     }
 }
