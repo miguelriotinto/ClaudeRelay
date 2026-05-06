@@ -30,9 +30,10 @@ int relay_get_process_script_name(int pid, char *buf, int bufsize);
 /// Returns the PPID, or -1 on error.
 int relay_get_parent_pid(int pid);
 
-/// Get the start time of the given PID (epoch seconds) via sysctl(KERN_PROC).
-/// Used by PTYSession.terminate to detect PID reuse before sending SIGKILL —
-/// see C-10. Returns -1 on error (process gone, sysctl failed, etc.).
+/// Get the start time of the given PID, packed as microseconds since the
+/// Unix epoch, via sysctl(KERN_PROC). Used by PTYSession.terminate to detect
+/// PID reuse before sending SIGKILL — see C-10. Returns -1 on error
+/// (process gone, sysctl failed, etc.).
 long long relay_get_process_start_time(int pid);
 
 #endif /* PTY_SHIM_H */
