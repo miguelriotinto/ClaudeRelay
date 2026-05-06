@@ -348,30 +348,29 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private func handleSessionCreate(name: String?, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            do {
+        let mgr = self.sessionManager
+        bridgeToEventLoopWithCtx(
+            context: context,
+            work: { [weak self] ctx -> (SessionInfo, any PTYSessionProtocol) in
                 await self?.autoDetachIfNeeded(ctx: ctx)
-                let info = try await sessionManager.createSession(tokenId: tokenId, name: name)
-                let sessionId = info.id
-                // Attach immediately
-                let (_, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId)
-                RelayLogger.log(category: "session", "Session created: \(sessionId) (name: \(name ?? "nil"))")
-                ctx.value.eventLoop.execute {
-                    guard let self = self else { return }
-                    self.attachedSessionId = sessionId
-                    self.attachedPTY = pty
-                    self.sendServerMessage(.sessionCreated(sessionId: sessionId, cols: info.cols, rows: info.rows), context: ctx.value)
-                    self.wirePTYOutput(pty: pty, context: ctx.value)
-                }
-            } catch {
+                let info = try await mgr.createSession(tokenId: tokenId, name: name)
+                // Attach immediately.
+                let (_, pty) = try await mgr.attachSession(id: info.id, tokenId: tokenId)
+                RelayLogger.log(category: "session", "Session created: \(info.id) (name: \(name ?? "nil"))")
+                return (info, pty)
+            },
+            onSuccess: { handler, ctx, pair in
+                let (info, pty) = pair
+                handler.attachedSessionId = info.id
+                handler.attachedPTY = pty
+                handler.sendServerMessage(.sessionCreated(sessionId: info.id, cols: info.cols, rows: info.rows), context: ctx)
+                handler.wirePTYOutput(pty: pty, context: ctx)
+            },
+            onFailure: { handler, ctx, error in
                 RelayLogger.log(.error, category: "session", "Session create failed: \(error)")
-                ctx.value.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 500, message: "Failed to create session: \(error)"), context: ctx.value)
-                }
+                handler.sendServerMessage(.error(code: 500, message: "Failed to create session: \(error)"), context: ctx)
             }
-        }
+        )
     }
 
     private func handleSessionRename(sessionId: UUID, name: String, context: ChannelHandlerContext) {
@@ -395,48 +394,48 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private func handleSessionAttach(sessionId: UUID, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
+        let mgr = self.sessionManager
         let myStealId = self.stealObserverId
-        Task { [weak self] in
-            do {
+        bridgeToEventLoopWithCtx(
+            context: context,
+            work: { [weak self] ctx -> (SessionInfo, any PTYSessionProtocol, Data, ActivityState, CodingAgent?) in
                 await self?.autoDetachIfNeeded(ctx: ctx)
-                let (info, pty) = try await sessionManager.attachSession(id: sessionId, tokenId: tokenId, excludeObserver: myStealId)
+                let (info, pty) = try await mgr.attachSession(id: sessionId, tokenId: tokenId, excludeObserver: myStealId)
                 let buffered = await pty.readBuffer()
                 let filtered = Self.filterEscapeResponses(buffered)
                 let activity = await pty.getActivityState()
                 let agent = await pty.getActiveAgent()
                 RelayLogger.log(category: "session", "Session attached: \(sessionId)")
-                ctx.value.eventLoop.execute {
-                    guard let self = self else { return }
-                    self.attachedSessionId = sessionId
-                    self.attachedPTY = pty
-                    self.sendServerMessage(.sessionAttached(sessionId: sessionId, state: info.state.rawValue), context: ctx.value)
-                    if !filtered.isEmpty {
-                        self.sendChunkedBinaryData(filtered, context: ctx.value)
-                    }
-                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx.value)
-                    self.wirePTYOutput(pty: pty, context: ctx.value)
+                return (info, pty, filtered, activity, agent)
+            },
+            onSuccess: { handler, ctx, tuple in
+                let (info, pty, filtered, activity, agent) = tuple
+                handler.attachedSessionId = sessionId
+                handler.attachedPTY = pty
+                handler.sendServerMessage(.sessionAttached(sessionId: sessionId, state: info.state.rawValue), context: ctx)
+                if !filtered.isEmpty {
+                    handler.sendChunkedBinaryData(filtered, context: ctx)
                 }
-            } catch {
+                handler.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx)
+                handler.wirePTYOutput(pty: pty, context: ctx)
+            },
+            onFailure: { handler, ctx, error in
                 RelayLogger.log(.error, category: "session", "Attach failed for \(sessionId): \(error)")
-                ctx.value.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 404, message: "Attach failed: \(error)"), context: ctx.value)
-                }
+                handler.sendServerMessage(.error(code: 404, message: "Attach failed: \(error)"), context: ctx)
             }
-        }
+        )
     }
 
     // MARK: - Session Resume
 
     private func handleSessionResume(sessionId: UUID, skipReplay: Bool, context: ChannelHandlerContext) {
         guard let tokenId = authenticatedTokenId else { return }
-        let sessionManager = self.sessionManager
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            do {
+        let mgr = self.sessionManager
+        bridgeToEventLoopWithCtx(
+            context: context,
+            work: { [weak self] ctx -> (any PTYSessionProtocol, Data, ActivityState, CodingAgent?) in
                 await self?.autoDetachIfNeeded(ctx: ctx)
-                let (_, _, pty) = try await sessionManager.resumeSession(id: sessionId, tokenId: tokenId)
+                let (_, _, pty) = try await mgr.resumeSession(id: sessionId, tokenId: tokenId)
                 RelayLogger.log(category: "session", "Session resumed: \(sessionId) (skipReplay=\(skipReplay))")
                 // Read scrollback history to send to client, unless the client
                 // already has a live terminal with full scrollback (tab switch).
@@ -444,23 +443,23 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
                 let filtered = Self.filterEscapeResponses(buffered)
                 let activity = await pty.getActivityState()
                 let agent = await pty.getActiveAgent()
-                ctx.value.eventLoop.execute {
-                    guard let self = self else { return }
-                    self.attachedSessionId = sessionId
-                    self.attachedPTY = pty
-                    self.sendServerMessage(.sessionResumed(sessionId: sessionId), context: ctx.value)
-                    if !filtered.isEmpty {
-                        self.sendChunkedBinaryData(filtered, context: ctx.value)
-                    }
-                    self.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx.value)
-                    self.wirePTYOutput(pty: pty, context: ctx.value)
+                return (pty, filtered, activity, agent)
+            },
+            onSuccess: { handler, ctx, tuple in
+                let (pty, filtered, activity, agent) = tuple
+                handler.attachedSessionId = sessionId
+                handler.attachedPTY = pty
+                handler.sendServerMessage(.sessionResumed(sessionId: sessionId), context: ctx)
+                if !filtered.isEmpty {
+                    handler.sendChunkedBinaryData(filtered, context: ctx)
                 }
-            } catch {
-                ctx.value.eventLoop.execute {
-                    self?.sendServerMessage(.error(code: 404, message: "Resume failed: \(error)"), context: ctx.value)
-                }
+                handler.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx)
+                handler.wirePTYOutput(pty: pty, context: ctx)
+            },
+            onFailure: { handler, ctx, error in
+                handler.sendServerMessage(.error(code: 404, message: "Resume failed: \(error)"), context: ctx)
             }
-        }
+        )
     }
 
     // MARK: - Session Detach
@@ -808,6 +807,33 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
         Task { [weak self] in
             do {
                 let value = try await work()
+                ctx.value.eventLoop.execute { [weak self] in
+                    guard let self else { return }
+                    onSuccess(self, ctx.value, value)
+                }
+            } catch {
+                ctx.value.eventLoop.execute { [weak self] in
+                    guard let self else { return }
+                    onFailure(self, ctx.value, error)
+                }
+            }
+        }
+    }
+
+    /// Variant of `bridgeToEventLoop` that hands the `UnsafeTransfer<ChannelHandlerContext>`
+    /// to the work closure. Needed by handlers that call helpers like
+    /// `autoDetachIfNeeded(ctx:)` which themselves hop back to the event
+    /// loop for a snapshot/writeback.
+    func bridgeToEventLoopWithCtx<T: Sendable>(
+        context: ChannelHandlerContext,
+        work: @Sendable @escaping (UnsafeTransfer<ChannelHandlerContext>) async throws -> T,
+        onSuccess: @escaping (_ handler: RelayMessageHandler, _ ctx: ChannelHandlerContext, _ value: T) -> Void,
+        onFailure: @escaping (_ handler: RelayMessageHandler, _ ctx: ChannelHandlerContext, _ error: Error) -> Void
+    ) {
+        let ctx = UnsafeTransfer(context)
+        Task { [weak self] in
+            do {
+                let value = try await work(ctx)
                 ctx.value.eventLoop.execute { [weak self] in
                     guard let self else { return }
                     onSuccess(self, ctx.value, value)
