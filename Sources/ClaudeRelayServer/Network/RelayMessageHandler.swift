@@ -779,4 +779,44 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private static func filterEscapeResponses(_ data: Data) -> Data {
         EscapeResponseFilter.filter(data)
     }
+
+    // MARK: - Event-loop bridge
+    //
+    // The handler is `@unchecked Sendable`; every read/write of mutable
+    // instance state must happen on the channel's event loop. Most request
+    // handlers follow the same shape — await something on an actor, then hop
+    // back to mutate handler state and send a response. `bridgeToEventLoop`
+    // names the pattern so call sites can express the intent in one place
+    // instead of copy-pasting the `Task { [weak self] … eventLoop.execute {
+    // … } }` scaffolding.
+    //
+    // Semantics:
+    // - `work` runs on the Swift concurrency executor (suspension allowed).
+    // - `onSuccess` and `onFailure` are guaranteed to run on the channel
+    //   event loop; they may safely mutate handler state.
+    // - `self` is captured weakly in both hops. If the handler has been
+    //   torn down by the time a callback runs, it silently no-ops.
+
+    func bridgeToEventLoop<T: Sendable>(
+        context: ChannelHandlerContext,
+        work: @Sendable @escaping () async throws -> T,
+        onSuccess: @escaping (_ handler: RelayMessageHandler, _ ctx: ChannelHandlerContext, _ value: T) -> Void,
+        onFailure: @escaping (_ handler: RelayMessageHandler, _ ctx: ChannelHandlerContext, _ error: Error) -> Void
+    ) {
+        let ctx = UnsafeTransfer(context)
+        Task { [weak self] in
+            do {
+                let value = try await work()
+                ctx.value.eventLoop.execute { [weak self] in
+                    guard let self else { return }
+                    onSuccess(self, ctx.value, value)
+                }
+            } catch {
+                ctx.value.eventLoop.execute { [weak self] in
+                    guard let self else { return }
+                    onFailure(self, ctx.value, error)
+                }
+            }
+        }
+    }
 }
