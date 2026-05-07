@@ -11,6 +11,13 @@ struct AttachRemoteSessionSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            Text("Attach Session")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+
             if isLoading {
                 ProgressView("Looking for sessions...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -33,10 +40,12 @@ struct AttachRemoteSessionSheet: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .padding(.vertical, 4)
                         .tag(session.id)
                     }
                 }
                 .listStyle(.inset)
+                .padding(.horizontal, 8)
             }
 
             Divider()
