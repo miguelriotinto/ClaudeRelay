@@ -93,9 +93,11 @@ final class ContinuousListeningEngineTests: XCTestCase {
             await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
         }
         await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
 
-        // Transitioned out of detectingWakeWord and listening.
-        XCTAssertNotEqual(engine.state, .detectingWakeWord)
-        XCTAssertNotEqual(engine.state, .listening)
+        // After wake-word detection → turn-end → transcription → cleaning → output,
+        // the engine should converge back to .listening.
+        XCTAssertEqual(engine.state, .listening)
     }
 }

@@ -30,7 +30,6 @@ public final class ContinuousListeningEngine: ObservableObject {
 
     // Utterance tracking
     private var utteranceStartPosition: Int = 0
-    private var wakeWordResidue: String = ""
 
     /// Task spawned for wake-word check / turn-end check / transcription.
     /// Tracked so tests can await completion and disable() can cancel cleanly.
@@ -140,8 +139,7 @@ public final class ContinuousListeningEngine: ObservableObject {
 
     private func handleWakeWordResult(_ result: WakeWordResult) {
         switch result {
-        case .detected(let residue):
-            wakeWordResidue = residue
+        case .detected:
             // The first silence already bracketed the phrase, so jump straight
             // to turn-end prediction to decide whether the whole utterance is done.
             state = .detectingTurnEnd
@@ -179,6 +177,7 @@ public final class ContinuousListeningEngine: ObservableObject {
             do {
                 rawText = try await self.transcriber.transcribe(utterance)
             } catch {
+                guard !Task.isCancelled else { return }
                 self.state = .listening
                 return
             }
@@ -189,6 +188,7 @@ public final class ContinuousListeningEngine: ObservableObject {
             do {
                 cleaned = try await self.cleaner.clean(rawText)
             } catch {
+                guard !Task.isCancelled else { return }
                 cleaned = rawText
             }
             guard !Task.isCancelled else { return }
