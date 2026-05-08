@@ -195,4 +195,68 @@ final class TokenStoreTests: XCTestCase {
         XCTAssertEqual(countAfter, 1,
             "Failed create must not leak into the in-memory cache")
     }
+
+    // MARK: - Rename
+
+    func testRenameExistingToken() async throws {
+        let store = TokenStore(directory: tempDir)
+        let (_, info) = try await store.create(label: "original")
+
+        let renamed = try await store.rename(id: info.id, label: "updated")
+        XCTAssertEqual(renamed.id, info.id)
+        XCTAssertEqual(renamed.label, "updated")
+
+        let listed = await store.list()
+        XCTAssertEqual(listed.first?.label, "updated")
+    }
+
+    func testRenameNonExistentTokenThrows() async throws {
+        let store = TokenStore(directory: tempDir)
+        do {
+            _ = try await store.rename(id: "nonexistent", label: "x")
+            XCTFail("Expected tokenNotFound error")
+        } catch let error as TokenStore.TokenStoreError {
+            if case .tokenNotFound(let id) = error {
+                XCTAssertEqual(id, "nonexistent")
+            } else {
+                XCTFail("Wrong error case: \(error)")
+            }
+        }
+    }
+
+    func testRenamePersistsAcrossInstances() async throws {
+        let store1 = TokenStore(directory: tempDir)
+        let (_, info) = try await store1.create(label: "before")
+        _ = try await store1.rename(id: info.id, label: "after")
+
+        let store2 = TokenStore(directory: tempDir)
+        let listed = await store2.list()
+        XCTAssertEqual(listed.first?.label, "after")
+    }
+
+    // MARK: - Inspect
+
+    func testInspectExistingToken() async throws {
+        let store = TokenStore(directory: tempDir)
+        let (_, created) = try await store.create(label: "inspectable")
+
+        let inspected = try await store.inspect(id: created.id)
+        XCTAssertEqual(inspected.id, created.id)
+        XCTAssertEqual(inspected.label, "inspectable")
+        XCTAssertEqual(inspected.tokenHash, created.tokenHash)
+    }
+
+    func testInspectNonExistentTokenThrows() async throws {
+        let store = TokenStore(directory: tempDir)
+        do {
+            _ = try await store.inspect(id: "ghost")
+            XCTFail("Expected tokenNotFound error")
+        } catch let error as TokenStore.TokenStoreError {
+            if case .tokenNotFound(let id) = error {
+                XCTAssertEqual(id, "ghost")
+            } else {
+                XCTFail("Wrong error case: \(error)")
+            }
+        }
+    }
 }

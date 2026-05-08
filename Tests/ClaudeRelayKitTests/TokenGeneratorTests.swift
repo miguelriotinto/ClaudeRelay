@@ -86,4 +86,72 @@ final class TokenGeneratorTests: XCTestCase {
         }
         XCTAssertEqual(tokens.count, 100, "All 100 generated tokens should be unique")
     }
+
+    // MARK: - TokenInfo.isExpired
+
+    func testIsExpiredWhenExpiresAtIsNil() {
+        let info = TokenInfo(id: "test", tokenHash: "abc", expiresAt: nil)
+        XCTAssertFalse(info.isExpired, "Token with nil expiresAt should never be expired")
+    }
+
+    func testIsExpiredWhenExpiresAtIsPast() {
+        let pastDate = Date().addingTimeInterval(-3600)
+        let info = TokenInfo(id: "test", tokenHash: "abc", expiresAt: pastDate)
+        XCTAssertTrue(info.isExpired, "Token with past expiresAt should be expired")
+    }
+
+    func testIsExpiredWhenExpiresAtIsFuture() {
+        let futureDate = Date().addingTimeInterval(3600)
+        let info = TokenInfo(id: "test", tokenHash: "abc", expiresAt: futureDate)
+        XCTAssertFalse(info.isExpired, "Token with future expiresAt should not be expired")
+    }
+
+    // MARK: - Expiry Generation
+
+    func testGenerateWithExpiryDays() {
+        let (_, info) = TokenGenerator.generate(label: "expiring", expiryDays: 7)
+        XCTAssertNotNil(info.expiresAt)
+        let expected = Date().addingTimeInterval(7 * 86400)
+        XCTAssertEqual(
+            info.expiresAt!.timeIntervalSinceReferenceDate,
+            expected.timeIntervalSinceReferenceDate,
+            accuracy: 2.0
+        )
+    }
+
+    func testGenerateWithZeroExpiryDays() {
+        let (_, info) = TokenGenerator.generate(expiryDays: 0)
+        XCTAssertNotNil(info.expiresAt)
+        XCTAssertEqual(
+            info.expiresAt!.timeIntervalSinceReferenceDate,
+            Date().timeIntervalSinceReferenceDate,
+            accuracy: 2.0,
+            "Zero expiry days should set expiresAt to approximately now"
+        )
+    }
+
+    func testGenerateWithNilExpiryDays() {
+        let (_, info) = TokenGenerator.generate(expiryDays: nil)
+        XCTAssertNil(info.expiresAt, "Nil expiry days should produce nil expiresAt")
+    }
+
+    // MARK: - Hash Format
+
+    func testHashOutputIs64HexChars() {
+        let hash = TokenGenerator.hash("test-token")
+        XCTAssertEqual(hash.count, 64, "SHA-256 hex digest should be 64 characters")
+        let hexChars = CharacterSet(charactersIn: "0123456789abcdef")
+        for scalar in hash.unicodeScalars {
+            XCTAssertTrue(hexChars.contains(scalar), "Hash should only contain lowercase hex: \(scalar)")
+        }
+    }
+
+    func testBase64URLContainsNoInvalidChars() {
+        for _ in 0..<20 {
+            let (plaintext, _) = TokenGenerator.generate()
+            XCTAssertFalse(plaintext.contains("+"), "Base64URL should not contain +")
+            XCTAssertFalse(plaintext.contains("/"), "Base64URL should not contain /")
+            XCTAssertFalse(plaintext.contains("="), "Base64URL should not contain padding =")
+        }
+    }
 }

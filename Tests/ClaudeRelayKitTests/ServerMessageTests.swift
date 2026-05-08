@@ -317,6 +317,118 @@ final class ServerMessageTests: ProtocolTestCase {
         XCTAssertEqual(name, "Bran")
     }
 
+    // MARK: - Previously untested cases
+
+    func testSessionListResultEncoding() throws {
+        let msg = ServerMessage.sessionList(sessions: [])
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        XCTAssertEqual(obj["type"] as? String, "session_list_result")
+        let payload = obj["payload"] as? [String: Any]
+        let sessions = payload?["sessions"] as? [Any]
+        XCTAssertEqual(sessions?.count, 0)
+    }
+
+    func testSessionListAllResultEncoding() throws {
+        let msg = ServerMessage.sessionListAll(sessions: [])
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        XCTAssertEqual(obj["type"] as? String, "session_list_all_result")
+    }
+
+    func testSessionListRoundTrip() throws {
+        let original = ServerMessage.sessionList(sessions: [])
+        let envelope = MessageEnvelope.server(original)
+        let data = try encoder.encode(envelope)
+        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
+        guard case .server(let roundTripped) = decoded else {
+            XCTFail("Expected .server envelope"); return
+        }
+        XCTAssertEqual(original, roundTripped)
+    }
+
+    func testSessionListAllRoundTrip() throws {
+        let original = ServerMessage.sessionListAll(sessions: [])
+        let envelope = MessageEnvelope.server(original)
+        let data = try encoder.encode(envelope)
+        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
+        guard case .server(let roundTripped) = decoded else {
+            XCTFail("Expected .server envelope"); return
+        }
+        XCTAssertEqual(original, roundTripped)
+    }
+
+    func testPasteImageResultTrueEncoding() throws {
+        let msg = ServerMessage.pasteImageResult(success: true)
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        XCTAssertEqual(obj["type"] as? String, "paste_image_result")
+        let payload = obj["payload"] as? [String: Any]
+        XCTAssertEqual(payload?["success"] as? Bool, true)
+    }
+
+    func testPasteImageResultFalseEncoding() throws {
+        let msg = ServerMessage.pasteImageResult(success: false)
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        let payload = obj["payload"] as? [String: Any]
+        XCTAssertEqual(payload?["success"] as? Bool, false)
+    }
+
+    func testPasteImageResultRoundTrip() throws {
+        for success in [true, false] {
+            let original = ServerMessage.pasteImageResult(success: success)
+            let envelope = MessageEnvelope.server(original)
+            let data = try encoder.encode(envelope)
+            let decoded = try decoder.decode(MessageEnvelope.self, from: data)
+            guard case .server(let roundTripped) = decoded else {
+                XCTFail("Expected .server envelope"); continue
+            }
+            XCTAssertEqual(original, roundTripped)
+        }
+    }
+
+    func testAuthSuccessWithProtocolVersion() throws {
+        let msg = ServerMessage.authSuccess(protocolVersion: 1)
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        let payload = obj["payload"] as? [String: Any]
+        XCTAssertEqual(payload?["protocolVersion"] as? Int, 1)
+    }
+
+    func testAuthSuccessWithProtocolVersionRoundTrip() throws {
+        let original = ServerMessage.authSuccess(protocolVersion: 1)
+        let envelope = MessageEnvelope.server(original)
+        let data = try encoder.encode(envelope)
+        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
+        guard case .server(let roundTripped) = decoded else {
+            XCTFail("Expected .server envelope"); return
+        }
+        XCTAssertEqual(original, roundTripped)
+    }
+
+    func testSessionActivityWithNilAgent() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let original = ServerMessage.sessionActivity(sessionId: id, activity: .active, agent: nil)
+        let envelope = MessageEnvelope.server(original)
+        let data = try encoder.encode(envelope)
+        let decoded = try decoder.decode(MessageEnvelope.self, from: data)
+        guard case .server(let roundTripped) = decoded else {
+            XCTFail("Expected .server envelope"); return
+        }
+        XCTAssertEqual(original, roundTripped)
+    }
+
     // MARK: - Equatable
 
     func testServerMessageEquatable() {

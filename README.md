@@ -224,10 +224,28 @@ swift build
 ### Run Tests
 
 ```bash
-swift test                                    # All SPM tests
-swift test --filter ClaudeRelayKitTests      # Specific suite
+swift test                                    # All SPM tests (532 tests across 4 targets)
+swift test --filter ClaudeRelayKitTests       # Specific suite
 swift test --filter testTokenGeneration       # Specific test
 ```
+
+The SPM suite covers the protocol layer (envelope + client/server messages +
+activity/session state + token generation + connection quality), the server
+actors (`SessionManager`, `TokenStore`, `PTYSession` via `MockPTYSession`,
+`SessionActivityMonitor`, `RateLimiter`, `RingBuffer`, `LogStore`,
+`AdminRoutes` endpoints, config validation), the client (auth coordinator,
+saved connections, session naming, session ownership, terminal view model +
+LRU cache, recovery controller, WebSocket integration round-trip), and the
+CLI (output formatter, admin client). Tests that require the speech pipeline,
+UIKit/AppKit, or the Keychain live in the Xcode test bundles
+(`ClaudeRelayAppTests` on iOS) — build the `ClaudeRelayApp` scheme and run
+tests in Xcode to exercise them.
+
+Contributions that add a new public API or a new branch should come with a
+test in the corresponding `Tests/<Module>Tests/` directory (or
+`ClaudeRelayAppTests/` for app-target code). Follow the existing patterns —
+most suites use the `ProtocolTestCase` (Kit) or `SessionManagerTestCase`
+(Server) base classes.
 
 ### iOS & Mac Apps
 
@@ -269,11 +287,11 @@ ClaudeRelay/
 │   ├── Models/                 # App settings, saved connections
 │   └── Helpers/                # NetworkMonitor, SleepWakeObserver, image paste
 ├── Tests/
-│   ├── ClaudeRelayKitTests/    # Protocol, CodingAgent, ActivityState, SessionState, TokenGenerator
-│   ├── ClaudeRelayServerTests/ # SessionManager, TokenStore, RateLimiter, RingBuffer, ConfigValidation, ActivityMonitor
-│   ├── ClaudeRelayCLITests/    # OutputFormatter
-│   └── ClaudeRelayClientTests/ # Auth, Connection, SessionNaming, TerminalViewModel, LRU cache
-├── ClaudeRelayAppTests/        # iOS app unit tests
+│   ├── ClaudeRelayKitTests/    # Protocol, CodingAgent, ActivityState, SessionState, TokenGenerator, ConnectionQuality, RelayConfig, MessageEnvelope
+│   ├── ClaudeRelayServerTests/ # SessionManager, TokenStore, RateLimiter, RingBuffer, ConfigValidation, ActivityMonitor, AdminRoutesEndpoint
+│   ├── ClaudeRelayCLITests/    # OutputFormatter, AdminClient
+│   └── ClaudeRelayClientTests/ # Auth, Connection, SessionNaming, TerminalViewModel, LRU cache, RecoveryController
+├── ClaudeRelayAppTests/        # iOS app unit tests (AppSettings, SpeechEngineState, WhisperHallucination, TextCleaner, OnDeviceSpeechEngine)
 ├── Formula/
 │   └── clauderelay.rb          # Homebrew formula
 ├── docs/                       # Design specs and implementation plans
@@ -389,9 +407,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ### Development Guidelines
 
 1. Follow existing code style
-2. Add tests for new features
-3. Update documentation
-4. Run `swift test` before submitting
+2. Add tests for new features — at minimum, cover boundary values, error
+   paths, and any backward-compat decoding (see how `RelayConfigTests`
+   pins defaults across missing-field JSON)
+3. Update documentation (README, CHANGELOG, CLAUDE.md)
+4. Run `swift test` before submitting (all 532 SPM tests must pass; the
+   pre-existing Keychain-dependent `AuthManagerTests` and one timing
+   `SessionActivityMonitor` test may fail in sandboxed environments —
+   they're environmental, not regressions)
 5. Ensure `swiftlint` passes (see `.swiftlint.yml`)
 
 ## License

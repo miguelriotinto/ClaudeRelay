@@ -42,4 +42,30 @@ final class MessageEnvelopeTests: ProtocolTestCase {
         XCTAssertEqual(activity, .agentActive)
         XCTAssertNil(agent)
     }
+
+    // MARK: - Error cases
+
+    func testUnknownTypeStringThrows() {
+        let json = #"{"type":"totally_unknown","payload":{}}"#
+        XCTAssertThrowsError(try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))) { error in
+            guard case DecodingError.dataCorrupted = error else {
+                XCTFail("Expected dataCorrupted, got \(error)"); return
+            }
+        }
+    }
+
+    func testMalformedEnvelopeMissingType() {
+        let json = #"{"payload":{}}"#
+        XCTAssertThrowsError(try decoder.decode(MessageEnvelope.self, from: Data(json.utf8)))
+    }
+
+    func testMalformedEnvelopeMissingPayload() {
+        let json = #"{"type":"ping"}"#
+        XCTAssertThrowsError(try decoder.decode(MessageEnvelope.self, from: Data(json.utf8)))
+    }
+
+    func testEmptyTypeStringThrows() {
+        let json = #"{"type":"","payload":{}}"#
+        XCTAssertThrowsError(try decoder.decode(MessageEnvelope.self, from: Data(json.utf8)))
+    }
 }

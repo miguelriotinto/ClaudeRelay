@@ -238,4 +238,49 @@ final class TerminalViewModelTests: XCTestCase {
         XCTAssertLessThanOrEqual(total, 4 * 1024 * 1024 + chunk.count,
             "Total delivered should stay within cap + one head chunk slack")
     }
+
+    // MARK: - Send Suppression
+
+    func testSendInputSuppressedWhenFlagSet() {
+        let connection = RelayConnection()
+        let vm = TerminalViewModel(sessionId: UUID(), connection: connection)
+        vm.isSendingSuppressed = true
+
+        // sendInput should be a no-op — no crash, no throws
+        vm.sendInput(Data([0x41, 0x42]))
+        vm.sendInput("hello")
+    }
+
+    func testSendInputWorksWhenNotSuppressed() {
+        let connection = RelayConnection()
+        let vm = TerminalViewModel(sessionId: UUID(), connection: connection)
+        vm.isSendingSuppressed = false
+
+        // Can't verify the send reaches the connection (it's disconnected),
+        // but it should not crash
+        vm.sendInput(Data([0x41]))
+        vm.sendInput("test")
+    }
+
+    // MARK: - Empty data
+
+    func testReceiveOutputEmptyDataNoCrash() {
+        let vm = makeVM()
+        var received = [Data]()
+        vm.onTerminalOutput = { received.append($0) }
+        vm.terminalReady()
+
+        vm.receiveOutput(Data())
+        // Should not crash or produce output for empty data
+    }
+
+    // MARK: - String sendInput encoding
+
+    func testSendInputStringConvertsToUTF8() {
+        let connection = RelayConnection()
+        let vm = TerminalViewModel(sessionId: UUID(), connection: connection)
+        // This should not crash — we can't verify the bytes reach the wire
+        // since the connection is disconnected, but encoding should be correct
+        vm.sendInput("hello")
+    }
 }

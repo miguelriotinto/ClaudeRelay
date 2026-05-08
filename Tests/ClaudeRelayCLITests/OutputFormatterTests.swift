@@ -127,4 +127,50 @@ final class OutputFormatterTests: XCTestCase {
         XCTAssertTrue(output.contains("Alice"))
         XCTAssertTrue(output.contains("Bob"))
     }
+
+    // MARK: - Error Formatting
+
+    func testFormatErrorHumanReadable() {
+        let error = NSError(domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "something broke"])
+        let output = OutputFormatter.formatError(error, json: false)
+        XCTAssertTrue(output.contains("something broke"))
+        XCTAssertTrue(output.hasPrefix("Error:"))
+    }
+
+    func testFormatErrorJSON() {
+        let error = NSError(domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "oops"])
+        let output = OutputFormatter.formatError(error, json: true)
+        XCTAssertTrue(output.contains("\"error\""))
+        XCTAssertTrue(output.contains("oops"))
+    }
+
+    func testFormatErrorServiceNotRunningHuman() {
+        let error = AdminClientError.serviceNotRunning
+        let output = OutputFormatter.formatError(error, json: false)
+        XCTAssertEqual(output, "Service is not running.")
+    }
+
+    func testFormatErrorServiceNotRunningJSON() {
+        let error = AdminClientError.serviceNotRunning
+        let output = OutputFormatter.formatError(error, json: true)
+        XCTAssertTrue(output.contains("Service is not running"))
+        XCTAssertTrue(output.contains("\"error\""))
+    }
+
+    func testFormatErrorHTTPErrorWithJSONBody() {
+        let error = AdminClientError.httpError(statusCode: 404, body: "{\"error\":\"not found\"}")
+        let output = OutputFormatter.formatError(error, json: true)
+        XCTAssertTrue(output.contains("not found"))
+        XCTAssertTrue(output.contains("404"))
+    }
+
+    // MARK: - Table with Unicode
+
+    func testTableFormatWithUnicodeContent() {
+        let headers = ["Name", "Status"]
+        let rows = [["Caf\u{00E9}", "OK"], ["To\u{0301}kyo\u{0304}", "Err"]]
+        let output = OutputFormatter.formatTable(headers: headers, rows: rows)
+        XCTAssertTrue(output.contains("Caf\u{00E9}"))
+        XCTAssertTrue(output.contains("OK"))
+    }
 }

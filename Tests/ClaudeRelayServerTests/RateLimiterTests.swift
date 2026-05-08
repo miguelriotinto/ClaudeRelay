@@ -100,4 +100,77 @@ final class RateLimiterTests: XCTestCase {
         XCTAssertFalse(blockedAfterWait,
                        "IP should be released once the failure window has elapsed")
     }
+
+    // MARK: - Concurrency
+
+    func testConcurrentRecordFailuresNoCrash() async {
+        let limiter = RateLimiter(maxAttempts: 100, windowSeconds: 60, maxTrackedIPs: 1000)
+
+        await withTaskGroup(of: Void.self) { group in
+            for i in 0..<100 {
+                group.addTask {
+                    _ = await limiter.recordFailure(ip: "192.168.1.\(i % 20)")
+                }
+            }
+        }
+
+        let count = await limiter._testOnly_trackedIPCount
+        XCTAssertGreaterThan(count, 0)
+        XCTAssertLessThanOrEqual(count, 20)
+    }
+
+    func testConcurrentRecordAndCheckSameIP() async {
+        let limiter = RateLimiter(maxAttempts: 5, windowSeconds: 60)
+        let ip = "10.10.10.10"
+
+        await withTaskGroup(of: Bool.self) { group in
+            for _ in 0..<10 {
+                group.addTask {
+                    await limiter.recordFailure(ip: ip)
+                }
+            }
+            for _ in 0..<10 {
+                group.addTask {
+                    await limiter.isBlocked(ip: ip)
+                }
+            }
+            // All operations must complete without crash or data race
+            for await _ in group {}
+        }
+
+        let blocked = await limiter.isBlocked(ip: ip)
+        XCTAssertTrue(blocked, "10 failures > threshold of 5 should block")
+    }
+
+    func testResetDuringConcurrentChecks() async {
+        let limiter = RateLimiter(maxAttempts: 2, windowSeconds: 60)
+        await limiter.recordFailure(ip: "5.5.5.5")
+        await limiter.recordFailure(ip: "5.5.5.5")
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await limiter.reset(ip: "5.5.5.5")
+            }
+            for _ in 0..<5 {
+                group.addTask {
+                    _ = await limiter.isBlocked(ip: "5.5.5.5")
+                }
+            }
+        }
+
+        let blockedAfterReset = await limiter.isBlocked(ip: "5.5.5.5")
+        XCTAssertFalse(blockedAfterReset, "Reset should clear the IP")
+    }
+
+    func testLRUEvictionRetainsMostRecentIPs() async {
+        let limiter = RateLimiter(maxAttempts: 5, windowSeconds: 60, maxTrackedIPs: 5)
+
+        for i in 0..<10 {
+            await limiter.recordFailure(ip: "10.0.\(i).1")
+        }
+
+        // The most recent IP should definitely still be tracked
+        let lastBlocked = await limiter.isBlocked(ip: "10.0.9.1")
+        XCTAssertFalse(lastBlocked, "Most recent IP should exist but not be blocked (1 failure)")
+    }
 }

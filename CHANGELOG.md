@@ -4,7 +4,106 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
 
-## [Unreleased] — Hardening review follow-ups
+## [Unreleased] — Test coverage expansion
+
+A full-codebase test gap analysis followed by a targeted coverage sweep. SPM
+test count: **532** (was 405). The sweep focused on modules with zero or
+superficial coverage, and on protocol edge cases, concurrency invariants,
+and error paths that had previously been exercised only through integration
+tests.
+
+### Kit module
+
+- **`ConnectionQuality` fully covered** (new `ConnectionQualityTests`, 18
+  tests) — every RTT threshold (100 ms, 300 ms, 800 ms) and success-rate
+  threshold (50 %, 83 %, 100 %) pinned to an explicit boundary test. Locks
+  in the documented asymmetry that `.excellent` requires a perfect success
+  rate, and that `.disconnected` is never returned by the initializer (it's
+  set externally when the connection dies).
+- **`RelayConfig` fully covered** (new `RelayConfigTests`, 10 tests) —
+  default values, Codable round-trip, backward-compat decoding when older
+  configs omit `maxSessionsPerToken` / `bindAll`, and the `configDirectory`
+  / `configFile` / `tokensFile` URL shape. Prevents a missing field in an
+  older `config.json` from drifting toward unsafe defaults.
+- **`TokenInfo.isExpired` pinned** (extended `TokenGeneratorTests`, 8 new
+  tests) — covers `expiresAt = nil` / past / future, plus
+  `TokenGenerator.generate` with `expiryDays = 0 / nil / N`. Also asserts
+  SHA-256 hash output is 64 lowercase hex chars and that Base64URL tokens
+  contain no `+`, `/`, or `=`.
+- **Previously untested protocol cases** (extended `ClientMessageTests`,
+  `ServerMessageTests`, `MessageEnvelopeTests`, 22 new tests) — round-trip
+  coverage for `sessionTerminate`, `sessionList`, `sessionListAll`,
+  `pasteImage`, `pasteImageResult`, `sessionResume(skipReplay: true)`, and
+  `authRequest` / `authSuccess` with `protocolVersion`. Error-path tests
+  for unknown type strings, missing `type` / `payload` keys, and empty type
+  strings assert the envelope rejects malformed frames instead of silently
+  falling through.
+
+### Server module
+
+- **`TokenStore.rename` and `TokenStore.inspect` covered** (extended
+  `TokenStoreTests`, 5 new tests) — rename round-trip and persistence
+  across actor instances, plus `tokenNotFound` error paths for both
+  methods. These were the two public surfaces on `TokenStore` with zero
+  coverage.
+- **Admin HTTP API endpoint tests** (new `AdminRoutesEndpointTests`, 13
+  tests) — exercises `/health`, `/status`, `/sessions`, `/sessions/{id}`,
+  `/tokens`, `/tokens/{id}`, `/config`, `/logs`, and unknown-route 404s
+  directly against `AdminRoutes.handle` with a real `SessionManager` and
+  `TokenStore`. Previously these routes were only exercised through the
+  CLI integration path.
+- **`RateLimiter` concurrency** (extended `RateLimiterTests`, 4 new tests)
+  — `TaskGroup`-based stress covers concurrent `recordFailure` across 100
+  tasks, mixed `recordFailure` / `isBlocked` on the same IP, `reset` racing
+  with `isBlocked`, and LRU eviction retaining the most recent IPs when
+  `maxTrackedIPs` is exceeded. Asserts the actor's invariant holds under
+  the scanner-traffic shape that motivated the LRU cap.
+
+### Client module
+
+- **`RecoveryController` directly tested** (new `RecoveryControllerTests`,
+  7 tests) — previously the circuit breaker, generation tokens, and
+  cooldown logic were only covered transitively through
+  `SharedSessionCoordinator`. New tests drive the state via the
+  `_testOnly_` hooks: breaker reset semantics (idempotent when already
+  idle), `scheduleAutoRecovery` gated on torn-down / suspended state,
+  `triggerUserRecovery` torn-down no-op, and `cancel` suspending + the 1 s
+  cancel-debounce on subsequent `triggerUserRecovery`.
+- **`TerminalViewModel` send suppression covered** (extended
+  `TerminalViewModelTests`, 4 new tests) — `isSendingSuppressed = true`
+  makes `sendInput` (both `Data` and `String` variants) a no-op, empty
+  `Data` to `receiveOutput` doesn't crash, and `String` input encodes via
+  UTF-8.
+
+### CLI module
+
+- **`AdminClient` covered** (new `AdminClientTests`, 9 tests) — base-URL
+  construction across the UInt16 range (min, max, default, custom),
+  `isServiceRunning` returning `false` for a closed port, every
+  `AdminClientError` case's `errorDescription`, and the default 10 s
+  request timeout. Previously the HTTP client used by every CLI command
+  had zero unit coverage.
+- **`OutputFormatter` error formatting** (extended `OutputFormatterTests`,
+  6 new tests) — `formatError(_:json:)` with a generic `NSError` (human +
+  JSON), `AdminClientError.serviceNotRunning` (human + JSON),
+  `AdminClientError.httpError` parsing an embedded `{"error": ...}` body,
+  and table formatting with combining-mark Unicode content.
+
+### Speech module (Xcode-only)
+
+- **`SpeechEngineState` covered** (new `ClaudeRelayAppTests/SpeechEngineStateTests`,
+  9 tests) — `isActive` returns `false` for `.idle` / `.error`, `true` for
+  the four active cases; all six `description` strings pinned; Equatable
+  conformance asserted for both base cases and associated-value cases.
+- **`WhisperTranscriber.isSilenceHallucination` covered** (new
+  `ClaudeRelayAppTests/WhisperHallucinationTests`, 12 tests) — every known
+  Whisper silence hallucination from the static set ("thank you",
+  "thanks for watching", "subscribe", "okay", "hmm", etc.) plus
+  case-insensitivity, punctuation stripping, and negative cases ensuring
+  normal user input isn't mis-classified. These tests run in the iOS test
+  bundle; SPM `swift test` does not exercise them.
+
+### Pre-existing code — Hardening review follow-ups
 
 Executes the plan captured in `docs/superpowers/plans/2026-05-07-hardening-review-followups.md`.
 
