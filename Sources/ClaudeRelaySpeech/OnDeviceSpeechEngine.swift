@@ -30,7 +30,7 @@ public final class OnDeviceSpeechEngine: ObservableObject {
     private let whisperTranscriber: WhisperTranscriber?
     private let textCleaner: TextCleaner?
 
-    private var processingTask: Task<Result<String, Error>, Never>?
+    private var processingTask: Task<ProcessedText?, Never>?
 
     private var modelStoreSubscription: AnyCancellable?
 
@@ -194,21 +194,12 @@ public final class OnDeviceSpeechEngine: ObservableObject {
         }
     }
 
-    /// Stop recording and process the audio.
-    /// - `smartCleanup`: use local LLM for filler removal
-    /// - `promptEnhancement`: use cloud Haiku for prompt rewriting (overrides cleanup)
-    /// - `bearerToken` / `region`: required when promptEnhancement is true
-    public func stopAndProcess(
-        smartCleanup: Bool = true,
-        promptEnhancement: Bool = false,
-        bearerToken: String = "",
-        region: String = "us-east-1"
-    ) async -> String? {
+    /// Stop recording and process the audio using the unified post-processor.
+    /// Returns the string to deliver, or nil if the utterance should produce
+    /// no output (silence, refusal, cancellation).
+    public func stopAndProcess(options: SpeechProcessingOptions) async -> String? {
         guard state == .recording else { return nil }
 
-        // Defensive: if a previous call never cleared processingTask, cancel it
-        // now rather than orphaning it. UI should already disable the mic button
-        // in .transcribing/.cleaning states, so this normally shouldn't fire.
         if let existing = processingTask {
             existing.cancel()
             processingTask = nil
@@ -219,52 +210,23 @@ public final class OnDeviceSpeechEngine: ObservableObject {
             return nil
         }
 
-        let willClean = promptEnhancement || smartCleanup
-        let enhancer = cloudEnhancer
+        let processor = SpeechPostProcessor(cleaner: cleaner, enhancer: cloudEnhancer)
         let engine = self
-        let task = Task<Result<String, Error>, Never> { [transcriber, cleaner] in
-            // Phase 1: Transcribe (always local via Whisper)
+        let task = Task<ProcessedText?, Never> { [transcriber] in
             let rawText: String
             do {
                 rawText = try await transcriber.transcribe(audioBuffer)
             } catch {
-                return .failure(error)
+                return nil
             }
+            guard !Task.isCancelled else { return nil }
 
-            guard !Task.isCancelled else { return .failure(CancellationError()) }
-
-            // Whisper often hallucinates short phrases ("you", "Thank you.") from silence.
-            // Treat transcripts with fewer than 2 words, or known hallucination
-            // phrases, as no speech detected.
-            let wordCount = rawText.split(whereSeparator: { $0.isWhitespace }).count
-            if wordCount < 2 || TranscriberError.isSilenceHallucination(rawText) {
-                return .failure(TranscriberError.emptyTranscription)
-            }
-
-            // Transition to .cleaning before phase 2 (only when cleanup/enhancement is active)
-            if willClean {
+            let willProcess = options.smartCleanupEnabled || options.promptEnhancementEnabled
+            if willProcess {
                 await MainActor.run { engine.state = .cleaning }
             }
 
-            // Phase 2: Process based on settings
-            if promptEnhancement {
-                // Cloud path: send raw transcript to Bedrock Haiku
-                do {
-                    return .success(try await enhancer.enhance(rawText, bearerToken: bearerToken, region: region))
-                } catch {
-                    return .failure(error)
-                }
-            } else if smartCleanup {
-                // Local path: clean filler words with on-device LLM (best-effort)
-                do {
-                    return .success(try await cleaner.clean(rawText))
-                } catch {
-                    return .success(rawText)
-                }
-            } else {
-                // Raw passthrough
-                return .success(rawText)
-            }
+            return await processor.process(rawText, options: options)
         }
 
         processingTask = task
@@ -273,30 +235,33 @@ public final class OnDeviceSpeechEngine: ObservableObject {
         let result = await task.value
         processingTask = nil
 
-        switch result {
-        case .success(let text):
+        guard let result else {
             state = .idle
-            return text
-        case .failure(let error):
-            // Silent-reset cases: cancelled, silence detected, or Haiku refusal.
-            // In each case we emit nothing and just return to idle.
-            let isRefusal: Bool
-            if case .refused = (error as? EnhancerError) { isRefusal = true } else { isRefusal = false }
-            if error is CancellationError
-                || (error as? TranscriberError) == .emptyTranscription
-                || isRefusal {
-                state = .idle
-                return nil
-            }
-            if state != .idle {
-                state = .error(error.localizedDescription)
-                Task {
-                    try? await Task.sleep(for: .seconds(3))
-                    if case .error = state { state = .idle }
-                }
-            }
             return nil
         }
+
+        state = .idle
+        return result.deliverableText
+    }
+
+    /// Stop recording and process the audio.
+    /// - `smartCleanup`: use local LLM for filler removal
+    /// - `promptEnhancement`: use cloud Haiku for prompt rewriting (overrides cleanup)
+    /// - `bearerToken` / `region`: required when promptEnhancement is true
+    @available(*, deprecated, renamed: "stopAndProcess(options:)")
+    public func stopAndProcess(
+        smartCleanup: Bool = true,
+        promptEnhancement: Bool = false,
+        bearerToken: String = "",
+        region: String = "us-east-1"
+    ) async -> String? {
+        let options = SpeechProcessingOptions(
+            smartCleanupEnabled: smartCleanup,
+            promptEnhancementEnabled: promptEnhancement,
+            bedrockBearerToken: bearerToken,
+            bedrockRegion: region
+        )
+        return await stopAndProcess(options: options)
     }
 
     public func cancel() {
