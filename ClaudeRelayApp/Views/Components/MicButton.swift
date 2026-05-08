@@ -8,6 +8,7 @@ struct MicButton: View {
     @ObservedObject var engine: OnDeviceSpeechEngine
     @ObservedObject var settings: AppSettings
     let coordinator: SessionCoordinator
+    @ObservedObject var continuousEngine: ContinuousListeningEngine
     @State private var showDownloadAlert = false
 
     private var activeProgress: Double? {
@@ -39,6 +40,14 @@ struct MicButton: View {
             .frame(width: 44, height: 44)
             .background(buttonColor)
             .clipShape(Circle())
+            .overlay(alignment: .topTrailing) {
+                if settings.continuousListeningEnabled {
+                    Circle()
+                        .fill(continuousDotColor)
+                        .frame(width: 10, height: 10)
+                        .offset(x: 2, y: -2)
+                }
+            }
         }
         .disabled(isButtonDisabled)
         .alert("Download Speech Models?", isPresented: $showDownloadAlert) {
@@ -123,6 +132,18 @@ struct MicButton: View {
         case .recording: return SwiftUI.Color.red.opacity(0.8)
         case .transcribing, .cleaning: return SwiftUI.Color.yellow.opacity(0.8)
         case .error: return SwiftUI.Color.red.opacity(0.8)
+        }
+    }
+
+    private var continuousDotColor: SwiftUI.Color {
+        switch continuousEngine.state {
+        case .idle:                 return .gray
+        case .listening:            return .green
+        case .detectingWakeWord:    return .blue
+        case .recording, .detectingTurnEnd: return .red
+        case .transcribing, .cleaning:      return .yellow
+        case .outputting:           return .green
+        case .error:                return .red
         }
     }
 }

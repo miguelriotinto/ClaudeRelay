@@ -16,6 +16,7 @@ struct ActiveTerminalView: View {
     @State private var showRenameAlert = false
     @State private var renameText = ""
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
+    @StateObject private var continuousEngine = ContinuousListeningEngine.makeDefault()
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -53,7 +54,12 @@ struct ActiveTerminalView: View {
             // Floating buttons: mic + keyboard toggle (only when a terminal session is active)
             if coordinator.activeSessionId != nil {
                 HStack(spacing: 10) {
-                    MicButton(engine: speechEngine, settings: settings, coordinator: coordinator)
+                    MicButton(
+                        engine: speechEngine,
+                        settings: settings,
+                        coordinator: coordinator,
+                        continuousEngine: continuousEngine
+                    )
 
                     Button {
                         if settings.hapticFeedbackEnabled {
@@ -185,6 +191,18 @@ struct ActiveTerminalView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .task(id: continuousTaskID) {
+            continuousEngine.onUtteranceReady = { text in
+                guard let id = coordinator.activeSessionId,
+                      let vm = coordinator.viewModel(for: id) else { return }
+                vm.sendInput(text)
+            }
+            if settings.continuousListeningEnabled && scenePhase == .active {
+                await continuousEngine.enable()
+            } else {
+                await continuousEngine.disable()
+            }
+        }
         .overlay {
             if showQROverlay, let id = coordinator.activeSessionId {
                 QRCodeOverlay(
@@ -194,6 +212,11 @@ struct ActiveTerminalView: View {
                 )
             }
         }
+    }
+
+    /// Re-runs the continuous engine .task on any of these changes.
+    private var continuousTaskID: String {
+        "\(settings.continuousListeningEnabled)-\(scenePhase)"
     }
 
     @ViewBuilder
