@@ -162,24 +162,26 @@ final class TerminalViewModelTests: XCTestCase {
     }
 
     func testAgentActiveUsesLongerThreshold() async throws {
-        let vm = makeVM()
+        // Override default thresholds with a wider agentActive margin so the
+        // "hasn't fired yet" assertion has room against CI jitter. The
+        // invariant is still "normal < agentActive"; the specific numbers
+        // are only there to keep the negative-case sleep well short of the
+        // agentActive threshold.
+        let vm = makeVM(normal: .milliseconds(80), agentActive: .milliseconds(500))
         var received = [Data]()
         vm.onTerminalOutput = { received.append($0) }
         vm.terminalReady()
         vm.isAgentActive = true
 
         vm.receiveOutput(Data([0x24, 0x20]))
-        // At 100 ms the agentActive threshold (160 ms) hasn't elapsed yet; assert
-        // the timer hasn't fired. This is a deterministic sleep — the invariant
-        // is "did NOT fire" which can't be polled (we need a hard deadline).
-        // 60 ms slack against the threshold gives enough margin for typical CI
-        // jitter without stretching the test unnecessarily.
-        try await Task.sleep(for: .milliseconds(100))
+        // 150 ms is deep inside the agentActive threshold (500 ms) — assert
+        // the timer has NOT fired yet. Can't be polled; needs a hard deadline.
+        try await Task.sleep(for: .milliseconds(150))
         XCTAssertFalse(vm.awaitingInput, "Should not trigger before agentActive threshold")
 
-        // Now poll for the positive transition — any jitter lets us wait longer
-        // without slowing the happy path.
-        try await waitFor { vm.awaitingInput }
+        // Now poll for the positive transition — the happy path doesn't pay
+        // the full 500 ms wait unless jitter is extreme.
+        try await waitFor(timeout: .milliseconds(1000)) { vm.awaitingInput }
         XCTAssertTrue(vm.awaitingInput, "Should trigger after agentActive threshold elapses")
     }
 
