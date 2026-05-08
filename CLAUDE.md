@@ -143,6 +143,31 @@ Named caps across the stack:
 
 `CloudPromptEnhancer` takes an optional `modelId` at init (defaults to the current Haiku inference profile; override for newer models). Error bodies are JSON-parsed for clean messages, and free-form bodies have `Bearer <token>` redacted before logging.
 
+### Continuous Listening Pipeline
+
+`ContinuousListeningEngine` is a parallel orchestrator to `OnDeviceSpeechEngine`
+that powers always-on listening with a wake word ("Claude" by default).
+
+Pipeline:
+1. `StreamingAudioSource` (AVAudioEngine tap) → 30 ms @ 16 kHz mono Float32 chunks
+2. `StreamingAudioBuffer` (10 s ring buffer, lock-protected via `OSAllocatedUnfairLock`) — zero-copy append
+3. `VoiceActivityDetecting` — `VoiceActivityDetector` (RMS energy + hysteresis + debounce) today; CoreML-backed Silero VAD is planned as a drop-in replacement
+4. On VAD `speechStart` → `WakeWordDetector` accumulates ≤ 3 s, runs WhisperKit, fuzzy-matches the keyword (Levenshtein ≤ 1)
+5. If matched → `.detectingTurnEnd`; VAD `silenceStart` during `.recording` also routes here
+6. `TurnEndDetecting` — `HeuristicTurnEndDetector` (always "done") today; CoreML Smart-Turn classifier planned as upgrade
+7. On `.speakerDone` → `WhisperTranscriber` → `TextCleaner` → deliver via
+   `onUtteranceReady` → `SessionCoordinator.vm.sendInput(text)`
+
+`ContinuousListeningEngine.makeDefault()` constructs the engine with the current
+fallback detectors. When the CoreML models land, this factory will be updated
+to prefer them with the baselines as fallbacks.
+
+Push-to-talk (`OnDeviceSpeechEngine`) remains unchanged and coexists as the
+alternative mode, selected by `AppSettings.continuousListeningEnabled`.
+
+**Foreground-only:** audio engine is started/stopped on `scenePhase` changes
+(iOS) or the settings toggle (macOS). No background audio entitlement is used.
+
 ## Configuration
 
 Config stored in `~/.claude-relay/config.json`. Default ports: WS=9200, Admin=9100. On this dev machine, admin port is configured as 9100.
