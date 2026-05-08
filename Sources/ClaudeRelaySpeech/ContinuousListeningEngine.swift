@@ -32,6 +32,10 @@ public final class ContinuousListeningEngine: ObservableObject {
     private var utteranceStartPosition: Int = 0
     private var wakeWordResidue: String = ""
 
+    /// Task spawned for wake-word check / turn-end check / transcription.
+    /// Tracked so tests can await completion and disable() can cancel cleanly.
+    private var pendingTask: Task<Void, Never>?
+
     // MARK: - Init
 
     public init(
@@ -65,8 +69,135 @@ public final class ContinuousListeningEngine: ObservableObject {
 
     public func disable() async {
         guard state != .idle else { return }
+        pendingTask?.cancel()
+        pendingTask = nil
         vad.reset()
         wakeWordDetector.reset()
         state = .idle
+    }
+
+    // MARK: - Audio ingestion
+
+    /// Process one audio chunk. In production, called from the audio-engine tap;
+    /// in tests, called directly with synthetic samples.
+    public func ingest(chunk: [Float]) async {
+        guard state != .idle else { return }
+
+        audioBuffer.append(chunk)
+
+        // Always feed VAD; its event drives the state machine.
+        let event = vad.process(chunk: chunk)
+
+        switch state {
+        case .listening:
+            if event == .speechStart {
+                utteranceStartPosition = audioBuffer.currentPosition
+                wakeWordDetector.reset()
+                wakeWordDetector.feedAudio(chunk)
+                state = .detectingWakeWord
+            }
+
+        case .detectingWakeWord:
+            wakeWordDetector.feedAudio(chunk)
+            if event == .silenceStart {
+                // Phrase ended — check if it started with wake word.
+                runWakeWordCheck()
+            }
+
+        case .recording:
+            if event == .silenceStart {
+                state = .detectingTurnEnd
+                runTurnEndCheck()
+            }
+
+        case .detectingTurnEnd:
+            // If speech resumes before turn-end prediction finishes, go back to recording.
+            if event == .speechStart {
+                state = .recording
+            }
+
+        case .idle, .transcribing, .cleaning, .outputting, .error:
+            break
+        }
+    }
+
+    /// Await any in-flight async work (wake-word check, turn-end prediction,
+    /// transcription, cleanup). Public for tests.
+    public func waitForPendingWork() async {
+        await pendingTask?.value
+    }
+
+    // MARK: - Pipeline steps
+
+    private func runWakeWordCheck() {
+        pendingTask = Task { [weak self] in
+            guard let self else { return }
+            let result = await self.wakeWordDetector.checkForWakeWord()
+            guard !Task.isCancelled else { return }
+            self.handleWakeWordResult(result)
+        }
+    }
+
+    private func handleWakeWordResult(_ result: WakeWordResult) {
+        switch result {
+        case .detected(let residue):
+            wakeWordResidue = residue
+            // The first silence already bracketed the phrase, so jump straight
+            // to turn-end prediction to decide whether the whole utterance is done.
+            state = .detectingTurnEnd
+            runTurnEndCheck()
+        case .notDetected, .transcriptionFailed:
+            wakeWordDetector.reset()
+            state = .listening
+        }
+    }
+
+    private func runTurnEndCheck() {
+        pendingTask = Task { [weak self] in
+            guard let self else { return }
+            let utterance = self.audioBuffer.audioSince(position: self.utteranceStartPosition)
+            let result = await self.turnEndDetector.predict(utteranceAudio: utterance)
+            guard !Task.isCancelled else { return }
+            self.handleTurnEndResult(result, utterance: utterance)
+        }
+    }
+
+    private func handleTurnEndResult(_ result: TurnEndResult, utterance: [Float]) {
+        switch result {
+        case .speakerDone:
+            runTranscription(utterance: utterance)
+        case .speakerContinuing:
+            state = .recording
+        }
+    }
+
+    private func runTranscription(utterance: [Float]) {
+        state = .transcribing
+        pendingTask = Task { [weak self] in
+            guard let self else { return }
+            let rawText: String
+            do {
+                rawText = try await self.transcriber.transcribe(utterance)
+            } catch {
+                self.state = .listening
+                return
+            }
+            guard !Task.isCancelled else { return }
+
+            self.state = .cleaning
+            let cleaned: String
+            do {
+                cleaned = try await self.cleaner.clean(rawText)
+            } catch {
+                cleaned = rawText
+            }
+            guard !Task.isCancelled else { return }
+
+            self.state = .outputting
+            self.onUtteranceReady?(cleaned)
+            self.wakeWordDetector.reset()
+            self.vad.reset()
+            self.state = .listening
+        }
     }
 }

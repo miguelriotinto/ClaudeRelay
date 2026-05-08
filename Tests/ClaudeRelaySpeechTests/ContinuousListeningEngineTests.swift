@@ -49,4 +49,53 @@ final class ContinuousListeningEngineTests: XCTestCase {
         await engine.disable()
         XCTAssertEqual(engine.state, .idle)
     }
+
+    // MARK: - VAD-driven transitions
+
+    func testSpeechStartTransitionsToDetectingWakeWord() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = ""   // no wake word
+        let engine = makeEngine(vad: vad, transcriber: transcriber)
+        await engine.enable()
+
+        vad.eventsToReturn = [.speechStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+
+        XCTAssertEqual(engine.state, .detectingWakeWord)
+    }
+
+    func testNoWakeWordReturnsToListening() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "hello there"
+        let engine = makeEngine(vad: vad, transcriber: transcriber)
+        await engine.enable()
+
+        vad.eventsToReturn = [.speechStart, .speechContinue, .silenceStart]
+        for _ in 0..<3 {
+            await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        }
+        await engine.waitForPendingWork()
+
+        XCTAssertEqual(engine.state, .listening)
+    }
+
+    func testWakeWordTransitionsOutOfDetectingWakeWord() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "claude open a file"
+        let engine = makeEngine(vad: vad, transcriber: transcriber)
+        await engine.enable()
+
+        vad.eventsToReturn = [.speechStart, .speechContinue, .silenceStart]
+        for _ in 0..<3 {
+            await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        }
+        await engine.waitForPendingWork()
+
+        // Transitioned out of detectingWakeWord and listening.
+        XCTAssertNotEqual(engine.state, .detectingWakeWord)
+        XCTAssertNotEqual(engine.state, .listening)
+    }
 }
