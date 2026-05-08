@@ -46,3 +46,12 @@ final class StubTextCleaner: TextCleaning, @unchecked Sendable {
         return result ?? text
     }
 }
+
+final class NoopAudioSource: StreamingAudioSourcing, @unchecked Sendable {
+    var onChunk: (@Sendable ([Float]) -> Void)?
+    var startCallCount = 0
+    var stopCallCount = 0
+
+    func start() throws { startCallCount += 1 }
+    func stop() { stopCallCount += 1 }
+}

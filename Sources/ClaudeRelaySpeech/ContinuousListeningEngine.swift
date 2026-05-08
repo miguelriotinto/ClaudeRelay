@@ -35,6 +35,8 @@ public final class ContinuousListeningEngine: ObservableObject {
     /// Tracked so tests can await completion and disable() can cancel cleanly.
     private var pendingTask: Task<Void, Never>?
 
+    private let audioSource: any StreamingAudioSourcing
+
     // MARK: - Init
 
     public init(
@@ -43,6 +45,7 @@ public final class ContinuousListeningEngine: ObservableObject {
         turnEndDetector: any TurnEndDetecting,
         transcriber: any SpeechTranscribing,
         cleaner: any TextCleaning,
+        audioSource: (any StreamingAudioSourcing)? = nil,
         bufferCapacitySeconds: TimeInterval = 10.0,
         sampleRate: Double = 16000
     ) {
@@ -51,10 +54,17 @@ public final class ContinuousListeningEngine: ObservableObject {
         self.turnEndDetector = turnEndDetector
         self.transcriber = transcriber
         self.cleaner = cleaner
+        self.audioSource = audioSource ?? StreamingAudioSource()
         self.audioBuffer = StreamingAudioBuffer(
             capacitySeconds: bufferCapacitySeconds,
             sampleRate: sampleRate
         )
+        self.audioSource.onChunk = { [weak self] samples in
+            guard let self else { return }
+            Task { @MainActor [weak self] in
+                await self?.ingest(chunk: samples)
+            }
+        }
     }
 
     // MARK: - Lifecycle
@@ -63,13 +73,19 @@ public final class ContinuousListeningEngine: ObservableObject {
         guard state == .idle else { return }
         vad.reset()
         wakeWordDetector.reset()
-        state = .listening
+        do {
+            try audioSource.start()
+            state = .listening
+        } catch {
+            state = .error(error.localizedDescription)
+        }
     }
 
     public func disable() async {
         guard state != .idle else { return }
         pendingTask?.cancel()
         pendingTask = nil
+        audioSource.stop()
         vad.reset()
         wakeWordDetector.reset()
         state = .idle

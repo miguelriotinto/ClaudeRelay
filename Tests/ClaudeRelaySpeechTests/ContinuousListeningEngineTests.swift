@@ -8,14 +8,16 @@ final class ContinuousListeningEngineTests: XCTestCase {
         vad: MockVAD = MockVAD(),
         turnEnd: MockTurnEndDetector = MockTurnEndDetector(),
         transcriber: StubSpeechTranscriber = StubSpeechTranscriber(),
-        cleaner: StubTextCleaner = StubTextCleaner()
+        cleaner: StubTextCleaner = StubTextCleaner(),
+        audioSource: NoopAudioSource = NoopAudioSource()
     ) -> ContinuousListeningEngine {
         ContinuousListeningEngine(
             vad: vad,
             wakeWordDetector: WakeWordDetector(transcriber: transcriber, keyword: "claude"),
             turnEndDetector: turnEnd,
             transcriber: transcriber,
-            cleaner: cleaner
+            cleaner: cleaner,
+            audioSource: audioSource
         )
     }
 
@@ -171,5 +173,22 @@ final class ContinuousListeningEngineTests: XCTestCase {
         await engine.disable()
 
         XCTAssertEqual(engine.state, .idle)
+    }
+
+    func testEnableStartsAudioSource() async {
+        let source = NoopAudioSource()
+        let engine = makeEngine(audioSource: source)
+        await engine.enable()
+        XCTAssertEqual(source.startCallCount, 1)
+        XCTAssertEqual(source.stopCallCount, 0)
+    }
+
+    func testDisableStopsAudioSource() async {
+        let source = NoopAudioSource()
+        let engine = makeEngine(audioSource: source)
+        await engine.enable()
+        await engine.disable()
+        XCTAssertEqual(source.startCallCount, 1)
+        XCTAssertEqual(source.stopCallCount, 1)
     }
 }
