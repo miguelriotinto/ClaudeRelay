@@ -1,8 +1,13 @@
 import Foundation
 
+/// Protocol for cloud-based prompt enhancement — enables mock injection.
+public protocol CloudEnhancing: Sendable {
+    func enhance(_ text: String, bearerToken: String, region: String) async throws -> String
+}
+
 /// Calls AWS Bedrock Converse API with Claude Haiku to enhance transcribed speech into
 /// a clear, actionable prompt. Requires a bearer token for authentication.
-public final class CloudPromptEnhancer: Sendable {
+public final class CloudPromptEnhancer: CloudEnhancing {
 
     /// Bedrock cross-region inference profile for Claude Haiku.
     /// On-demand throughput requires an inference profile ID, not the raw model ID.

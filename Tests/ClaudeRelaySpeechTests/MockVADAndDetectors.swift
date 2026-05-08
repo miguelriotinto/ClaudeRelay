@@ -39,10 +39,12 @@ final class StubSpeechTranscriber: SpeechTranscribing, @unchecked Sendable {
 
 final class StubTextCleaner: TextCleaning, @unchecked Sendable {
     var result: String?
+    var shouldThrow = false
     var callCount = 0
 
     func clean(_ text: String) async throws -> String {
         callCount += 1
+        if shouldThrow { throw CleanerError.modelNotLoaded }
         return result ?? text
     }
 }
