@@ -88,5 +88,11 @@ let package = Package(
             dependencies: ["ClaudeRelayClient"],
             path: "Tests/ClaudeRelayClientTests"
         ),
+        .testTarget(
+            name: "ClaudeRelaySpeechTests",
+            dependencies: ["ClaudeRelaySpeech"],
+            path: "Tests/ClaudeRelaySpeechTests",
+            resources: [.copy("Fixtures")]
+        ),
     ]
 )
