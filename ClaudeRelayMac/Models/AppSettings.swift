@@ -95,6 +95,11 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("com.clauderelay.mac.smartCleanupEnabled") var smartCleanupEnabled = true
     @AppStorage("com.clauderelay.mac.promptEnhancementEnabled") var promptEnhancementEnabled = false
+    @AppStorage("com.clauderelay.mac.continuousListeningEnabled") var continuousListeningEnabled = false
+    @AppStorage("com.clauderelay.mac.wakeWord") var wakeWord: String = "claude"
+    /// Max silence (seconds) before the engine hard-stops a recording,
+    /// regardless of the turn-end classifier's prediction.
+    @AppStorage("com.clauderelay.mac.turnEndSilenceTimeout") var turnEndSilenceTimeout: Double = 1.5
     @AppStorage("com.clauderelay.mac.bedrockRegion") var bedrockRegion = "us-east-1"
 
     /// Bedrock bearer token, persisted in the Keychain. Seeded at init;

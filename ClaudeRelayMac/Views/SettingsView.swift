@@ -361,6 +361,42 @@ private struct SpeechSettingsTab: View {
                 }
                 SettingsSectionFooter(text: speechFooterText)
 
+                SettingsSectionHeader(title: "Continuous Listening")
+                SettingsGroup {
+                    SettingsGroupRow(showDivider: settings.continuousListeningEnabled) {
+                        Text("Enable continuous listening")
+                        Spacer()
+                        Toggle("", isOn: $settings.continuousListeningEnabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
+                    if settings.continuousListeningEnabled {
+                        SettingsGroupRow {
+                            Text("Wake word")
+                            Spacer()
+                            Text(settings.wakeWord.capitalized)
+                                .foregroundStyle(.secondary)
+                        }
+                        SettingsGroupRow(showDivider: false) {
+                            Text("Silence timeout")
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("\(settings.turnEndSilenceTimeout, specifier: "%.1f") s")
+                                    .foregroundStyle(.secondary)
+                                Slider(
+                                    value: $settings.turnEndSilenceTimeout,
+                                    in: 0.5...3.0,
+                                    step: 0.1
+                                )
+                                .frame(width: 200)
+                            }
+                        }
+                    }
+                }
+                SettingsSectionFooter(text: settings.continuousListeningEnabled
+                    ? "Say the wake word to start a new utterance. Audio stays on-device."
+                    : "When enabled, the mic stays open and transcribes utterances starting with the wake word.")
+
                 if settings.promptEnhancementEnabled {
                     SettingsSectionHeader(title: "AWS Bedrock")
                     SettingsGroup {

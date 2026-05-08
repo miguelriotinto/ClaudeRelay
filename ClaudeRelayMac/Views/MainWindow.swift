@@ -5,6 +5,8 @@ import ClaudeRelaySpeech
 struct MainWindow: View {
     @StateObject private var serverList = ServerListViewModel()
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
+    @StateObject private var continuousEngine = ContinuousListeningEngine.makeDefault()
+    @ObservedObject private var settings = AppSettings.shared
     @State private var coordinator: SessionCoordinator?
     @State private var showServerList = false
     @State private var showSettings = false
@@ -13,7 +15,12 @@ struct MainWindow: View {
     var body: some View {
         Group {
             if let coordinator {
-                WorkspaceView(coordinator: coordinator, speechEngine: speechEngine)
+                WorkspaceView(
+                    coordinator: coordinator,
+                    speechEngine: speechEngine,
+                    continuousEngine: continuousEngine,
+                    settings: settings
+                )
             } else if let failure = loadFailure {
                 FailureView(message: failure) { showServerList = true }
             } else {
@@ -99,7 +106,8 @@ struct MainWindow: View {
 private struct WorkspaceView: View {
     @ObservedObject var coordinator: SessionCoordinator
     @ObservedObject var speechEngine: OnDeviceSpeechEngine
-    @StateObject private var settings = AppSettings.shared
+    @ObservedObject var continuousEngine: ContinuousListeningEngine
+    @ObservedObject var settings: AppSettings
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showQRPopover = false
 
@@ -147,12 +155,30 @@ private struct WorkspaceView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                MacMicButton(engine: speechEngine, coordinator: coordinator, hasActiveSession: coordinator.activeSessionId != nil)
+                MacMicButton(
+                    engine: speechEngine,
+                    coordinator: coordinator,
+                    hasActiveSession: coordinator.activeSessionId != nil,
+                    continuousEngine: continuousEngine,
+                    settings: settings
+                )
             }
         }
         .toolbarBackground(.black, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
         .focusedValue(\.sidebarVisibility, $columnVisibility)
+        .task(id: settings.continuousListeningEnabled) {
+            continuousEngine.onUtteranceReady = { text in
+                guard let id = coordinator.activeSessionId,
+                      let vm = coordinator.viewModel(for: id) else { return }
+                vm.sendInput(text)
+            }
+            if settings.continuousListeningEnabled {
+                await continuousEngine.enable()
+            } else {
+                await continuousEngine.disable()
+            }
+        }
         .sheet(isPresented: $coordinator.showQRScanner) {
             QRScannerSheet(coordinator: coordinator)
         }
@@ -232,6 +258,8 @@ private struct MacMicButton: View {
     @ObservedObject var engine: OnDeviceSpeechEngine
     let coordinator: SessionCoordinator?
     let hasActiveSession: Bool
+    @ObservedObject var continuousEngine: ContinuousListeningEngine
+    @ObservedObject var settings: AppSettings
     @State private var showDownloadAlert = false
 
     private var activeProgress: Double? {
@@ -254,6 +282,14 @@ private struct MacMicButton: View {
             .frame(width: 26, height: 26)
             .background(buttonColor)
             .clipShape(Circle())
+            .overlay(alignment: .topTrailing) {
+                if settings.continuousListeningEnabled {
+                    Circle()
+                        .fill(continuousDotColor)
+                        .frame(width: 10, height: 10)
+                        .offset(x: 2, y: -2)
+                }
+            }
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
@@ -341,6 +377,18 @@ private struct MacMicButton: View {
         case .recording: return Color.red.opacity(0.8)
         case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
         case .error: return Color.red.opacity(0.8)
+        }
+    }
+
+    private var continuousDotColor: SwiftUI.Color {
+        switch continuousEngine.state {
+        case .idle:                 return .gray
+        case .listening:            return .green
+        case .detectingWakeWord:    return .blue
+        case .recording, .detectingTurnEnd: return .red
+        case .transcribing, .cleaning:      return .yellow
+        case .outputting:           return .green
+        case .error:                return .red
         }
     }
 }
