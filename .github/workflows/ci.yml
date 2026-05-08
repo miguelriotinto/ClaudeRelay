@@ -73,6 +73,17 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen
 
+      - name: Resolve SPM dependencies
+        # Resolve for the host first so macro hosts (swift-syntax → SwiftSyntax
+        # macros in LLM.swift) build against the host toolchain. Without this,
+        # xcodebuild tries to resolve the macro C shim against the iOS SDK and
+        # fails with "no such module '_SwiftSyntaxCShims'".
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project ClaudeRelay.xcodeproj \
+            -scheme ClaudeRelayApp
+
       - name: Build iOS app for simulator
         run: |
           xcodebuild \
@@ -82,6 +93,8 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             -skipMacroValidation \
+            -skipPackagePluginValidation \
+            -disableAutomaticPackageResolution \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
