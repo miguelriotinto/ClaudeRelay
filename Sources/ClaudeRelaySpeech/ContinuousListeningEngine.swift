@@ -30,6 +30,7 @@ public final class ContinuousListeningEngine: ObservableObject {
 
     // Utterance tracking
     private var utteranceStartPosition: Int = 0
+    private var wakeWordResidue: String = ""
 
     /// Task spawned for wake-word check / turn-end check / transcription.
     /// Tracked so tests can await completion and disable() can cancel cleanly.
@@ -88,6 +89,7 @@ public final class ContinuousListeningEngine: ObservableObject {
         audioSource.stop()
         vad.reset()
         wakeWordDetector.reset()
+        wakeWordResidue = ""
         state = .idle
     }
 
@@ -155,7 +157,8 @@ public final class ContinuousListeningEngine: ObservableObject {
 
     private func handleWakeWordResult(_ result: WakeWordResult) {
         switch result {
-        case .detected:
+        case .detected(let residue):
+            wakeWordResidue = residue
             // The first silence already bracketed the phrase, so jump straight
             // to turn-end prediction to decide whether the whole utterance is done.
             state = .detectingTurnEnd
@@ -186,16 +189,26 @@ public final class ContinuousListeningEngine: ObservableObject {
     }
 
     private func runTranscription(utterance: [Float]) {
+        // If we have wake-word residue (the "after Claude" part already
+        // transcribed by the wake-word detector), use it directly and skip
+        // the redundant second Whisper pass. Otherwise fall back to full
+        // utterance transcription.
+        let residue = wakeWordResidue
+
         state = .transcribing
         pendingTask = Task { [weak self] in
             guard let self else { return }
             let rawText: String
-            do {
-                rawText = try await self.transcriber.transcribe(utterance)
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.state = .listening
-                return
+            if !residue.isEmpty {
+                rawText = residue
+            } else {
+                do {
+                    rawText = try await self.transcriber.transcribe(utterance)
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    self.state = .listening
+                    return
+                }
             }
             guard !Task.isCancelled else { return }
 
@@ -211,6 +224,7 @@ public final class ContinuousListeningEngine: ObservableObject {
 
             self.state = .outputting
             self.onUtteranceReady?(cleaned)
+            self.wakeWordResidue = ""
             self.wakeWordDetector.reset()
             self.vad.reset()
             self.state = .listening

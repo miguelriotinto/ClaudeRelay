@@ -196,4 +196,36 @@ final class ContinuousListeningEngineTests: XCTestCase {
         let engine = ContinuousListeningEngine.makeDefault()
         XCTAssertEqual(engine.state, .idle)
     }
+
+    func testWakeWordIsStrippedFromDeliveredText() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "claude list my files"
+        let cleaner = StubTextCleaner()
+        // Cleaner is a passthrough in this test (result == nil, returns input).
+        let turnEnd = MockTurnEndDetector()
+        turnEnd.resultToReturn = .speakerDone(confidence: 0.95)
+
+        let engine = makeEngine(
+            vad: vad,
+            turnEnd: turnEnd,
+            transcriber: transcriber,
+            cleaner: cleaner
+        )
+        await engine.enable()
+
+        var delivered: String?
+        engine.onUtteranceReady = { text in delivered = text }
+
+        vad.eventsToReturn = [.speechStart, .speechContinue, .silenceStart]
+        for _ in 0..<3 {
+            await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        }
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+
+        // "claude" should be stripped; residue is "list my files".
+        XCTAssertEqual(delivered?.trimmingCharacters(in: .whitespaces), "list my files")
+    }
 }
