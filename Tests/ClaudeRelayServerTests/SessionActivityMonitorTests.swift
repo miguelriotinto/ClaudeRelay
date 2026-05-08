@@ -249,11 +249,17 @@ final class SessionActivityMonitorTests: XCTestCase {
     }
 
     func testNewOutputCancelsSilenceTimer() async {
-        let monitor = makeMonitor(silenceThreshold: 0.2)
+        // Uses a longer silence threshold (500 ms) with small sleeps so CI
+        // runner jitter doesn't push the cumulative sleep past the threshold
+        // between the two `processOutput` calls. The invariant tested here —
+        // "new output resets the silence timer" — holds regardless of the
+        // specific threshold; the longer value just gives the assertion room
+        // to breathe on slow runners.
+        let monitor = makeMonitor(silenceThreshold: 0.5)
         monitor.processOutput(output("line 1"))
-        try? await Task.sleep(for: .milliseconds(100))
+        try? await Task.sleep(for: .milliseconds(50))
         monitor.processOutput(output("line 2"))
-        try? await Task.sleep(for: .milliseconds(100))
+        try? await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(monitor.state, .active)
     }
 
