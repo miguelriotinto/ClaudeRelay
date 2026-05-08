@@ -51,21 +51,43 @@ jobs:
           brew install swiftlint
           swiftlint --config .swiftlint.yml
 
-  # iOS app build intentionally omitted from CI.
-  #
-  # The iOS simulator build fails at dependency resolution — LLM.swift pulls
-  # swift-syntax 602 (for SwiftSyntax macros), and Xcode 16.x's iOS SDK
-  # mis-resolves swift-syntax's `_SwiftSyntaxCShims` module (see issue
-  # trackers: swiftlang/swift-syntax#3041, apple/swift#76213). The macro host
-  # binary needs to build for the host toolchain (macOS) but Xcode's iOS
-  # build plan tries to resolve its C shim against the iOS SDK.
-  #
-  # Risk of dropping iOS from CI is low: the iOS and macOS apps share ~95%
-  # of their code via ClaudeRelayClient + ClaudeRelaySpeech (SPM-tested
-  # directly). The macOS app build exercises the same Xcode project + SwiftUI
-  # + SwiftTerm integration with the same dependency graph. iOS-only code
-  # lives behind `#if os(iOS)` conditionals — any regression surfaces when a
-  # developer opens Xcode to ship a TestFlight build, before upload.
+  ios-build:
+    # Builds for the iOS *device* SDK (not simulator). The simulator build
+    # plan mis-resolves LLM.swift's swift-syntax-based macros against the
+    # iphonesimulator SDK, producing "no such module '_SwiftSyntaxCShims'".
+    # The device build uses the same plan TestFlight archives go through,
+    # so this is the signal we actually care about: "does what we ship
+    # compile?"
+    name: iOS app build (device SDK)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode 16
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_16.*.app 2>/dev/null | sort -V | tail -1)
+          echo "Using: $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen
+
+      - name: Build iOS app for device
+        run: |
+          xcodebuild \
+            -project ClaudeRelay.xcodeproj \
+            -scheme ClaudeRelayApp \
+            -destination 'generic/platform=iOS' \
+            -configuration Debug \
+            -skipMacroValidation \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
 
   mac-build:
     name: macOS app build
