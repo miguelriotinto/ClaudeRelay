@@ -25,6 +25,20 @@ final class MockTurnEndDetector: TurnEndDetecting, @unchecked Sendable {
     }
 }
 
+final class SlowMockTurnEndDetector: TurnEndDetecting, @unchecked Sendable {
+    var resultToReturn: TurnEndResult = .speakerDone(confidence: 1.0)
+    var delaySeconds: TimeInterval = 0.0
+    var predictCallCount = 0
+
+    func predict(utteranceAudio: [Float]) async -> TurnEndResult {
+        predictCallCount += 1
+        if delaySeconds > 0 {
+            try? await Task.sleep(for: .seconds(delaySeconds))
+        }
+        return resultToReturn
+    }
+}
+
 final class StubSpeechTranscriber: SpeechTranscribing, @unchecked Sendable {
     var result: String = ""
     var shouldThrow = false

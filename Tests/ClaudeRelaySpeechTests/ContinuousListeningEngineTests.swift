@@ -6,7 +6,7 @@ final class ContinuousListeningEngineTests: XCTestCase {
 
     private func makeEngine(
         vad: MockVAD = MockVAD(),
-        turnEnd: MockTurnEndDetector = MockTurnEndDetector(),
+        turnEnd: any TurnEndDetecting = MockTurnEndDetector(),
         transcriber: StubSpeechTranscriber = StubSpeechTranscriber(),
         cleaner: StubTextCleaner = StubTextCleaner(),
         enhancer: MockCloudEnhancer = MockCloudEnhancer(),
@@ -329,5 +329,35 @@ final class ContinuousListeningEngineTests: XCTestCase {
         await engine.waitForPendingWork()
 
         XCTAssertEqual(delivered, "run diagnostics")
+    }
+
+    func testSmartTurnContinuingKeepsRecordingUntilHardTimeout() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "claude keep going"
+        let turnEnd = SlowMockTurnEndDetector()
+        turnEnd.delaySeconds = 5.0
+        turnEnd.resultToReturn = .speakerContinuing(confidence: 0.9)
+
+        let engine = makeEngine(vad: vad, turnEnd: turnEnd, transcriber: transcriber)
+        await engine.enable()
+
+        var opts = SpeechProcessingOptions()
+        opts.turnEndSilenceTimeout = 0.1   // 100 ms — force timeout fast
+        engine.updateOptions(opts)
+
+        var delivered: String?
+        engine.onUtteranceReady = { delivered = $0 }
+
+        vad.eventsToReturn = [.speechStart, .silenceStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+
+        // Timeout should have forced transcription even though the classifier
+        // said "continuing".
+        XCTAssertEqual(delivered, "keep going")
     }
 }

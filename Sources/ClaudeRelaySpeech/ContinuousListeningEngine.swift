@@ -188,21 +188,46 @@ public final class ContinuousListeningEngine: ObservableObject {
     }
 
     private func runTurnEndCheck() {
+        let timeoutSeconds = currentOptions.turnEndSilenceTimeout
         pendingTask = Task { [weak self] in
             guard let self else { return }
             let utterance = self.audioBuffer.audioSince(position: self.utteranceStartPosition)
-            let result = await self.turnEndDetector.predict(utteranceAudio: utterance)
+
+            let done = await Self.raceTurnEnd(
+                detector: self.turnEndDetector,
+                utterance: utterance,
+                timeoutSeconds: timeoutSeconds
+            )
             guard !Task.isCancelled else { return }
-            self.handleTurnEndResult(result, utterance: utterance)
+            if done {
+                self.runTranscription(utterance: utterance)
+            } else {
+                self.state = .recording
+            }
         }
     }
 
-    private func handleTurnEndResult(_ result: TurnEndResult, utterance: [Float]) {
-        switch result {
-        case .speakerDone:
-            runTranscription(utterance: utterance)
-        case .speakerContinuing:
-            state = .recording
+    /// Race the turn-end classifier against a hard-silence timer.
+    /// Timer returning means "force done".
+    static func raceTurnEnd(
+        detector: any TurnEndDetecting,
+        utterance: [Float],
+        timeoutSeconds: TimeInterval
+    ) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                let r = await detector.predict(utteranceAudio: utterance)
+                return r.isDone
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(timeoutSeconds))
+                return true
+            }
+            for await first in group {
+                group.cancelAll()
+                return first
+            }
+            return true
         }
     }
 
