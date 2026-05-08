@@ -191,4 +191,9 @@ final class ContinuousListeningEngineTests: XCTestCase {
         XCTAssertEqual(source.startCallCount, 1)
         XCTAssertEqual(source.stopCallCount, 1)
     }
+
+    func testMakeDefaultReturnsEngine() {
+        let engine = ContinuousListeningEngine.makeDefault()
+        XCTAssertEqual(engine.state, .idle)
+    }
 }

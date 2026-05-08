@@ -216,4 +216,28 @@ public final class ContinuousListeningEngine: ObservableObject {
             self.state = .listening
         }
     }
+
+    // MARK: - Factory
+
+    /// Production factory: uses energy-based VAD and heuristic turn-end
+    /// detection. When the Silero VAD and Smart-Turn CoreML models are
+    /// bundled (tracked in separate follow-up work), this factory will be
+    /// updated to prefer them with these implementations as fallbacks.
+    public static func makeDefault(
+        keyword: String = "claude"
+    ) -> ContinuousListeningEngine {
+        let vad: any VoiceActivityDetecting = VoiceActivityDetector()
+        let turnEnd: any TurnEndDetecting = HeuristicTurnEndDetector()
+        let transcriber = WhisperTranscriber.shared
+        let cleaner = TextCleaner.shared
+        let wakeWord = WakeWordDetector(transcriber: transcriber, keyword: keyword)
+
+        return ContinuousListeningEngine(
+            vad: vad,
+            wakeWordDetector: wakeWord,
+            turnEndDetector: turnEnd,
+            transcriber: transcriber,
+            cleaner: cleaner
+        )
+    }
 }
