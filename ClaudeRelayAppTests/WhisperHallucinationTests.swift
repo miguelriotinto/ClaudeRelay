@@ -6,57 +6,57 @@ final class WhisperHallucinationTests: XCTestCase {
     // MARK: - Known hallucinations
 
     func testThankYouIsHallucination() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Thank you"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Thank you"))
     }
 
     func testThanksForWatchingIsHallucination() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Thanks for watching!"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Thanks for watching!"))
     }
 
     func testByeIsHallucination() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Bye."))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Bye."))
     }
 
     func testSubscribeIsHallucination() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Subscribe"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Subscribe"))
     }
 
     func testOkayIsHallucination() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Okay"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Okay"))
     }
 
     func testHmmIsHallucination() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Hmm"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Hmm"))
     }
 
     // MARK: - Case insensitivity & punctuation
 
     func testCaseInsensitive() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("THANK YOU"))
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Thank You"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("THANK YOU"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Thank You"))
     }
 
     func testPunctuationStripped() {
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Thank you!"))
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Bye..."))
-        XCTAssertTrue(WhisperTranscriber.isSilenceHallucination("Subscribe!"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Thank you!"))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Bye..."))
+        XCTAssertTrue(TranscriberError.isSilenceHallucination("Subscribe!"))
     }
 
     // MARK: - Normal text is NOT hallucination
 
     func testNormalTextNotHallucination() {
-        XCTAssertFalse(WhisperTranscriber.isSilenceHallucination("Fix the login bug"))
+        XCTAssertFalse(TranscriberError.isSilenceHallucination("Fix the login bug"))
     }
 
     func testLongerTextNotHallucination() {
-        XCTAssertFalse(WhisperTranscriber.isSilenceHallucination("I want to build a feature that lets users subscribe to notifications"))
+        XCTAssertFalse(TranscriberError.isSilenceHallucination("I want to build a feature that lets users subscribe to notifications"))
     }
 
     func testEmptyStringNotHallucination() {
-        XCTAssertFalse(WhisperTranscriber.isSilenceHallucination(""))
+        XCTAssertFalse(TranscriberError.isSilenceHallucination(""))
     }
 
     func testWhitespaceOnlyNotHallucination() {
-        XCTAssertFalse(WhisperTranscriber.isSilenceHallucination("   "))
+        XCTAssertFalse(TranscriberError.isSilenceHallucination("   "))
     }
 }
