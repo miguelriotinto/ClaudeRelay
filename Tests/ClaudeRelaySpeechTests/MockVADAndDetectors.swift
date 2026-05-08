@@ -65,6 +65,7 @@ final class StubTextCleaner: TextCleaning, @unchecked Sendable {
 
 final class NoopAudioSource: StreamingAudioSourcing, @unchecked Sendable {
     var onChunk: (@Sendable ([Float]) -> Void)?
+    var onInterruption: (@Sendable (StreamingAudioSource.InterruptionEvent) -> Void)?
     var startCallCount = 0
     var stopCallCount = 0
 

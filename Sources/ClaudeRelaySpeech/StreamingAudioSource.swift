@@ -11,6 +11,7 @@ public protocol StreamingAudioSourcing: AnyObject, Sendable {
     /// The source may emit larger chunks if the hardware delivers larger
     /// buffers; callers should handle any size.
     var onChunk: ((@Sendable ([Float]) -> Void))? { get set }
+    var onInterruption: ((@Sendable (StreamingAudioSource.InterruptionEvent) -> Void))? { get set }
 
     func start() throws
     func stop()
@@ -34,10 +35,41 @@ public enum StreamingAudioSourceError: Error, LocalizedError {
 /// the engine via `onChunk`.
 public final class StreamingAudioSource: StreamingAudioSourcing, @unchecked Sendable {
 
+    public enum InterruptionEvent: Equatable, Sendable {
+        case began
+        case ended(shouldResume: Bool)
+    }
+
     public var onChunk: ((@Sendable ([Float]) -> Void))?
+    public var onInterruption: ((@Sendable (InterruptionEvent) -> Void))?
 
     private let audioEngine = AVAudioEngine()
     private var isRunning = false
+
+    #if canImport(UIKit)
+    private var interruptionObserver: NSObjectProtocol?
+
+    private func handleInterruption(_ note: Notification) {
+        guard let userInfo = note.userInfo,
+              let typeRaw = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeRaw) else { return }
+        switch type {
+        case .began:
+            onInterruption?(.began)
+        case .ended:
+            let shouldResume: Bool
+            if let optsRaw = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                let opts = AVAudioSession.InterruptionOptions(rawValue: optsRaw)
+                shouldResume = opts.contains(.shouldResume)
+            } else {
+                shouldResume = false
+            }
+            onInterruption?(.ended(shouldResume: shouldResume))
+        @unknown default:
+            break
+        }
+    }
+    #endif
 
     public init() {}
 
@@ -48,6 +80,14 @@ public final class StreamingAudioSource: StreamingAudioSourcing, @unchecked Send
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
+
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] note in
+            self?.handleInterruption(note)
+        }
         #endif
 
         let input = audioEngine.inputNode
@@ -86,6 +126,10 @@ public final class StreamingAudioSource: StreamingAudioSourcing, @unchecked Send
         isRunning = false
 
         #if canImport(UIKit)
+        if let obs = interruptionObserver {
+            NotificationCenter.default.removeObserver(obs)
+            interruptionObserver = nil
+        }
         try? AVAudioSession.sharedInstance().setActive(
             false, options: .notifyOthersOnDeactivation
         )
