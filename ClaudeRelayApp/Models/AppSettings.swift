@@ -139,6 +139,14 @@ final class AppSettings: ObservableObject {
     @AppStorage("recordingShortcutEnabled") var recordingShortcutEnabled = true
     @AppStorage("recordingShortcutFlags") var recordingShortcutFlags: Int = Int(UIKeyModifierFlags([.command, .alternate]).rawValue)
     @AppStorage("recordingShortcutKey") var recordingShortcutKey = ""
+
+    // MARK: - Continuous Listening
+
+    @AppStorage("continuousListeningEnabled") var continuousListeningEnabled = false
+    @AppStorage("wakeWord") var wakeWord: String = "claude"
+    /// Max silence (seconds) before the engine hard-stops a recording,
+    /// regardless of the turn-end classifier's prediction.
+    @AppStorage("turnEndSilenceTimeout") var turnEndSilenceTimeout: Double = 1.5
 }
 
 // MARK: - Keyboard Shortcut Helpers
