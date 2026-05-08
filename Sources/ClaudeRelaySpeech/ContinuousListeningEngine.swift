@@ -69,6 +69,12 @@ public final class ContinuousListeningEngine: ObservableObject {
                 await self?.ingest(chunk: samples)
             }
         }
+        self.audioSource.onInterruption = { [weak self] event in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.handleInterruption(event)
+            }
+        }
     }
 
     // MARK: - Lifecycle
@@ -108,6 +114,19 @@ public final class ContinuousListeningEngine: ObservableObject {
                 transcriber: transcriber,
                 keyword: new.wakeWord
             )
+        }
+    }
+
+    // MARK: - Interruption handling
+
+    private func handleInterruption(_ event: StreamingAudioSource.InterruptionEvent) async {
+        switch event {
+        case .began:
+            await disable()
+        case .ended(let shouldResume):
+            if shouldResume {
+                await enable()
+            }
         }
     }
 

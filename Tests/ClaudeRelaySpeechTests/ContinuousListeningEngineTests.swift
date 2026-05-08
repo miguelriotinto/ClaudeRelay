@@ -360,4 +360,45 @@ final class ContinuousListeningEngineTests: XCTestCase {
         // said "continuing".
         XCTAssertEqual(delivered, "keep going")
     }
+
+    func testInterruptionBeganDisablesEngine() async {
+        let source = NoopAudioSource()
+        let engine = makeEngine(audioSource: source)
+        await engine.enable()
+        XCTAssertEqual(engine.state, .listening)
+
+        source.onInterruption?(.began)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(source.stopCallCount, 1)
+    }
+
+    func testInterruptionEndedWithShouldResumeReEnables() async {
+        let source = NoopAudioSource()
+        let engine = makeEngine(audioSource: source)
+        await engine.enable()
+        source.onInterruption?(.began)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        source.onInterruption?(.ended(shouldResume: true))
+        try? await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(engine.state, .listening)
+        XCTAssertEqual(source.startCallCount, 2)
+    }
+
+    func testInterruptionEndedWithoutShouldResumeStaysIdle() async {
+        let source = NoopAudioSource()
+        let engine = makeEngine(audioSource: source)
+        await engine.enable()
+        source.onInterruption?(.began)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        source.onInterruption?(.ended(shouldResume: false))
+        try? await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(source.startCallCount, 1)
+    }
 }
