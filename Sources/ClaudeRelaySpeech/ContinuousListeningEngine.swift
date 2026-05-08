@@ -20,10 +20,10 @@ public final class ContinuousListeningEngine: ObservableObject {
 
     // Pipeline collaborators
     private let vad: any VoiceActivityDetecting
-    private let wakeWordDetector: WakeWordDetector
+    private var wakeWordDetector: WakeWordDetector
     private let turnEndDetector: any TurnEndDetecting
     private let transcriber: any SpeechTranscribing
-    private let cleaner: any TextCleaning
+    private let postProcessor: SpeechPostProcessor
 
     // Audio buffer shared across consumers
     private let audioBuffer: StreamingAudioBuffer
@@ -31,6 +31,9 @@ public final class ContinuousListeningEngine: ObservableObject {
     // Utterance tracking
     private var utteranceStartPosition: Int = 0
     private var wakeWordResidue: String = ""
+
+    /// Current runtime options. Defaults so the engine works unconfigured.
+    private var currentOptions: SpeechProcessingOptions = SpeechProcessingOptions()
 
     /// Task spawned for wake-word check / turn-end check / transcription.
     /// Tracked so tests can await completion and disable() can cancel cleanly.
@@ -45,7 +48,7 @@ public final class ContinuousListeningEngine: ObservableObject {
         wakeWordDetector: WakeWordDetector,
         turnEndDetector: any TurnEndDetecting,
         transcriber: any SpeechTranscribing,
-        cleaner: any TextCleaning,
+        postProcessor: SpeechPostProcessor,
         audioSource: (any StreamingAudioSourcing)? = nil,
         bufferCapacitySeconds: TimeInterval = 10.0,
         sampleRate: Double = 16000
@@ -54,7 +57,7 @@ public final class ContinuousListeningEngine: ObservableObject {
         self.wakeWordDetector = wakeWordDetector
         self.turnEndDetector = turnEndDetector
         self.transcriber = transcriber
-        self.cleaner = cleaner
+        self.postProcessor = postProcessor
         self.audioSource = audioSource ?? StreamingAudioSource()
         self.audioBuffer = StreamingAudioBuffer(
             capacitySeconds: bufferCapacitySeconds,
@@ -91,6 +94,21 @@ public final class ContinuousListeningEngine: ObservableObject {
         wakeWordDetector.reset()
         wakeWordResidue = ""
         state = .idle
+    }
+
+    // MARK: - Options
+
+    /// Update runtime options. If `wakeWord` changed, rebuilds the
+    /// `WakeWordDetector` in place. Takes effect on the next utterance.
+    public func updateOptions(_ new: SpeechProcessingOptions) {
+        let wakeWordChanged = new.wakeWord != currentOptions.wakeWord
+        currentOptions = new
+        if wakeWordChanged {
+            wakeWordDetector = WakeWordDetector(
+                transcriber: transcriber,
+                keyword: new.wakeWord
+            )
+        }
     }
 
     // MARK: - Audio ingestion
@@ -189,11 +207,8 @@ public final class ContinuousListeningEngine: ObservableObject {
     }
 
     private func runTranscription(utterance: [Float]) {
-        // If we have wake-word residue (the "after Claude" part already
-        // transcribed by the wake-word detector), use it directly and skip
-        // the redundant second Whisper pass. Otherwise fall back to full
-        // utterance transcription.
         let residue = wakeWordResidue
+        let options = currentOptions
 
         state = .transcribing
         pendingTask = Task { [weak self] in
@@ -213,17 +228,13 @@ public final class ContinuousListeningEngine: ObservableObject {
             guard !Task.isCancelled else { return }
 
             self.state = .cleaning
-            let cleaned: String
-            do {
-                cleaned = try await self.cleaner.clean(rawText)
-            } catch {
-                guard !Task.isCancelled else { return }
-                cleaned = rawText
-            }
+            let processed = await self.postProcessor.process(rawText, options: options)
             guard !Task.isCancelled else { return }
 
             self.state = .outputting
-            self.onUtteranceReady?(cleaned)
+            if let deliverable = processed.deliverableText {
+                self.onUtteranceReady?(deliverable)
+            }
             self.wakeWordResidue = ""
             self.wakeWordDetector.reset()
             self.vad.reset()
@@ -238,20 +249,24 @@ public final class ContinuousListeningEngine: ObservableObject {
     /// bundled (tracked in separate follow-up work), this factory will be
     /// updated to prefer them with these implementations as fallbacks.
     public static func makeDefault(
-        keyword: String = "claude"
+        options: SpeechProcessingOptions = SpeechProcessingOptions()
     ) -> ContinuousListeningEngine {
         let vad: any VoiceActivityDetecting = VoiceActivityDetector()
         let turnEnd: any TurnEndDetecting = HeuristicTurnEndDetector()
         let transcriber = WhisperTranscriber.shared
         let cleaner = TextCleaner.shared
-        let wakeWord = WakeWordDetector(transcriber: transcriber, keyword: keyword)
+        let enhancer = CloudPromptEnhancer()
+        let wakeWord = WakeWordDetector(transcriber: transcriber, keyword: options.wakeWord)
+        let postProcessor = SpeechPostProcessor(cleaner: cleaner, enhancer: enhancer)
 
-        return ContinuousListeningEngine(
+        let engine = ContinuousListeningEngine(
             vad: vad,
             wakeWordDetector: wakeWord,
             turnEndDetector: turnEnd,
             transcriber: transcriber,
-            cleaner: cleaner
+            postProcessor: postProcessor
         )
+        engine.updateOptions(options)
+        return engine
     }
 }

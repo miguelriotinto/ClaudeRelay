@@ -6,7 +6,7 @@ struct MainWindow: View {
     @StateObject private var serverList = ServerListViewModel()
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @StateObject private var continuousEngine = ContinuousListeningEngine.makeDefault(
-        keyword: AppSettings.shared.wakeWord
+        options: SpeechProcessingOptions(wakeWord: AppSettings.shared.wakeWord)
     )
     @ObservedObject private var settings = AppSettings.shared
     @State private var coordinator: SessionCoordinator?

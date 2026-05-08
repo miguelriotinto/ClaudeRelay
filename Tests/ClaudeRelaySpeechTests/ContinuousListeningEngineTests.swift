@@ -9,6 +9,7 @@ final class ContinuousListeningEngineTests: XCTestCase {
         turnEnd: MockTurnEndDetector = MockTurnEndDetector(),
         transcriber: StubSpeechTranscriber = StubSpeechTranscriber(),
         cleaner: StubTextCleaner = StubTextCleaner(),
+        enhancer: MockCloudEnhancer = MockCloudEnhancer(),
         audioSource: NoopAudioSource = NoopAudioSource()
     ) -> ContinuousListeningEngine {
         ContinuousListeningEngine(
@@ -16,7 +17,7 @@ final class ContinuousListeningEngineTests: XCTestCase {
             wakeWordDetector: WakeWordDetector(transcriber: transcriber, keyword: "claude"),
             turnEndDetector: turnEnd,
             transcriber: transcriber,
-            cleaner: cleaner,
+            postProcessor: SpeechPostProcessor(cleaner: cleaner, enhancer: enhancer),
             audioSource: audioSource
         )
     }
@@ -227,5 +228,106 @@ final class ContinuousListeningEngineTests: XCTestCase {
 
         // "claude" should be stripped; residue is "list my files".
         XCTAssertEqual(delivered?.trimmingCharacters(in: .whitespaces), "list my files")
+    }
+
+    // MARK: - v2: options and post-processing
+
+    func testUpdateOptionsTakesEffectOnNextUtterance() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "claude hello world"
+        let cleaner = StubTextCleaner()
+        cleaner.result = "HELLO WORLD"
+        let turnEnd = MockTurnEndDetector()
+        turnEnd.resultToReturn = .speakerDone(confidence: 0.9)
+
+        let engine = makeEngine(vad: vad, turnEnd: turnEnd, transcriber: transcriber, cleaner: cleaner)
+        await engine.enable()
+
+        var delivered: String?
+        engine.onUtteranceReady = { delivered = $0 }
+
+        var opts = SpeechProcessingOptions()
+        opts.smartCleanupEnabled = false
+        engine.updateOptions(opts)
+
+        vad.eventsToReturn = [.speechStart, .silenceStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+
+        XCTAssertEqual(delivered, "hello world")
+        delivered = nil
+
+        opts.smartCleanupEnabled = true
+        engine.updateOptions(opts)
+
+        vad.eventsToReturn = [.speechStart, .silenceStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+
+        XCTAssertEqual(delivered, "HELLO WORLD")
+    }
+
+    func testCloudEnhancementPathDeliversEnhancedText() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "claude list my files"
+        let enhancer = MockCloudEnhancer()
+        enhancer.resultToReturn = "List all files in the current directory"
+        let turnEnd = MockTurnEndDetector()
+
+        let engine = makeEngine(
+            vad: vad, turnEnd: turnEnd, transcriber: transcriber,
+            enhancer: enhancer
+        )
+        await engine.enable()
+
+        var delivered: String?
+        engine.onUtteranceReady = { delivered = $0 }
+
+        var opts = SpeechProcessingOptions()
+        opts.promptEnhancementEnabled = true
+        opts.bedrockBearerToken = "token"
+        engine.updateOptions(opts)
+
+        vad.eventsToReturn = [.speechStart, .silenceStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+
+        XCTAssertEqual(delivered, "List all files in the current directory")
+        XCTAssertEqual(enhancer.callCount, 1)
+    }
+
+    func testUpdateOptionsWithNewWakeWordRebuildsDetector() async {
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "hermes run diagnostics"
+        let engine = makeEngine(vad: vad, transcriber: transcriber)
+        await engine.enable()
+
+        var opts = SpeechProcessingOptions()
+        opts.wakeWord = "hermes"
+        engine.updateOptions(opts)
+
+        var delivered: String?
+        engine.onUtteranceReady = { delivered = $0 }
+
+        vad.eventsToReturn = [.speechStart, .silenceStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+        await engine.waitForPendingWork()
+
+        XCTAssertEqual(delivered, "run diagnostics")
     }
 }
