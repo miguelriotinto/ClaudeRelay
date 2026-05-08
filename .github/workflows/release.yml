@@ -1,15 +1,60 @@
 name: Release
 
+# Triggered two ways:
+#   1. git push --tags (tag matching v*) — the normal release path
+#   2. "Run workflow" button in the Actions UI — for re-runs or out-of-band
+#      releases; you type the version ("v0.3.4") manually
+#
+# Both paths produce identical artifacts: arm64 + x86_64 tarballs, a GitHub
+# Release, and an auto-push of the formula bump to the homebrew-clauderelay
+# tap so `brew upgrade clauderelay` picks it up immediately.
+
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to release (e.g. v0.3.4). Must match an existing git tag.'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
+  # ── Determine which version string to use ───────────────────────────────
+  # Downstream jobs read ${{ needs.resolve-version.outputs.tag }} so they
+  # don't need to care whether we were triggered by a tag or a button.
+
+  resolve-version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.set.outputs.tag }}
+    steps:
+      - name: Resolve tag name
+        id: set
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            TAG="$INPUT_VERSION"
+          else
+            TAG="$REF_NAME"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Tag '$TAG' does not look like semver (expected vX.Y.Z)"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing: $TAG"
+
+  # ── Build release binaries ──────────────────────────────────────────────
+
   build:
+    needs: resolve-version
     strategy:
       matrix:
         include:
@@ -21,6 +66,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-version.outputs.tag }}
 
       - name: Build release binaries
         env:
@@ -34,7 +81,7 @@ jobs:
 
       - name: Package binaries
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ needs.resolve-version.outputs.tag }}
           ARCH: ${{ matrix.arch }}
         run: |
           mkdir -p dist
@@ -54,40 +101,126 @@ jobs:
           name: claude-relay-${{ matrix.arch }}
           path: dist/*.tar.gz
 
+  # ── Create GitHub Release + publish artifacts ───────────────────────────
+
   release:
-    needs: build
+    needs: [resolve-version, build]
     runs-on: ubuntu-latest
+    outputs:
+      source_sha256: ${{ steps.sha.outputs.source_sha256 }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-version.outputs.tag }}
 
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Compute SHA256
-        id: sha
+      - name: Compute binary checksums
         run: |
           cd artifacts
           for f in *.tar.gz; do
             sha256sum "$f"
           done | tee checksums.txt
 
+      - name: Compute source tarball SHA256
+        id: sha
+        env:
+          TAG_NAME: ${{ needs.resolve-version.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          SOURCE_SHA=$(curl -sL "https://github.com/${REPO}/archive/refs/tags/${TAG_NAME}.tar.gz" | sha256sum | awk '{print $1}')
+          echo "Source tarball SHA256: $SOURCE_SHA"
+          echo "source_sha256=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.resolve-version.outputs.tag }}
           generate_release_notes: true
           files: |
             artifacts/*.tar.gz
             artifacts/checksums.txt
 
-      - name: Print formula update instructions
+  # ── Push formula update to homebrew-clauderelay tap ─────────────────────
+  # Needs the HOMEBREW_TAP_TOKEN repo secret: a PAT with `contents: write`
+  # on miguelriotinto/homebrew-clauderelay. If the secret is missing or
+  # empty, this job is skipped (useful for dry-run tag pushes).
+
+  homebrew:
+    needs: [resolve-version, release]
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    steps:
+      - name: Check tap token is configured
+        id: check_token
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "HOMEBREW_TAP_TOKEN secret is not set; skipping tap update."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout tap
+        if: steps.check_token.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          repository: miguelriotinto/homebrew-clauderelay
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Update formula url + sha256
+        if: steps.check_token.outputs.skip == 'false'
+        env:
+          TAG_NAME: ${{ needs.resolve-version.outputs.tag }}
+          SOURCE_SHA: ${{ needs.release.outputs.source_sha256 }}
           REPO: ${{ github.repository }}
         run: |
-          SOURCE_SHA=$(curl -sL "https://github.com/${REPO}/archive/refs/tags/${TAG_NAME}.tar.gz" | sha256sum | awk '{print $1}')
-          echo "=== Update Homebrew Formula ==="
-          echo "Source tarball SHA256: $SOURCE_SHA"
-          echo "Update the formula url and sha256 with these values."
+          cd tap
+          FORMULA=Formula/clauderelay.rb
+
+          # Replace url line (anchored to the archive path so we only touch
+          # the release URL, not the head "…" URL).
+          sed -i.bak -E \
+            "s|^(  url \"https://github.com/${REPO//\//\\/}/archive/refs/tags/)v[0-9]+\.[0-9]+\.[0-9]+(\.tar\.gz\")$|\1${TAG_NAME}\2|" \
+            "$FORMULA"
+
+          # Replace sha256 line (the first one, which belongs to `url`; the
+          # formula has no bottle block so there's only one).
+          sed -i.bak -E \
+            "s|^(  sha256 \")[a-f0-9]{64}(\")$|\1${SOURCE_SHA}\2|" \
+            "$FORMULA"
+
+          rm -f "$FORMULA.bak"
+
+          echo "=== Diff ==="
+          git --no-pager diff "$FORMULA"
+
+          if git diff --quiet "$FORMULA"; then
+            echo "Formula unchanged (already at ${TAG_NAME}?). Nothing to commit."
+            exit 0
+          fi
+
+      - name: Commit + push
+        if: steps.check_token.outputs.skip == 'false'
+        env:
+          TAG_NAME: ${{ needs.resolve-version.outputs.tag }}
+        run: |
+          cd tap
+          if git diff --quiet Formula/clauderelay.rb; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/clauderelay.rb
+          git commit -m "clauderelay ${TAG_NAME}
+
+Automated bump from ClaudeRelay release workflow."
+          git push
