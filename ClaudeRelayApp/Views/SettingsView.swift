@@ -16,6 +16,29 @@ struct SettingsView: View {
                 Section {
                     Toggle("Smart Cleanup", isOn: $settings.smartCleanupEnabled)
                     Toggle("Prompt Enhancement", isOn: $settings.promptEnhancementEnabled)
+                    Toggle("Continuous Listening", isOn: $settings.continuousListeningEnabled)
+
+                    if settings.continuousListeningEnabled {
+                        HStack {
+                            Text("Wake Word")
+                            Spacer()
+                            Text(settings.wakeWord.capitalized).foregroundStyle(.secondary)
+                        }
+
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Silence Timeout")
+                                Spacer()
+                                Text("\(settings.turnEndSilenceTimeout, specifier: "%.1f") s")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Slider(
+                                value: $settings.turnEndSilenceTimeout,
+                                in: 0.5...3.0,
+                                step: 0.1
+                            )
+                        }
+                    }
                 } header: {
                     Text("Speech to Text")
                 } footer: {
