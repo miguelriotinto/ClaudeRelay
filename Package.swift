@@ -69,6 +69,8 @@ let package = Package(
             path: "Sources/ClaudeRelaySpeech",
             resources: [
                 .copy("Resources/SileroVAD.mlmodelc"),
+                .copy("Resources/WhisperLogMel8s.mlpackage"),
+                .copy("Resources/SmartTurnV3.mlpackage"),
             ]
         ),
         .testTarget(

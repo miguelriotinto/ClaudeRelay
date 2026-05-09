@@ -296,7 +296,7 @@ public final class ContinuousListeningEngine: ObservableObject {
         options: SpeechProcessingOptions = SpeechProcessingOptions()
     ) -> ContinuousListeningEngine {
         let vad: any VoiceActivityDetecting = SileroVoiceActivityDetector() ?? VoiceActivityDetector()
-        let turnEnd: any TurnEndDetecting = HeuristicTurnEndDetector()
+        let turnEnd: any TurnEndDetecting = SmartTurnTurnEndDetector() ?? HeuristicTurnEndDetector()
         let transcriber = WhisperTranscriber.shared
         let cleaner = TextCleaner.shared
         let enhancer = CloudPromptEnhancer()
