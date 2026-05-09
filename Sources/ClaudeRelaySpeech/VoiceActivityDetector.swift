@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let log = Logger(subsystem: "com.claude.relay.speech", category: "VAD")
 
 /// Energy-based voice activity detector with hysteresis and debouncing.
 ///
@@ -37,7 +40,11 @@ public final class VoiceActivityDetector: VoiceActivityDetecting, @unchecked Sen
         self.config = config
     }
 
+    private var processCount: Int = 0
+    private var lastLoggedProcessCount: Int = 0
+
     public func process(chunk: [Float]) -> VADEvent {
+        processCount += 1
         let energy = Self.rms(chunk)
         let signal: Bool = Self.scoreToBool(
             energy: energy,
@@ -45,7 +52,17 @@ public final class VoiceActivityDetector: VoiceActivityDetecting, @unchecked Sen
             speechThreshold: config.speechThreshold,
             silenceThreshold: config.silenceThreshold
         )
-        return transition(signalIsSpeech: signal)
+        let result = transition(signalIsSpeech: signal)
+
+        // Log every 50 chunks (~1.5s) to show energy levels, or always on edge events
+        if result.isEdge {
+            log.info("VAD EDGE: \(String(describing: result)) | energy=\(String(format: "%.5f", energy)) speechThresh=\(self.config.speechThreshold) silenceThresh=\(self.config.silenceThreshold) pending_speech=\(self.pendingSpeechChunks) pending_silence=\(self.pendingSilenceChunks)")
+        } else if processCount - lastLoggedProcessCount >= 50 {
+            log.debug("VAD: energy=\(String(format: "%.5f", energy)) state=\(String(describing: self.state)) signal=\(signal) pending_speech=\(self.pendingSpeechChunks) pending_silence=\(self.pendingSilenceChunks)")
+            lastLoggedProcessCount = processCount
+        }
+
+        return result
     }
 
     public func reset() {

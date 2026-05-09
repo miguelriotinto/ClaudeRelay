@@ -27,6 +27,20 @@ final class ContinuousListeningStateTests: XCTestCase {
         XCTAssertFalse(ContinuousListeningState.listening.isCapturing)
     }
 
+    func testIsArmedBuckets() {
+        XCTAssertTrue(ContinuousListeningState.armed.isArmed)
+        XCTAssertTrue(ContinuousListeningState.recording.isArmed)
+        XCTAssertTrue(ContinuousListeningState.detectingTurnEnd.isArmed)
+        XCTAssertFalse(ContinuousListeningState.listening.isArmed)
+        XCTAssertFalse(ContinuousListeningState.detectingWakeWord.isArmed)
+        XCTAssertFalse(ContinuousListeningState.transcribing.isArmed)
+    }
+
+    func testArmedIsActiveButNotCapturing() {
+        XCTAssertTrue(ContinuousListeningState.armed.isActive)
+        XCTAssertFalse(ContinuousListeningState.armed.isCapturing)
+    }
+
     func testErrorEquality() {
         XCTAssertEqual(
             ContinuousListeningState.error("fail"),

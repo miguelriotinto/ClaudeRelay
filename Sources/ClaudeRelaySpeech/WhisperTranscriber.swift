@@ -3,7 +3,13 @@ import WhisperKit
 
 /// Protocol for speech transcription — enables mock injection in tests.
 public protocol SpeechTranscribing: Sendable {
-    func transcribe(_ audioBuffer: [Float]) async throws -> String
+    func transcribe(_ audioBuffer: [Float], skipNoSpeechFilter: Bool) async throws -> String
+}
+
+extension SpeechTranscribing {
+    public func transcribe(_ audioBuffer: [Float]) async throws -> String {
+        try await transcribe(audioBuffer, skipNoSpeechFilter: false)
+    }
 }
 
 /// Wraps WhisperKit to transcribe [Float] audio buffers into text.
@@ -61,13 +67,30 @@ public final class WhisperTranscriber: SpeechTranscribing {
     }
 
     /// Transcribe a 16kHz mono Float32 audio buffer.
-    /// Returns the best transcription string, or throws on failure.
-    public func transcribe(_ audioBuffer: [Float]) async throws -> String {
+    /// - Parameter skipNoSpeechFilter: Disables all quality-gate filters so
+    ///   Whisper always produces output. Use when VAD confirmed speech.
+    public func transcribe(
+        _ audioBuffer: [Float],
+        skipNoSpeechFilter: Bool
+    ) async throws -> String {
         guard let whisperKit else {
             throw TranscriberError.modelNotLoaded
         }
 
-        let results: [TranscriptionResult] = try await whisperKit.transcribe(audioArray: audioBuffer)
+        var options: DecodingOptions? = nil
+        if skipNoSpeechFilter {
+            var opts = DecodingOptions()
+            opts.compressionRatioThreshold = nil
+            opts.logProbThreshold = nil
+            opts.firstTokenLogProbThreshold = nil
+            opts.noSpeechThreshold = nil
+            options = opts
+        }
+
+        let results: [TranscriptionResult] = try await whisperKit.transcribe(
+            audioArray: audioBuffer,
+            decodeOptions: options
+        )
 
         let text = results
             .map { $0.text }

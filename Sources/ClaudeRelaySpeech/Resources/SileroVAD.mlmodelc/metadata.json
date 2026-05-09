@@ -1,45 +1,61 @@
 [
   {
-    "shortDescription" : "VAD with SE modules trained on MUSAN (86.47% accuracy)",
+    "shortDescription" : "Silero VAD Unified Model (STFT + Encoder + Decoder)",
     "metadataOutputVersion" : "3.0",
     "outputSchema" : [
       {
         "hasShapeFlexibility" : "0",
         "isOptional" : "0",
         "dataType" : "Float32",
-        "formattedType" : "MultiArray (Float32 1 × 1)",
+        "formattedType" : "MultiArray (Float32 1 × 1 × 1)",
         "shortDescription" : "",
-        "shape" : "[1, 1]",
-        "name" : "vad_probability",
+        "shape" : "[1, 1, 1]",
+        "name" : "vad_output",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1 × 128)",
+        "shortDescription" : "",
+        "shape" : "[1, 128]",
+        "name" : "new_hidden_state",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1 × 128)",
+        "shortDescription" : "",
+        "shape" : "[1, 128]",
+        "name" : "new_cell_state",
         "type" : "MultiArray"
       }
     ],
-    "version" : "2.0",
+    "version" : "6.0.0",
     "modelParameters" : [
 
     ],
-    "author" : "Silero VAD with Trained SE Modules",
+    "author" : "Fluid Infernece + Silero Team",
     "specificationVersion" : 6,
     "storagePrecision" : "Mixed (Float16, Float32)",
     "mlProgramOperationTypeHistogram" : {
-      "Concat" : 4,
       "Lstm" : 1,
-      "Linear" : 14,
-      "SliceByIndex" : 3,
-      "LayerNorm" : 1,
-      "Pow" : 6,
-      "Stack" : 1,
-      "Transpose" : 3,
-      "Relu" : 9,
-      "ReduceMean" : 5,
-      "Cast" : 4,
-      "Reshape" : 8,
-      "Add" : 6,
-      "Sqrt" : 3,
-      "Sigmoid" : 5,
-      "Mul" : 5,
-      "Conv" : 5,
-      "Squeeze" : 1
+      "SliceByIndex" : 2,
+      "Clip" : 4,
+      "Transpose" : 2,
+      "Pow" : 2,
+      "Relu" : 5,
+      "Squeeze" : 4,
+      "Cast" : 12,
+      "Sigmoid" : 1,
+      "Add" : 2,
+      "ExpandDims" : 5,
+      "Sqrt" : 1,
+      "Conv" : 6,
+      "Pad" : 1
     },
     "computePrecision" : "Mixed (Float16, Float32, Int32)",
     "stateSchema" : [
@@ -62,19 +78,40 @@
         "hasShapeFlexibility" : "0",
         "isOptional" : "0",
         "dataType" : "Float32",
-        "formattedType" : "MultiArray (Float32 1 × 512)",
+        "formattedType" : "MultiArray (Float32 1 × 576)",
         "shortDescription" : "",
-        "shape" : "[1, 512]",
-        "name" : "audio_chunk",
+        "shape" : "[1, 576]",
+        "name" : "audio_input",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1 × 128)",
+        "shortDescription" : "",
+        "shape" : "[1, 128]",
+        "name" : "hidden_state",
+        "type" : "MultiArray"
+      },
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1 × 128)",
+        "shortDescription" : "",
+        "shape" : "[1, 128]",
+        "name" : "cell_state",
         "type" : "MultiArray"
       }
     ],
     "userDefinedMetadata" : {
-      "com.github.apple.coremltools.source_dialect" : "TorchScript",
-      "com.github.apple.coremltools.source" : "torch==2.5.0",
-      "com.github.apple.coremltools.version" : "8.3.0"
+      "com.github.apple.coremltools.conversion_date" : "2025-09-15",
+      "com.github.apple.coremltools.source" : "torch==2.7.0",
+      "com.github.apple.coremltools.version" : "9.0b1",
+      "com.github.apple.coremltools.source_dialect" : "TorchScript"
     },
-    "generatedClassName" : "silero_vad_se_trained",
+    "generatedClassName" : "silero_vad_unified_v6_0_0",
     "method" : "predict"
   }
 ]

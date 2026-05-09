@@ -7,7 +7,7 @@ final class MockTranscriber: SpeechTranscribing {
     var shouldThrow = false
     var transcribeCallCount = 0
 
-    func transcribe(_ audioBuffer: [Float]) async throws -> String {
+    func transcribe(_ audioBuffer: [Float], skipNoSpeechFilter: Bool) async throws -> String {
         transcribeCallCount += 1
         if shouldThrow { throw TranscriberError.emptyTranscription }
         return resultToReturn

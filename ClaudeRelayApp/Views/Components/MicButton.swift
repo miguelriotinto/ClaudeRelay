@@ -177,7 +177,7 @@ struct MicButton: View {
                 return "mic"
             case .listening, .detectingWakeWord:
                 return "waveform"
-            case .recording, .detectingTurnEnd:
+            case .armed, .recording, .detectingTurnEnd:
                 return "mic.fill"
             case .transcribing:
                 return "waveform"
@@ -206,7 +206,7 @@ struct MicButton: View {
                 return SwiftUI.Color.gray.opacity(0.5)
             case .listening, .detectingWakeWord:
                 return SwiftUI.Color.blue.opacity(0.8)
-            case .recording, .detectingTurnEnd:
+            case .armed, .recording, .detectingTurnEnd:
                 return SwiftUI.Color.red.opacity(0.8)
             case .transcribing, .cleaning:
                 return SwiftUI.Color.yellow.opacity(0.8)

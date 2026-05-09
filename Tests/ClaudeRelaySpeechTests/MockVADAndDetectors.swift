@@ -44,7 +44,7 @@ final class StubSpeechTranscriber: SpeechTranscribing, @unchecked Sendable {
     var shouldThrow = false
     var callCount = 0
 
-    func transcribe(_ audioBuffer: [Float]) async throws -> String {
+    func transcribe(_ audioBuffer: [Float], skipNoSpeechFilter: Bool) async throws -> String {
         callCount += 1
         if shouldThrow { throw TranscriberError.emptyTranscription }
         return result

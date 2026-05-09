@@ -1,8 +1,11 @@
 import Foundation
 import AVFoundation
+import os.log
 #if canImport(UIKit)
 import UIKit
 #endif
+
+private let log = Logger(subsystem: "com.claude.relay.speech", category: "AudioSource")
 
 /// Protocol used by the engine to receive streaming audio.
 /// The real implementation wraps AVAudioEngine; tests can substitute a no-op.
@@ -73,13 +76,19 @@ public final class StreamingAudioSource: StreamingAudioSourcing, @unchecked Send
 
     public init() {}
 
+    private var tapChunkCount: Int = 0
+
     public func start() throws {
-        guard !isRunning else { return }
+        guard !isRunning else {
+            log.debug("start() called but already running")
+            return
+        }
 
         #if canImport(UIKit)
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
+        log.info("AVAudioSession activated: category=record, mode=measurement")
 
         interruptionObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.interruptionNotification,
@@ -92,6 +101,7 @@ public final class StreamingAudioSource: StreamingAudioSourcing, @unchecked Send
 
         let input = audioEngine.inputNode
         let hardwareFormat = input.outputFormat(forBus: 0)
+        log.info("Hardware format: sampleRate=\(hardwareFormat.sampleRate) channels=\(hardwareFormat.channelCount)")
 
         guard let targetFormat = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
@@ -99,17 +109,26 @@ public final class StreamingAudioSource: StreamingAudioSourcing, @unchecked Send
             channels: 1,
             interleaved: false
         ) else {
+            log.error("Failed to create 16kHz target format")
             throw StreamingAudioSourceError.formatCreationFailed
         }
 
         guard let converter = AVAudioConverter(from: hardwareFormat, to: targetFormat) else {
+            log.error("Failed to create audio converter from \(hardwareFormat.sampleRate)Hz to 16kHz")
             throw StreamingAudioSourceError.converterCreationFailed
         }
 
+        tapChunkCount = 0
         input.installTap(onBus: 0, bufferSize: 4096, format: hardwareFormat) { [weak self] pcmBuffer, _ in
             guard let self else { return }
             let samples = Self.convert(pcmBuffer, using: converter, targetFormat: targetFormat)
             if !samples.isEmpty {
+                self.tapChunkCount += 1
+                if self.tapChunkCount == 1 {
+                    log.info("✅ First audio chunk received: \(samples.count) samples")
+                } else if self.tapChunkCount % 500 == 0 {
+                    log.debug("Audio tap alive: chunk #\(self.tapChunkCount), \(samples.count) samples")
+                }
                 self.onChunk?(samples)
             }
         }
@@ -117,6 +136,7 @@ public final class StreamingAudioSource: StreamingAudioSourcing, @unchecked Send
         audioEngine.prepare()
         try audioEngine.start()
         isRunning = true
+        log.info("✅ AVAudioEngine started — tap installed on input node")
     }
 
     public func stop() {

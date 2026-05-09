@@ -431,7 +431,7 @@ private struct MacMicButton: View {
                 return "mic"
             case .listening, .detectingWakeWord:
                 return "waveform"
-            case .recording, .detectingTurnEnd:
+            case .armed, .recording, .detectingTurnEnd:
                 return "mic.fill"
             case .transcribing:
                 return "waveform"
@@ -460,7 +460,7 @@ private struct MacMicButton: View {
                 return Color.gray.opacity(0.5)
             case .listening, .detectingWakeWord:
                 return Color.blue.opacity(0.8)
-            case .recording, .detectingTurnEnd:
+            case .armed, .recording, .detectingTurnEnd:
                 return Color.red.opacity(0.8)
             case .transcribing, .cleaning:
                 return Color.yellow.opacity(0.8)
