@@ -395,7 +395,7 @@ private struct SpeechSettingsTab: View {
                     }
                 }
                 SettingsSectionFooter(text: settings.continuousListeningEnabled
-                    ? "Continuous listening uses on-device AI to detect when you've finished speaking."
+                    ? "Say the wake word to start a new utterance. On-device AI detects when you've finished speaking. Audio stays on-device."
                     : "When enabled, the mic stays open and transcribes utterances starting with the wake word.")
 
                 if settings.promptEnhancementEnabled {
