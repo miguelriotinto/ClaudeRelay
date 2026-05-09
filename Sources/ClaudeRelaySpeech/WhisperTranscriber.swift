@@ -67,8 +67,9 @@ public final class WhisperTranscriber: SpeechTranscribing {
     }
 
     /// Transcribe a 16kHz mono Float32 audio buffer.
-    /// - Parameter skipNoSpeechFilter: Disables all quality-gate filters so
-    ///   Whisper always produces output. Use when VAD confirmed speech.
+    /// - Parameter skipNoSpeechFilter: When true, disables the no-speech
+    ///   threshold (safe when VAD already confirmed speech) but keeps the
+    ///   compression-ratio threshold active to catch decoder repetition loops.
     public func transcribe(
         _ audioBuffer: [Float],
         skipNoSpeechFilter: Bool
@@ -80,9 +81,6 @@ public final class WhisperTranscriber: SpeechTranscribing {
         var options: DecodingOptions? = nil
         if skipNoSpeechFilter {
             var opts = DecodingOptions()
-            opts.compressionRatioThreshold = nil
-            opts.logProbThreshold = nil
-            opts.firstTokenLogProbThreshold = nil
             opts.noSpeechThreshold = nil
             options = opts
         }
@@ -101,7 +99,98 @@ public final class WhisperTranscriber: SpeechTranscribing {
             throw TranscriberError.emptyTranscription
         }
 
+        return Self.collapseRepetitions(text)
+    }
+
+    /// Detect and collapse repeated substrings in decoder output.
+    ///
+    /// Whisper's attention decoder can loop, producing the same phrase 2-3+
+    /// times. Two strategies, tried in order:
+    /// 1. Sentence-level: split on `.?!` boundaries, check if segments repeat
+    /// 2. Character-level: find repeating prefix unit (handles no-delimiter concatenation)
+    nonisolated static func collapseRepetitions(_ text: String) -> String {
+        let len = text.count
+        guard len > 20 else { return text }
+
+        if let collapsed = collapseSentenceRepetitions(text) {
+            return collapsed
+        }
+
+        if let collapsed = collapseCharacterRepetitions(text) {
+            return collapsed
+        }
+
         return text
+    }
+
+    /// Split on sentence-ending punctuation and check if segments are
+    /// near-identical (handles "Check dir? Check dir? Check dir?").
+    nonisolated private static func collapseSentenceRepetitions(_ text: String) -> String? {
+        let segments = text
+            .components(separatedBy: CharacterSet(charactersIn: ".?!"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        guard segments.count >= 2 else { return nil }
+
+        let reference = segments[0].lowercased()
+        guard reference.count >= 8 else { return nil }
+
+        let matchCount = segments.filter { seg in
+            let normalized = seg.lowercased()
+            if normalized == reference { return true }
+            let dist = levenshteinDistance(normalized, reference)
+            return dist <= max(2, reference.count / 5)
+        }.count
+
+        guard matchCount == segments.count else { return nil }
+
+        let originalPunctuation = text.last.map { CharacterSet(charactersIn: ".?!").contains(Unicode.Scalar(String($0))!) } ?? false
+        let suffix = originalPunctuation ? String(text.last!) : ""
+        return segments[0] + suffix
+    }
+
+    /// Find the shortest repeating prefix unit (handles direct concatenation
+    /// like "check dircheck dircheck dir").
+    nonisolated private static func collapseCharacterRepetitions(_ text: String) -> String? {
+        let len = text.count
+        let minUnit = 10
+        guard len >= minUnit * 2 else { return nil }
+
+        for unitLen in minUnit...(len / 2) {
+            let unit = String(text.prefix(unitLen))
+            let count = len / unitLen
+            guard count >= 2 else { continue }
+            let reconstructed = String(repeating: unit, count: count)
+            guard text.hasPrefix(reconstructed) else { continue }
+            let remainder = String(text.dropFirst(reconstructed.count))
+            let trimmedRemainder = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
+            let tolerance = max(3, unit.count / 3)
+            if trimmedRemainder.isEmpty || levenshteinDistance(trimmedRemainder, unit) <= tolerance {
+                return unit.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        return nil
+    }
+
+    nonisolated private static func levenshteinDistance(_ s: String, _ t: String) -> Int {
+        let sArr = Array(s)
+        let tArr = Array(t)
+        let m = sArr.count, n = tArr.count
+        if m == 0 { return n }
+        if n == 0 { return m }
+        var prev = Array(0...n)
+        var curr = [Int](repeating: 0, count: n + 1)
+        for i in 1...m {
+            curr[0] = i
+            for j in 1...n {
+                let cost = sArr[i-1] == tArr[j-1] ? 0 : 1
+                curr[j] = min(prev[j] + 1, curr[j-1] + 1, prev[j-1] + cost)
+            }
+            prev = curr
+        }
+        return prev[n]
     }
 
     /// Release the model from memory.
