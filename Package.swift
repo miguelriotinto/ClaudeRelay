@@ -66,7 +66,10 @@ let package = Package(
                 .product(name: "WhisperKit", package: "WhisperKit"),
                 .product(name: "LLM", package: "LLM.swift"),
             ],
-            path: "Sources/ClaudeRelaySpeech"
+            path: "Sources/ClaudeRelaySpeech",
+            resources: [
+                .copy("Resources/SileroVAD.mlmodelc"),
+            ]
         ),
         .testTarget(
             name: "ClaudeRelayKitTests",

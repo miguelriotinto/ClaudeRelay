@@ -295,7 +295,7 @@ public final class ContinuousListeningEngine: ObservableObject {
     public static func makeDefault(
         options: SpeechProcessingOptions = SpeechProcessingOptions()
     ) -> ContinuousListeningEngine {
-        let vad: any VoiceActivityDetecting = VoiceActivityDetector()
+        let vad: any VoiceActivityDetecting = SileroVoiceActivityDetector() ?? VoiceActivityDetector()
         let turnEnd: any TurnEndDetecting = HeuristicTurnEndDetector()
         let transcriber = WhisperTranscriber.shared
         let cleaner = TextCleaner.shared

@@ -1,0 +1,80 @@
+[
+  {
+    "shortDescription" : "VAD with SE modules trained on MUSAN (86.47% accuracy)",
+    "metadataOutputVersion" : "3.0",
+    "outputSchema" : [
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1 × 1)",
+        "shortDescription" : "",
+        "shape" : "[1, 1]",
+        "name" : "vad_probability",
+        "type" : "MultiArray"
+      }
+    ],
+    "version" : "2.0",
+    "modelParameters" : [
+
+    ],
+    "author" : "Silero VAD with Trained SE Modules",
+    "specificationVersion" : 6,
+    "storagePrecision" : "Mixed (Float16, Float32)",
+    "mlProgramOperationTypeHistogram" : {
+      "Concat" : 4,
+      "Lstm" : 1,
+      "Linear" : 14,
+      "SliceByIndex" : 3,
+      "LayerNorm" : 1,
+      "Pow" : 6,
+      "Stack" : 1,
+      "Transpose" : 3,
+      "Relu" : 9,
+      "ReduceMean" : 5,
+      "Cast" : 4,
+      "Reshape" : 8,
+      "Add" : 6,
+      "Sqrt" : 3,
+      "Sigmoid" : 5,
+      "Mul" : 5,
+      "Conv" : 5,
+      "Squeeze" : 1
+    },
+    "computePrecision" : "Mixed (Float16, Float32, Int32)",
+    "stateSchema" : [
+
+    ],
+    "isUpdatable" : "0",
+    "availability" : {
+      "macOS" : "12.0",
+      "tvOS" : "15.0",
+      "visionOS" : "1.0",
+      "watchOS" : "8.0",
+      "iOS" : "15.0",
+      "macCatalyst" : "15.0"
+    },
+    "modelType" : {
+      "name" : "MLModelType_mlProgram"
+    },
+    "inputSchema" : [
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1 × 512)",
+        "shortDescription" : "",
+        "shape" : "[1, 512]",
+        "name" : "audio_chunk",
+        "type" : "MultiArray"
+      }
+    ],
+    "userDefinedMetadata" : {
+      "com.github.apple.coremltools.source_dialect" : "TorchScript",
+      "com.github.apple.coremltools.source" : "torch==2.5.0",
+      "com.github.apple.coremltools.version" : "8.3.0"
+    },
+    "generatedClassName" : "silero_vad_se_trained",
+    "method" : "predict"
+  }
+]
