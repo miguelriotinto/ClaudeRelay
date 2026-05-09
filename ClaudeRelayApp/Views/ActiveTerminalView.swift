@@ -17,7 +17,7 @@ struct ActiveTerminalView: View {
     @State private var renameText = ""
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @StateObject private var continuousEngine = ContinuousListeningEngine.makeDefault(
-        options: SpeechProcessingOptions(wakeWord: AppSettings.shared.wakeWord)
+        options: AppSettings.shared.currentSpeechOptions()
     )
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.scenePhase) private var scenePhase
@@ -193,12 +193,13 @@ struct ActiveTerminalView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        .task(id: continuousTaskID) {
+        .task(id: optionsHash) {
             continuousEngine.onUtteranceReady = { text in
                 guard let id = coordinator.activeSessionId,
                       let vm = coordinator.viewModel(for: id) else { return }
                 vm.sendInput(text)
             }
+            continuousEngine.updateOptions(settings.currentSpeechOptions())
             if settings.continuousListeningEnabled && scenePhase == .active {
                 await continuousEngine.enable()
             } else {
@@ -216,9 +217,16 @@ struct ActiveTerminalView: View {
         }
     }
 
-    /// Re-runs the continuous engine .task on any of these changes.
-    private var continuousTaskID: String {
-        "\(settings.continuousListeningEnabled)-\(scenePhase)"
+    private var optionsHash: String {
+        let s = settings
+        return [
+            "\(s.continuousListeningEnabled)",
+            "\(s.smartCleanupEnabled)",
+            "\(s.promptEnhancementEnabled)",
+            s.wakeWord,
+            "\(s.turnEndSilenceTimeout)",
+            "\(scenePhase)"
+        ].joined(separator: "|")
     }
 
     @ViewBuilder

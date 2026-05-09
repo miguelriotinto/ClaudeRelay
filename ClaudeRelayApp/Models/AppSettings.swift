@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import Combine
 import ClaudeRelayClient
+import ClaudeRelaySpeech
 
 @MainActor
 final class AppSettings: ObservableObject {
@@ -147,6 +148,17 @@ final class AppSettings: ObservableObject {
     /// Max silence (seconds) before the engine hard-stops a recording,
     /// regardless of the turn-end classifier's prediction.
     @AppStorage("turnEndSilenceTimeout") var turnEndSilenceTimeout: Double = 1.5
+
+    func currentSpeechOptions() -> SpeechProcessingOptions {
+        SpeechProcessingOptions(
+            smartCleanupEnabled: smartCleanupEnabled,
+            promptEnhancementEnabled: promptEnhancementEnabled,
+            bedrockBearerToken: bedrockBearerToken,
+            bedrockRegion: bedrockRegion,
+            wakeWord: wakeWord,
+            turnEndSilenceTimeout: turnEndSilenceTimeout
+        )
+    }
 }
 
 // MARK: - Keyboard Shortcut Helpers
