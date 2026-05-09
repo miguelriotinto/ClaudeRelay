@@ -151,23 +151,56 @@ engines delegate post-processing (cleanup plus cloud enhancement) to the shared
 `SpeechPostProcessor`, so `smartCleanupEnabled` and `promptEnhancementEnabled`
 settings behave identically in push-to-talk and continuous modes.
 
+**Strict two-phase UX.** The user says the wake word, the mic button turns
+red to acknowledge, then they speak the command. Combined utterances like
+"Claude, list my files" spoken in one breath are rejected — the red-light
+handshake is the whole point of the design. An `.armed` state sits between
+wake-word detection and command recording, timing out back to `.listening`
+after 4 s if the user never starts the command.
+
+State machine:
+```
+idle → listening (blue) ─ speechStart → detectingWakeWord (blue)
+  ↓ (silence + wake-word match with empty residue)
+armed (red, 4s timeout) ─ speechStart → recording (red)
+  ↓ silenceStart (≥1 s)
+detectingTurnEnd (red) ─ classifier: done → transcribing (yellow)
+                      └ classifier: continuing → recording
+transcribing → cleaning (yellow) → outputting (yellow) → listening
+```
+
+UI color buckets: **blue** for `listening`/`detectingWakeWord`, **red** for
+`armed`/`recording`/`detectingTurnEnd`, **yellow** for
+`transcribing`/`cleaning`/`outputting`.
+
 Pipeline:
-1. `StreamingAudioSource` (AVAudioEngine tap) → 30 ms @ 16 kHz mono Float32 chunks
-2. `StreamingAudioBuffer` (10 s ring, `OSAllocatedUnfairLock`) — zero-copy append
-3. `VoiceActivityDetecting` — `SileroVoiceActivityDetector` (CoreML, LSTM state
-   threaded across chunks) when bundled; falls back to energy-based
-   `VoiceActivityDetector`
-4. On VAD `speechStart` → `WakeWordDetector` accumulates ≤ 3 s, runs WhisperKit,
-   fuzzy-matches the keyword (Levenshtein ≤ 1)
-5. If matched → `.detectingTurnEnd`; VAD `silenceStart` during `.recording`
-   also routes here
-6. `TurnEndDetecting` — `SmartTurnTurnEndDetector` (CoreML, 8 s context,
-   zero-padded from start) when bundled; falls back to `HeuristicTurnEndDetector`
-7. The classifier is raced against `turnEndSilenceTimeout` so a stuck
-   "continuing" prediction can't stall the pipeline
-8. On done → Whisper transcription (skipped when wake-word residue already
-   contains the post-wake-word transcript) → `SpeechPostProcessor.process(...)`
-   → `onUtteranceReady` → `SessionCoordinator.vm.sendInput(text)`
+1. `StreamingAudioSource` (AVAudioEngine tap) → 16 kHz mono Float32 chunks
+2. `StreamingAudioBuffer` (30 s ring, `OSAllocatedUnfairLock`) — zero-copy append
+3. `VoiceActivityDetecting` — `SileroVoiceActivityDetector` wraps the bundled
+   FluidInference Silero-VAD v6 unified CoreML model (stateful LSTM, 576-sample
+   input = 64 context + 512 chunk). Falls back to the energy-based
+   `VoiceActivityDetector` if the bundle resource fails to load.
+4. On `speechStart` (listening → detectingWakeWord), ~0.5 s of pre-roll is
+   fed to `WakeWordDetector` plus ongoing chunks until `silenceStart`
+5. `WakeWordDetector.checkForWakeWord()` runs `WakeWordAudioPreprocessor`
+   (peak-normalize to ~0.95 + pad to 3 s) before WhisperKit transcription,
+   then matches with a cascade: alias table → Levenshtein (≤ 2) →
+   Metaphone phonetic equality with first-letter guard
+6. If matched with empty residue → `.armed` (red, 4 s). Non-empty residue
+   is rejected in strict mode — user must pause before the command
+7. `armed → recording` on next `speechStart`; `recording → detectingTurnEnd`
+   on `silenceStart`. VAD `minSilenceDuration = 1.0 s` so transient breath
+   pauses do not trigger turn-end
+8. `TurnEndDetecting` — `SmartTurnTurnEndDetector` bundles Smart-Turn v3
+   (Whisper-Tiny encoder + linear head, 8 s zero-padded-from-start context)
+   and a Whisper log-mel preprocessor. Falls back to `HeuristicTurnEndDetector`
+   if either `.mlpackage` fails to load or compile
+9. `raceTurnEnd` returns `TurnEndDecision {done, continuing, inferenceTimedOut}`.
+   **The classifier is authoritative.** The timer (`turnEndSilenceTimeout`,
+   default 8 s) is a safety net against a hung CoreML prediction — when
+   it fires the engine resumes `.recording` rather than forcing transcription
+10. On `.done` → Whisper transcription → `SpeechPostProcessor.process(...)`
+    → `onUtteranceReady` → `SessionCoordinator.vm.sendInput(text)`
 
 `ContinuousListeningEngine.makeDefault(options:)` constructs the engine with
 the best available detectors. `updateOptions(_:)` pushes settings changes
@@ -183,20 +216,13 @@ for a 2-second one-shot PTT capture without disabling continuous mode.
 **Foreground-only:** audio engine starts on `scenePhase == .active` (iOS) or
 the Settings toggle (macOS). No background audio entitlement is used.
 
-**CoreML models not bundled in v2:** Silero VAD + Smart-Turn CoreML conversion
-is deferred to a follow-up PR due to a Python 3.14 / Torch 2.9 / coremltools 9
-toolchain incompatibility. The engine runs on the energy-based VAD + heuristic
-turn-end fallbacks until then. Protocol shape and `makeDefault` fallback logic
-are already in place — dropping the `.mlpackage` artifacts into `Resources/` is
-sufficient to activate them.
-
 ## Configuration
 
 Config stored in `~/.claude-relay/config.json`. Default ports: WS=9200, Admin=9100. On this dev machine, admin port is configured as 9100.
 
 **Config keys**: `wsPort`, `adminPort`, `detachTimeout`, `scrollbackSize`, `tlsCert`, `tlsKey`, `logLevel`, `maxSessionsPerToken` (default 50, 0 = unlimited), `bindAll` (default `true` — WebSocket server binds `0.0.0.0` and accepts connections from any interface. Set `false` to restrict to `127.0.0.1`. When `true` without TLS, startup logs a warning because tokens travel in the clear).
 
-App-side (not in `config.json`, stored via `@AppStorage`): `terminalScrollbackLines` (per-app, default 5000, max 25000). The server's `RingBuffer` still replays anything that falls off this edge on reattach.
+App-side (not in `config.json`, stored via `@AppStorage`): `terminalScrollbackLines` (per-app, default 5000, max 25000). The server's `RingBuffer` still replays anything that falls off this edge on reattach. Continuous-listening settings persisted via `@AppStorage` are the on/off toggle and the wake word — `turnEndSilenceTimeout` is **not** user-tunable (defaults from `SpeechProcessingOptions`).
 
 ## Lint
 
