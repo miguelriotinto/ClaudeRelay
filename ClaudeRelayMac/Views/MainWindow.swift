@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ClaudeRelayClient
 import ClaudeRelaySpeech
 
@@ -6,7 +7,7 @@ struct MainWindow: View {
     @StateObject private var serverList = ServerListViewModel()
     @StateObject private var speechEngine = OnDeviceSpeechEngine()
     @StateObject private var continuousEngine = ContinuousListeningEngine.makeDefault(
-        options: SpeechProcessingOptions(wakeWord: AppSettings.shared.wakeWord)
+        options: AppSettings.shared.currentSpeechOptions()
     )
     @ObservedObject private var settings = AppSettings.shared
     @State private var coordinator: SessionCoordinator?
@@ -113,6 +114,17 @@ private struct WorkspaceView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showQRPopover = false
 
+    private var optionsHash: String {
+        let s = settings
+        return [
+            "\(s.continuousListeningEnabled)",
+            "\(s.smartCleanupEnabled)",
+            "\(s.promptEnhancementEnabled)",
+            s.wakeWord,
+            "\(s.turnEndSilenceTimeout)"
+        ].joined(separator: "|")
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SessionSidebarView(coordinator: coordinator)
@@ -169,16 +181,27 @@ private struct WorkspaceView: View {
         .toolbarBackground(.black, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
         .focusedValue(\.sidebarVisibility, $columnVisibility)
-        .task(id: settings.continuousListeningEnabled) {
+        .task(id: optionsHash) {
             continuousEngine.onUtteranceReady = { text in
                 guard let id = coordinator.activeSessionId,
                       let vm = coordinator.viewModel(for: id) else { return }
                 vm.sendInput(text)
             }
+            continuousEngine.updateOptions(settings.currentSpeechOptions())
             if settings.continuousListeningEnabled {
                 await continuousEngine.enable()
             } else {
                 await continuousEngine.disable()
+            }
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification)) { _ in
+            Task { await continuousEngine.disable() }
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in
+            Task {
+                if settings.continuousListeningEnabled {
+                    await continuousEngine.enable()
+                }
             }
         }
         .sheet(isPresented: $coordinator.showQRScanner) {
@@ -263,15 +286,14 @@ private struct MacMicButton: View {
     @ObservedObject var continuousEngine: ContinuousListeningEngine
     @ObservedObject var settings: AppSettings
     @State private var showDownloadAlert = false
+    @State private var continuousPausedByUser = false
 
     private var activeProgress: Double? {
         engine.modelStore.downloadProgress ?? engine.modelLoadProgress
     }
 
     var body: some View {
-        Button {
-            handleTap()
-        } label: {
+        Button(action: handleTap) {
             Group {
                 if let progress = activeProgress {
                     progressRing(progress)
@@ -293,6 +315,12 @@ private struct MacMicButton: View {
                 }
             }
         }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.3).onEnded { _ in
+                guard settings.continuousListeningEnabled else { return }
+                beginTemporaryPTT()
+            }
+        )
         .buttonStyle(.plain)
         .disabled(isDisabled)
         .help(engine.state.description)
@@ -324,6 +352,50 @@ private struct MacMicButton: View {
     }
 
     private func handleTap() {
+        if settings.continuousListeningEnabled {
+            handleContinuousTap()
+        } else {
+            handlePTTTap()
+        }
+    }
+
+    private func handleContinuousTap() {
+        if continuousEngine.state == .idle {
+            continuousPausedByUser = false
+            Task { await continuousEngine.enable() }
+        } else {
+            continuousPausedByUser = true
+            Task { await continuousEngine.disable() }
+        }
+    }
+
+    private func beginTemporaryPTT() {
+        Task {
+            await continuousEngine.disable()
+            await performOneShotPTT()
+            if settings.continuousListeningEnabled && !continuousPausedByUser {
+                await continuousEngine.enable()
+            }
+        }
+    }
+
+    private func performOneShotPTT() async {
+        if !engine.modelsReady {
+            await MainActor.run { showDownloadAlert = true }
+            return
+        }
+        await engine.startRecording()
+        try? await Task.sleep(for: .seconds(2))
+        let text = await engine.stopAndProcess(options: settings.currentSpeechOptions())
+        if let text, !text.isEmpty,
+           let coordinator,
+           let id = coordinator.activeSessionId,
+           let vm = coordinator.viewModel(for: id) {
+            vm.sendInput(text)
+        }
+    }
+
+    private func handlePTTTap() {
         switch engine.state {
         case .idle:
             guard engine.modelsReady else {
@@ -333,13 +405,7 @@ private struct MacMicButton: View {
             Task { await engine.startRecording() }
         case .recording:
             Task {
-                let settings = AppSettings.shared
-                let text = await engine.stopAndProcess(
-                    smartCleanup: settings.smartCleanupEnabled,
-                    promptEnhancement: settings.promptEnhancementEnabled,
-                    bearerToken: settings.bedrockBearerToken,
-                    region: settings.bedrockRegion
-                )
+                let text = await engine.stopAndProcess(options: settings.currentSpeechOptions())
                 if let text, !text.isEmpty,
                    let coordinator,
                    let id = coordinator.activeSessionId,
@@ -384,7 +450,7 @@ private struct MacMicButton: View {
 
     private var continuousDotColor: SwiftUI.Color {
         switch continuousEngine.state {
-        case .idle:                 return .gray
+        case .idle:                 return continuousPausedByUser ? .orange : .gray
         case .listening:            return .green
         case .detectingWakeWord:    return .blue
         case .recording, .detectingTurnEnd: return .red

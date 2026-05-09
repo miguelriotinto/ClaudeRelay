@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import ClaudeRelayClient
+import ClaudeRelaySpeech
 
 @MainActor
 final class AppSettings: ObservableObject {
@@ -122,6 +123,17 @@ final class AppSettings: ObservableObject {
     @AppStorage("com.clauderelay.mac.recordingShortcutModifiers")
     var recordingShortcutModifiers: Int = Int(NSEvent.ModifierFlags([.command, .option]).rawValue)
     @AppStorage("com.clauderelay.mac.recordingShortcutKey") var recordingShortcutKey = ""
+
+    func currentSpeechOptions() -> SpeechProcessingOptions {
+        SpeechProcessingOptions(
+            smartCleanupEnabled: smartCleanupEnabled,
+            promptEnhancementEnabled: promptEnhancementEnabled,
+            bedrockBearerToken: bedrockBearerToken,
+            bedrockRegion: bedrockRegion,
+            wakeWord: wakeWord,
+            turnEndSilenceTimeout: turnEndSilenceTimeout
+        )
+    }
 }
 
 extension NSEvent.ModifierFlags {
