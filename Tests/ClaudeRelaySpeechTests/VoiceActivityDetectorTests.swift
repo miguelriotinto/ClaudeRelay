@@ -37,8 +37,10 @@ final class VoiceActivityDetectorTests: XCTestCase {
     func testSilenceAfterSpeechEmitsSilenceStart() {
         let vad = VoiceActivityDetector()
         for _ in 0..<15 { _ = vad.process(chunk: speechChunk()) }
+        // minSilenceDuration is 1.0s; each chunk is 30ms, so we need 34+ silent
+        // chunks before silenceStart can fire. Loop well past that.
         var sawSilenceStart = false
-        for _ in 0..<20 {
+        for _ in 0..<60 {
             let event = vad.process(chunk: silenceChunk())
             if event == .silenceStart { sawSilenceStart = true; break }
         }

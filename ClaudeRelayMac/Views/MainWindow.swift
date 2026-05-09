@@ -120,8 +120,7 @@ private struct WorkspaceView: View {
             "\(s.continuousListeningEnabled)",
             "\(s.smartCleanupEnabled)",
             "\(s.promptEnhancementEnabled)",
-            s.wakeWord,
-            "\(s.turnEndSilenceTimeout)"
+            s.wakeWord
         ].joined(separator: "|")
     }
 

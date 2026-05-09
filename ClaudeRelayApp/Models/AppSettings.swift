@@ -145,9 +145,6 @@ final class AppSettings: ObservableObject {
 
     @AppStorage("continuousListeningEnabled") var continuousListeningEnabled = false
     @AppStorage("wakeWord") var wakeWord: String = "claude"
-    /// Max silence (seconds) before the engine hard-stops a recording,
-    /// regardless of the turn-end classifier's prediction.
-    @AppStorage("turnEndSilenceTimeout") var turnEndSilenceTimeout: Double = 1.5
 
     func currentSpeechOptions() -> SpeechProcessingOptions {
         SpeechProcessingOptions(
@@ -155,8 +152,7 @@ final class AppSettings: ObservableObject {
             promptEnhancementEnabled: promptEnhancementEnabled,
             bedrockBearerToken: bedrockBearerToken,
             bedrockRegion: bedrockRegion,
-            wakeWord: wakeWord,
-            turnEndSilenceTimeout: turnEndSilenceTimeout
+            wakeWord: wakeWord
         )
     }
 }

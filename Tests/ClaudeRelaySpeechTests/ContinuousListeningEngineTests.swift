@@ -400,19 +400,22 @@ final class ContinuousListeningEngineTests: XCTestCase {
         XCTAssertEqual(engine.state, .armed, "New wake word should arm the engine")
     }
 
-    func testSmartTurnContinuingKeepsRecordingUntilHardTimeout() async {
+    func testTurnEndInferenceTimeoutResumesRecording() async {
+        // When the classifier takes longer than the safety-net timeout, the
+        // engine must NOT force transcription — that re-creates the bug where
+        // a natural pause chops the user off. Instead, resume recording.
         let vad = MockVAD()
         let transcriber = StubSpeechTranscriber()
         transcriber.result = "claude"
         let turnEnd = SlowMockTurnEndDetector()
         turnEnd.delaySeconds = 5.0
-        turnEnd.resultToReturn = .speakerContinuing(confidence: 0.9)
+        turnEnd.resultToReturn = .speakerDone(confidence: 0.9)  // would say done if it finished
 
         let engine = makeEngine(vad: vad, turnEnd: turnEnd, transcriber: transcriber)
         await engine.enable()
 
         var opts = SpeechProcessingOptions()
-        opts.turnEndSilenceTimeout = 0.1   // 100 ms — force timeout fast
+        opts.turnEndSilenceTimeout = 0.1   // 100 ms — force safety-net to win
         engine.updateOptions(opts)
 
         var delivered: String?
@@ -424,15 +427,52 @@ final class ContinuousListeningEngineTests: XCTestCase {
         await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
         await engine.waitForPendingWork()
 
-        // Command (turn-end will stall, timeout should force transcription)
-        transcriber.result = "keep going"
+        // Command: silence fires turn-end check; classifier stalls 5s so timer wins at 100ms
         vad.eventsToReturn = [.speechStart, .silenceStart]
         await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
         await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
         await engine.waitForPendingWork()
+
+        // Nothing should have been transcribed — engine is waiting for next real silence
+        XCTAssertNil(delivered, "Timeout must NOT force transcription")
+        XCTAssertEqual(engine.state, .recording, "After safety-net timeout, engine resumes recording")
+    }
+
+    func testTurnEndClassifierIsAuthoritative() async {
+        // Even if the classifier is slow, its verdict wins (as long as it
+        // returns within the safety-net window).
+        let vad = MockVAD()
+        let transcriber = StubSpeechTranscriber()
+        transcriber.result = "claude"
+        let turnEnd = SlowMockTurnEndDetector()
+        turnEnd.delaySeconds = 0.2   // 200 ms — finishes within 1s safety net
+        turnEnd.resultToReturn = .speakerContinuing(confidence: 0.9)
+
+        let engine = makeEngine(vad: vad, turnEnd: turnEnd, transcriber: transcriber)
+        await engine.enable()
+
+        var opts = SpeechProcessingOptions()
+        opts.turnEndSilenceTimeout = 1.0   // plenty of time for the classifier
+        engine.updateOptions(opts)
+
+        var delivered: String?
+        engine.onUtteranceReady = { delivered = $0 }
+
+        // Arm
+        vad.eventsToReturn = [.speechStart, .silenceStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
         await engine.waitForPendingWork()
 
-        XCTAssertEqual(delivered, "keep going")
+        // Command
+        vad.eventsToReturn = [.speechStart, .silenceStart]
+        await engine.ingest(chunk: Array(repeating: Float(0.3), count: 480))
+        await engine.ingest(chunk: Array(repeating: Float(0.1), count: 480))
+        await engine.waitForPendingWork()
+
+        // Classifier said "continuing" — no transcription, back to recording
+        XCTAssertNil(delivered)
+        XCTAssertEqual(engine.state, .recording)
     }
 
     // MARK: - Interruptions

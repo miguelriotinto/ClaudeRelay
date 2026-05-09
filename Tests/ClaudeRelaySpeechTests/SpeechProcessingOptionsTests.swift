@@ -10,7 +10,7 @@ final class SpeechProcessingOptionsTests: XCTestCase {
         XCTAssertEqual(opts.bedrockBearerToken, "")
         XCTAssertEqual(opts.bedrockRegion, "us-east-1")
         XCTAssertEqual(opts.wakeWord, "claude")
-        XCTAssertEqual(opts.turnEndSilenceTimeout, 1.5, accuracy: 0.001)
+        XCTAssertEqual(opts.turnEndSilenceTimeout, 8.0, accuracy: 0.001)
     }
 
     func testEqualityIsValueBased() {

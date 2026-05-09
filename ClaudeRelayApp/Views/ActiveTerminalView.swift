@@ -224,7 +224,6 @@ struct ActiveTerminalView: View {
             "\(s.smartCleanupEnabled)",
             "\(s.promptEnhancementEnabled)",
             s.wakeWord,
-            "\(s.turnEndSilenceTimeout)",
             "\(scenePhase)"
         ].joined(separator: "|")
     }

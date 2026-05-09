@@ -371,26 +371,11 @@ private struct SpeechSettingsTab: View {
                             .toggleStyle(.switch)
                     }
                     if settings.continuousListeningEnabled {
-                        SettingsGroupRow {
+                        SettingsGroupRow(showDivider: false) {
                             Text("Wake word")
                             Spacer()
                             Text(settings.wakeWord.capitalized)
                                 .foregroundStyle(.secondary)
-                        }
-                        SettingsGroupRow(showDivider: false) {
-                            Text("Silence timeout")
-                                .help("Max time the engine waits for the AI turn-end detector before forcing transcription.")
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("\(settings.turnEndSilenceTimeout, specifier: "%.1f") s")
-                                    .foregroundStyle(.secondary)
-                                Slider(
-                                    value: $settings.turnEndSilenceTimeout,
-                                    in: 0.5...3.0,
-                                    step: 0.1
-                                )
-                                .frame(width: 200)
-                            }
                         }
                     }
                 }

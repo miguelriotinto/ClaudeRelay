@@ -10,6 +10,12 @@ public struct SpeechProcessingOptions: Equatable, Sendable {
     public var bedrockBearerToken: String
     public var bedrockRegion: String
     public var wakeWord: String
+    /// Safety net: the maximum wall-clock time the turn-end classifier is
+    /// allowed to run before the engine assumes it has hung and resumes
+    /// recording. This is NOT a "force done" timer — when this fires we
+    /// return to `.recording` and wait for the next real silence, giving
+    /// the user more time to continue. Only needs tuning if the CoreML
+    /// classifier runs pathologically slowly on a particular device.
     public var turnEndSilenceTimeout: TimeInterval
 
     public init(
@@ -18,7 +24,7 @@ public struct SpeechProcessingOptions: Equatable, Sendable {
         bedrockBearerToken: String = "",
         bedrockRegion: String = "us-east-1",
         wakeWord: String = "claude",
-        turnEndSilenceTimeout: TimeInterval = 1.5
+        turnEndSilenceTimeout: TimeInterval = 8.0
     ) {
         self.smartCleanupEnabled = smartCleanupEnabled
         self.promptEnhancementEnabled = promptEnhancementEnabled

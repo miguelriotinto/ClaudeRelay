@@ -348,41 +348,65 @@ public final class ContinuousListeningEngine: ObservableObject {
             guard let self else { return }
             let utterance = self.audioBuffer.audioSince(position: self.utteranceStartPosition)
 
-            let done = await Self.raceTurnEnd(
+            let decision = await Self.raceTurnEnd(
                 detector: self.turnEndDetector,
                 utterance: utterance,
                 timeoutSeconds: timeoutSeconds
             )
             guard !Task.isCancelled else { return }
-            if done {
+
+            switch decision {
+            case .done:
+                log.info("Turn-end classifier: speaker DONE — transcribing")
                 self.runTranscription(utterance: utterance)
-            } else {
+            case .continuing:
+                log.info("Turn-end classifier: speaker CONTINUING — back to .recording, awaiting next silence")
+                self.state = .recording
+            case .inferenceTimedOut:
+                // Classifier took longer than the safety-net timeout. Resume
+                // recording rather than forcing a chop — the user is almost
+                // certainly still speaking or pausing mid-thought. Worst case
+                // the next silenceStart fires another check.
+                log.warning("⚠️ Turn-end inference exceeded \(timeoutSeconds)s safety net — back to .recording (not forcing transcription)")
                 self.state = .recording
             }
         }
     }
 
-    /// Race the turn-end classifier against a hard-silence timer.
-    /// Timer returning means "force done".
+    /// Three-way outcome from racing the classifier against a safety-net timer.
+    enum TurnEndDecision: Equatable {
+        case done
+        case continuing
+        /// The classifier exceeded the safety-net window. Treat as
+        /// "continuing" at the call site — we never want to force-transcribe
+        /// on timeout because that re-creates the exact bug where natural
+        /// pauses chop the user off.
+        case inferenceTimedOut
+    }
+
+    /// Race the turn-end classifier against a safety-net timer that guards
+    /// against a hung CoreML inference. The timer **never** produces a "done"
+    /// verdict — the classifier is authoritative. If the timer wins, we treat
+    /// it as `.inferenceTimedOut` and the caller resumes recording.
     static func raceTurnEnd(
         detector: any TurnEndDetecting,
         utterance: [Float],
         timeoutSeconds: TimeInterval
-    ) async -> Bool {
-        await withTaskGroup(of: Bool.self) { group in
+    ) async -> TurnEndDecision {
+        await withTaskGroup(of: TurnEndDecision.self) { group in
             group.addTask {
                 let r = await detector.predict(utteranceAudio: utterance)
-                return r.isDone
+                return r.isDone ? .done : .continuing
             }
             group.addTask {
                 try? await Task.sleep(for: .seconds(timeoutSeconds))
-                return true
+                return .inferenceTimedOut
             }
             for await first in group {
                 group.cancelAll()
                 return first
             }
-            return true
+            return .inferenceTimedOut
         }
     }
 
