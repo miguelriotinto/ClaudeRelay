@@ -298,22 +298,15 @@ private struct MacMicButton: View {
                 if let progress = activeProgress {
                     progressRing(progress)
                 } else {
-                    Image(systemName: buttonIcon)
+                    Image(systemName: effectiveIcon)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white)
                 }
             }
             .frame(width: 26, height: 26)
-            .background(buttonColor)
+            .background(effectiveBackgroundColor)
             .clipShape(Circle())
-            .overlay(alignment: .topTrailing) {
-                if settings.continuousListeningEnabled {
-                    Circle()
-                        .fill(continuousDotColor)
-                        .frame(width: 10, height: 10)
-                        .offset(x: 2, y: -2)
-                }
-            }
+            .animation(.easeInOut(duration: 0.2), value: effectiveBackgroundColor)
         }
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.3).onEnded { _ in
@@ -429,34 +422,64 @@ private struct MacMicButton: View {
         }
     }
 
-    private var buttonIcon: String {
-        switch engine.state {
-        case .idle, .loadingModel: return "mic"
-        case .recording: return "mic.fill"
-        case .transcribing: return "waveform"
-        case .cleaning: return "sparkles"
-        case .error: return "mic"
+    // MARK: - Unified icon & color
+
+    private var effectiveIcon: String {
+        if settings.continuousListeningEnabled {
+            switch continuousEngine.state {
+            case .idle:
+                return "mic"
+            case .listening, .detectingWakeWord:
+                return "waveform"
+            case .recording, .detectingTurnEnd:
+                return "mic.fill"
+            case .transcribing:
+                return "waveform"
+            case .cleaning:
+                return "sparkles"
+            case .outputting:
+                return "text.bubble"
+            case .error:
+                return "mic"
+            }
+        } else {
+            switch engine.state {
+            case .idle, .loadingModel: return "mic"
+            case .recording: return "mic.fill"
+            case .transcribing: return "waveform"
+            case .cleaning: return "sparkles"
+            case .error: return "mic"
+            }
         }
     }
 
-    private var buttonColor: Color {
-        switch engine.state {
-        case .idle, .loadingModel: return Color.gray.opacity(0.5)
-        case .recording: return Color.red.opacity(0.8)
-        case .transcribing, .cleaning: return Color.yellow.opacity(0.8)
-        case .error: return Color.red.opacity(0.8)
-        }
-    }
-
-    private var continuousDotColor: SwiftUI.Color {
-        switch continuousEngine.state {
-        case .idle:                 return continuousPausedByUser ? .orange : .gray
-        case .listening:            return .green
-        case .detectingWakeWord:    return .blue
-        case .recording, .detectingTurnEnd: return .red
-        case .transcribing, .cleaning:      return .yellow
-        case .outputting:           return .green
-        case .error:                return .red
+    private var effectiveBackgroundColor: Color {
+        if settings.continuousListeningEnabled {
+            switch continuousEngine.state {
+            case .idle:
+                return Color.gray.opacity(0.5)
+            case .listening, .detectingWakeWord:
+                return Color.blue.opacity(0.8)
+            case .recording, .detectingTurnEnd:
+                return Color.red.opacity(0.8)
+            case .transcribing, .cleaning:
+                return Color.yellow.opacity(0.8)
+            case .outputting:
+                return Color.yellow.opacity(0.8)
+            case .error:
+                return Color.red.opacity(0.8)
+            }
+        } else {
+            switch engine.state {
+            case .idle, .loadingModel:
+                return Color.green.opacity(0.8)
+            case .recording:
+                return Color.red.opacity(0.8)
+            case .transcribing, .cleaning:
+                return Color.yellow.opacity(0.8)
+            case .error:
+                return Color.red.opacity(0.8)
+            }
         }
     }
 }

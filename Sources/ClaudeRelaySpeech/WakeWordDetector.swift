@@ -79,16 +79,24 @@ public final class WakeWordDetector {
         guard !normalized.isEmpty else { return .notDetected }
 
         let words = normalized.split(whereSeparator: { !$0.isLetter })
-        guard let first = words.first else { return .notDetected }
-        let firstWord = String(first)
+        guard !words.isEmpty else { return .notDetected }
 
-        let distance = levenshtein(firstWord, keyword)
-        let allowed = 1
-        guard distance <= allowed else { return .notDetected }
+        let allowed = 2
+        let minLength = max(1, keyword.count - 2)
+        let scanWindow = min(words.count, 3)
 
-        let residueWords = words.dropFirst().map(String.init)
-        let residue = residueWords.joined(separator: " ")
-        return .detected(residueText: residue)
+        for index in 0..<scanWindow {
+            let candidate = String(words[index])
+            guard candidate.count >= minLength else { continue }
+            let distance = levenshtein(candidate, keyword)
+            if distance <= allowed {
+                let residueWords = words.dropFirst(index + 1).map(String.init)
+                let residue = residueWords.joined(separator: " ")
+                return .detected(residueText: residue)
+            }
+        }
+
+        return .notDetected
     }
 
     /// Classic Levenshtein edit distance. Exposed for testing.

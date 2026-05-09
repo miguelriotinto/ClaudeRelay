@@ -43,9 +43,24 @@ final class WakeWordDetectorTests: XCTestCase {
         }
     }
 
-    func testEditDistanceTwoDoesNotMatch() async {
+    func testEditDistanceTwoMatches() async {
         let stub = StubTranscriber()
-        stub.result = "clubs tell me a joke"  // 2+ edits from 'claude'
+        stub.result = "cloud tell me a joke"  // Whisper's common mishearing
+        let detector = WakeWordDetector(transcriber: stub, keyword: "claude")
+
+        detector.feedAudio(Array(repeating: Float(0.2), count: 16000))
+        let result = await detector.checkForWakeWord()
+
+        if case .detected(let residue) = result {
+            XCTAssertEqual(residue, "tell me a joke")
+        } else {
+            XCTFail("Expected 'cloud' (distance 2) to match 'claude'")
+        }
+    }
+
+    func testEditDistanceThreeDoesNotMatch() async {
+        let stub = StubTranscriber()
+        stub.result = "clubs tell me a joke"  // 4 edits from 'claude'
         let detector = WakeWordDetector(transcriber: stub, keyword: "claude")
 
         detector.feedAudio(Array(repeating: Float(0.2), count: 16000))
@@ -56,16 +71,31 @@ final class WakeWordDetectorTests: XCTestCase {
         }
     }
 
-    func testWakeWordMustAppearAtStart() async {
+    func testWakeWordMustAppearNearStart() async {
         let stub = StubTranscriber()
-        stub.result = "hey there claude open a file"  // wake word in middle
+        stub.result = "I was just telling somebody about claude the other day"
         let detector = WakeWordDetector(transcriber: stub, keyword: "claude")
 
         detector.feedAudio(Array(repeating: Float(0.2), count: 16000))
         let result = await detector.checkForWakeWord()
 
         if case .notDetected = result { /* ok */ } else {
-            XCTFail("Wake word in the middle should not trigger")
+            XCTFail("Wake word deep in sentence should not trigger")
+        }
+    }
+
+    func testWakeWordWithinScanWindow() async {
+        let stub = StubTranscriber()
+        stub.result = "hey claude open a file"
+        let detector = WakeWordDetector(transcriber: stub, keyword: "claude")
+
+        detector.feedAudio(Array(repeating: Float(0.2), count: 16000))
+        let result = await detector.checkForWakeWord()
+
+        if case .detected(let residue) = result {
+            XCTAssertEqual(residue, "open a file")
+        } else {
+            XCTFail("Wake word within first 3 words should trigger")
         }
     }
 

@@ -81,6 +81,17 @@ public final class ContinuousListeningEngine: ObservableObject {
 
     public func enable() async {
         guard state == .idle else { return }
+
+        let whisper = transcriber as? WhisperTranscriber
+        if whisper != nil && whisper?.isLoaded != true {
+            do {
+                try await whisper?.loadModel()
+            } catch {
+                state = .error("Speech model failed to load: \(error.localizedDescription)")
+                return
+            }
+        }
+
         vad.reset()
         wakeWordDetector.reset()
         do {
