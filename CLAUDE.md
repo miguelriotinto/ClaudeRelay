@@ -146,27 +146,49 @@ Named caps across the stack:
 ### Continuous Listening Pipeline
 
 `ContinuousListeningEngine` is a parallel orchestrator to `OnDeviceSpeechEngine`
-that powers always-on listening with a wake word ("Claude" by default).
+powering always-on listening with a wake word ("Claude" by default). Both
+engines delegate post-processing (cleanup plus cloud enhancement) to the shared
+`SpeechPostProcessor`, so `smartCleanupEnabled` and `promptEnhancementEnabled`
+settings behave identically in push-to-talk and continuous modes.
 
 Pipeline:
 1. `StreamingAudioSource` (AVAudioEngine tap) → 30 ms @ 16 kHz mono Float32 chunks
-2. `StreamingAudioBuffer` (10 s ring buffer, lock-protected via `OSAllocatedUnfairLock`) — zero-copy append
-3. `VoiceActivityDetecting` — `VoiceActivityDetector` (RMS energy + hysteresis + debounce) today; CoreML-backed Silero VAD is planned as a drop-in replacement
-4. On VAD `speechStart` → `WakeWordDetector` accumulates ≤ 3 s, runs WhisperKit, fuzzy-matches the keyword (Levenshtein ≤ 1)
-5. If matched → `.detectingTurnEnd`; VAD `silenceStart` during `.recording` also routes here
-6. `TurnEndDetecting` — `HeuristicTurnEndDetector` (always "done") today; CoreML Smart-Turn classifier planned as upgrade
-7. On `.speakerDone` → `WhisperTranscriber` → `TextCleaner` → deliver via
-   `onUtteranceReady` → `SessionCoordinator.vm.sendInput(text)`
+2. `StreamingAudioBuffer` (10 s ring, `OSAllocatedUnfairLock`) — zero-copy append
+3. `VoiceActivityDetecting` — `SileroVoiceActivityDetector` (CoreML, LSTM state
+   threaded across chunks) when bundled; falls back to energy-based
+   `VoiceActivityDetector`
+4. On VAD `speechStart` → `WakeWordDetector` accumulates ≤ 3 s, runs WhisperKit,
+   fuzzy-matches the keyword (Levenshtein ≤ 1)
+5. If matched → `.detectingTurnEnd`; VAD `silenceStart` during `.recording`
+   also routes here
+6. `TurnEndDetecting` — `SmartTurnTurnEndDetector` (CoreML, 8 s context,
+   zero-padded from start) when bundled; falls back to `HeuristicTurnEndDetector`
+7. The classifier is raced against `turnEndSilenceTimeout` so a stuck
+   "continuing" prediction can't stall the pipeline
+8. On done → Whisper transcription (skipped when wake-word residue already
+   contains the post-wake-word transcript) → `SpeechPostProcessor.process(...)`
+   → `onUtteranceReady` → `SessionCoordinator.vm.sendInput(text)`
 
-`ContinuousListeningEngine.makeDefault()` constructs the engine with the current
-fallback detectors. When the CoreML models land, this factory will be updated
-to prefer them with the baselines as fallbacks.
+`ContinuousListeningEngine.makeDefault(options:)` constructs the engine with
+the best available detectors. `updateOptions(_:)` pushes settings changes
+(incl. wake word, which triggers a `WakeWordDetector` rebuild) without
+restarting. iOS responds to `AVAudioSession.interruptionNotification` by
+pausing; macOS hooks `NSWorkspace.willSleepNotification` /
+`didWakeNotification`.
 
-Push-to-talk (`OnDeviceSpeechEngine`) remains unchanged and coexists as the
-alternative mode, selected by `AppSettings.continuousListeningEnabled`.
+Push-to-talk (`OnDeviceSpeechEngine`) remains as an alternative mode. When
+`continuousListeningEnabled` is on: tap the mic to pause/resume; long-press
+for a 2-second one-shot PTT capture without disabling continuous mode.
 
-**Foreground-only:** audio engine is started/stopped on `scenePhase` changes
-(iOS) or the settings toggle (macOS). No background audio entitlement is used.
+**Foreground-only:** audio engine starts on `scenePhase == .active` (iOS) or
+the Settings toggle (macOS). No background audio entitlement is used.
+
+**CoreML models not bundled in v2:** Silero VAD + Smart-Turn CoreML conversion
+is deferred to a follow-up PR due to a Python 3.14 / Torch 2.9 / coremltools 9
+toolchain incompatibility. The engine runs on the energy-based VAD + heuristic
+turn-end fallbacks until then. Protocol shape and `makeDefault` fallback logic
+are already in place — dropping the `.mlpackage` artifacts into `Resources/` is
+sufficient to activate them.
 
 ## Configuration
 
