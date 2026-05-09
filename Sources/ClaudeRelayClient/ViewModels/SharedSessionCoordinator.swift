@@ -368,31 +368,26 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         guard !isRecovering, id != activeSessionId else { return }
         let previousId = activeSessionId
         do {
-            try await withAuth { controller in
-                if previousId != nil {
-                    try? await controller.detach()
-                }
-                // Always replay from the ring buffer. SwiftTerm's native view
-                // buffer does not reliably retain content while hidden, so the
-                // previous `skipReplay` optimisation caused lost scrollback.
-                try await controller.resumeSession(id: id, skipReplay: false)
-            }
-
             if let currentId = previousId, currentId != id {
                 terminalViewModels[currentId]?.prepareForSwitch()
             }
 
-            // For the incoming session: create the VM if missing, or reset its
-            // buffering state so the replay data lands cleanly. Seed a RIS
-            // (ESC c) into pendingOutput so the terminal clears before the
-            // server's ring-buffer replay arrives.
+            // Prepare the incoming VM and wire output BEFORE resumeSession so
+            // binary replay frames are routed to the correct VM from the start.
             if terminalViewModels[id] == nil {
                 terminalViewModels[id] = TerminalViewModel(sessionId: id, connection: connection)
             } else {
                 terminalViewModels[id]?.prepareForReplay()
             }
-
             wireTerminalOutput(to: id)
+
+            try await withAuth { controller in
+                if previousId != nil {
+                    try? await controller.detach()
+                }
+                try await controller.resumeSession(id: id, skipReplay: false)
+            }
+
             activeSessionId = id
             terminalCache.touch(id)
             terminalCache.enforceLimit(activeSessionId: activeSessionId)

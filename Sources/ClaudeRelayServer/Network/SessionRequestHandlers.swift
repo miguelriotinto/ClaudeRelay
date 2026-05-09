@@ -112,7 +112,8 @@ extension RelayMessageHandler {
                 // Read scrollback history to send to client, unless the client
                 // already has a live terminal with full scrollback (tab switch).
                 let buffered = skipReplay ? Data() : await pty.readBuffer()
-                let filtered = RelayMessageHandler.filterEscapeResponses(buffered)
+                let stripped = RelayMessageHandler.filterEscapeResponses(buffered)
+                let filtered = ScrollbackSanitizer.sanitize(stripped)
                 let activity = await pty.getActivityState()
                 let agent = await pty.getActiveAgent()
                 return (pty, filtered, activity, agent)
