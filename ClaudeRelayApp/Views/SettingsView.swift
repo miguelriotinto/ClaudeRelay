@@ -28,6 +28,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading) {
                             HStack {
                                 Text("Silence Timeout")
+                                    .help("Max time the engine waits for the AI turn-end detector before forcing transcription.")
                                 Spacer()
                                 Text("\(settings.turnEndSilenceTimeout, specifier: "%.1f") s")
                                     .foregroundStyle(.secondary)
@@ -38,6 +39,10 @@ struct SettingsView: View {
                                 step: 0.1
                             )
                         }
+
+                        Text("Continuous listening uses on-device AI to detect when you've finished speaking.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 } header: {
                     Text("Speech to Text")

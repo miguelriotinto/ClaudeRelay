@@ -379,6 +379,7 @@ private struct SpeechSettingsTab: View {
                         }
                         SettingsGroupRow(showDivider: false) {
                             Text("Silence timeout")
+                                .help("Max time the engine waits for the AI turn-end detector before forcing transcription.")
                             Spacer()
                             VStack(alignment: .trailing, spacing: 4) {
                                 Text("\(settings.turnEndSilenceTimeout, specifier: "%.1f") s")
@@ -394,7 +395,7 @@ private struct SpeechSettingsTab: View {
                     }
                 }
                 SettingsSectionFooter(text: settings.continuousListeningEnabled
-                    ? "Say the wake word to start a new utterance. Audio stays on-device."
+                    ? "Continuous listening uses on-device AI to detect when you've finished speaking."
                     : "When enabled, the mic stays open and transcribes utterances starting with the wake word.")
 
                 if settings.promptEnhancementEnabled {
