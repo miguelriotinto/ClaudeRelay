@@ -33,6 +33,10 @@ struct ClaudeRelayMacApp: App {
             Image(systemName: "terminal")
         }
         .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView()
+        }
     }
 
     private func handleDeepLink(_ url: URL) {

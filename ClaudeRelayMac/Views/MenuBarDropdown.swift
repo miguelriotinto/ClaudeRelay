@@ -84,6 +84,9 @@ struct MenuBarDropdown: View {
                         return
                     }
                 }
+                MenuButton(label: "Settings...") {
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                }
 
                 menuSeparator
 
