@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import ClaudeRelayKit
 
 struct AttachRemoteSessionSheet: View {
@@ -8,6 +9,8 @@ struct AttachRemoteSessionSheet: View {
     @State private var sessions: [SessionInfo] = []
     @State private var isLoading = true
     @State private var selection: UUID?
+    @State private var showQRScanner = false
+    @State private var hasCamera = AVCaptureDevice.default(for: .video) != nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,6 +53,13 @@ struct AttachRemoteSessionSheet: View {
 
             Divider()
             HStack {
+                if hasCamera {
+                    Button {
+                        showQRScanner = true
+                    } label: {
+                        Label("Scan QR Code", systemImage: "qrcode.viewfinder")
+                    }
+                }
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
@@ -70,6 +80,9 @@ struct AttachRemoteSessionSheet: View {
         .task {
             sessions = await coordinator.fetchAttachableSessions()
             isLoading = false
+        }
+        .sheet(isPresented: $showQRScanner) {
+            QRScannerSheet(coordinator: coordinator, onAttachSuccess: { dismiss() })
         }
     }
 }

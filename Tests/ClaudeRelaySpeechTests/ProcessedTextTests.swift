@@ -9,8 +9,11 @@ final class ProcessedTextTests: XCTestCase {
         XCTAssertEqual(ProcessedText.enhanced("enhanced").deliverableText, "enhanced")
     }
 
-    func testDeliverableTextReturnsNilForRefusedOrEmpty() {
-        XCTAssertNil(ProcessedText.refused(original: "hi").deliverableText)
+    func testDeliverableTextFallsBackToOriginalOnRefusal() {
+        XCTAssertEqual(ProcessedText.refused(original: "hi").deliverableText, "hi")
+    }
+
+    func testDeliverableTextReturnsNilForEmpty() {
         XCTAssertNil(ProcessedText.empty.deliverableText)
     }
 

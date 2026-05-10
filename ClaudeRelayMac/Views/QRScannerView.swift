@@ -5,6 +5,7 @@ import AppKit
 struct QRScannerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var coordinator: SessionCoordinator
+    var onAttachSuccess: (() -> Void)?
     @State private var errorMessage: String?
     @State private var scannedValue: String?
 
@@ -51,6 +52,7 @@ struct QRScannerSheet: View {
             Task {
                 await coordinator.attachRemoteSession(id: uuid)
                 dismiss()
+                onAttachSuccess?()
             }
         } else {
             errorMessage = "Invalid QR code format."

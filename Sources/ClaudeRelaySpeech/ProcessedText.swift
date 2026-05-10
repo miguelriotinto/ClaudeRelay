@@ -13,7 +13,8 @@ public enum ProcessedText: Equatable, Sendable {
     public var deliverableText: String? {
         switch self {
         case .passthrough(let t), .cleaned(let t), .enhanced(let t): return t
-        case .refused, .empty: return nil
+        case .refused(let original): return original
+        case .empty: return nil
         }
     }
 }
