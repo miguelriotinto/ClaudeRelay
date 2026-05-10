@@ -58,4 +58,5 @@ final class RecordingShortcutMonitor {
 
 extension Notification.Name {
     static let toggleSpeechRecording = Notification.Name("toggleSpeechRecording")
+    static let showServerList = Notification.Name("com.clauderelay.mac.showServerList")
 }

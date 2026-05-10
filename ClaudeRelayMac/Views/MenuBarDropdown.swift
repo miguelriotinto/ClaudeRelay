@@ -65,8 +65,24 @@ struct MenuBarDropdown: View {
                     }
                 }
                 .disabled(ActiveCoordinatorRegistry.shared.coordinator == nil)
-                MenuButton(label: "Settings...") {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                MenuButton(label: "Attach Session...") {
+                    if let coordinator = ActiveCoordinatorRegistry.shared.coordinator {
+                        coordinator.showQRScanner = true
+                    }
+                    NSApp.activate(ignoringOtherApps: true)
+                    for window in NSApp.windows where window.canBecomeMain {
+                        window.makeKeyAndOrderFront(nil)
+                        return
+                    }
+                }
+                .disabled(ActiveCoordinatorRegistry.shared.coordinator == nil)
+                MenuButton(label: "Servers...") {
+                    NotificationCenter.default.post(name: .showServerList, object: nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                    for window in NSApp.windows where window.canBecomeMain {
+                        window.makeKeyAndOrderFront(nil)
+                        return
+                    }
                 }
 
                 menuSeparator
