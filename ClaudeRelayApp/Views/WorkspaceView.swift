@@ -165,11 +165,17 @@ struct WorkspaceView: View {
         } message: {
             Text(coordinator.sessionAttachError ?? "Unable to attach to this session.")
         }
-        .alert("Session Moved", isPresented: $coordinator.showSessionStolen) {
+        .alert(
+            "Session Moved",
+            isPresented: Binding(
+                get: { coordinator.activityCoordinator.showSessionStolen },
+                set: { coordinator.activityCoordinator.showSessionStolen = $0 }
+            )
+        ) {
             Button("OK", role: .cancel) {}
         } message: {
-            if let name = coordinator.stolenSessionName,
-               let shortId = coordinator.stolenSessionShortId {
+            if let name = coordinator.activityCoordinator.stolenSessionName,
+               let shortId = coordinator.activityCoordinator.stolenSessionShortId {
                 Text("\(name) (\(shortId)) was attached from another device.")
             }
         }

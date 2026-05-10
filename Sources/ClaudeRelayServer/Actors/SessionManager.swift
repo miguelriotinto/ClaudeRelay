@@ -21,20 +21,11 @@ public actor SessionManager {
     private var sessions: [UUID: ManagedSession] = [:]
     private var detachTimers: [UUID: Task<Void, Never>] = [:]
     public typealias ActivityObserver = @Sendable (UUID, ActivityState, String?) -> Void
-    private var activityObservers: [UUID: (tokenId: String, callback: ActivityObserver)] = [:]
+    private var activityObservers = ObserverRegistry<ActivityObserver>()
     public typealias StealObserver = @Sendable (UUID) -> Void
-    private var stealObservers: [UUID: (tokenId: String, callback: StealObserver)] = [:]
+    private var stealObservers = ObserverRegistry<StealObserver>()
     public typealias RenameObserver = @Sendable (UUID, String) -> Void
-    private var renameObservers: [UUID: (tokenId: String, callback: RenameObserver)] = [:]
-    /// Creation timestamp per observer ID (all three kinds). Used by
-    /// `purgeStaleObservers` to evict observers from handlers that died
-    /// without running `cleanupSession()` (crash, panic, network partition).
-    ///
-    /// IMPORTANT — when adding a new observer kind, update all three sites:
-    ///   1. `add*Observer`: write `observerMetadata[id] = Date()`
-    ///   2. `remove*Observer`: call `observerMetadata.removeValue(forKey: id)`
-    ///   3. `purgeStaleObservers`: remove stale IDs from the new dictionary too
-    private var observerMetadata: [UUID: Date] = [:]
+    private var renameObservers = ObserverRegistry<RenameObserver>()
 
     struct ManagedSession {
         var info: SessionInfo
@@ -73,7 +64,7 @@ public actor SessionManager {
     ) async throws -> SessionInfo {
         let limit = config.maxSessionsPerToken
         if limit > 0 {
-            let active = sessions.values.filter {
+            let active = sessions.values.lazy.filter {
                 $0.info.tokenId == tokenId && !$0.info.state.isTerminal
             }.count
             if active >= limit {
@@ -159,15 +150,7 @@ public actor SessionManager {
         }
 
         // Transfer ownership to the attaching token (enables cross-device attach).
-        let newInfo = SessionInfo(
-            id: managed.info.id,
-            name: managed.info.name,
-            state: newState,
-            tokenId: tokenId,
-            createdAt: managed.info.createdAt,
-            cols: managed.info.cols,
-            rows: managed.info.rows
-        )
+        let newInfo = managed.info.with(tokenId: tokenId).transitioning(to: newState)
         managed.info = newInfo
         sessions[id] = managed
 
@@ -189,16 +172,7 @@ public actor SessionManager {
             throw SessionError.invalidTransition(currentState, newState)
         }
 
-        let newInfo = SessionInfo(
-            id: managed.info.id,
-            name: managed.info.name,
-            state: newState,
-            tokenId: managed.info.tokenId,
-            createdAt: managed.info.createdAt,
-            cols: managed.info.cols,
-            rows: managed.info.rows
-        )
-        managed.info = newInfo
+        managed.info = managed.info.transitioning(to: newState)
         sessions[id] = managed
 
         // Clear output handler so output goes to ring buffer
@@ -216,7 +190,7 @@ public actor SessionManager {
         if timeoutSeconds > 0 {
             let manager = self
             let timer = Task<Void, Never> {
-                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds) * 1_000_000_000)
+                try? await Task.sleep(for: .seconds(timeoutSeconds))
                 if !Task.isCancelled {
                     await manager.handleDetachTimeout(sessionId: id)
                 }
@@ -245,11 +219,7 @@ public actor SessionManager {
 
         // If still attached (client didn't detach cleanly), detach first.
         if currentState == .activeAttached {
-            managed.info = SessionInfo(
-                id: managed.info.id, name: managed.info.name, state: .activeDetached,
-                tokenId: managed.info.tokenId, createdAt: managed.info.createdAt,
-                cols: managed.info.cols, rows: managed.info.rows
-            )
+            managed.info = managed.info.transitioning(to: .activeDetached)
             currentState = .activeDetached
         }
 
@@ -258,28 +228,8 @@ public actor SessionManager {
         }
 
         // Transition through resuming -> activeAttached
-        // First: activeDetached -> resuming
-        let resumingInfo = SessionInfo(
-            id: managed.info.id,
-            name: managed.info.name,
-            state: .resuming,
-            tokenId: managed.info.tokenId,
-            createdAt: managed.info.createdAt,
-            cols: managed.info.cols,
-            rows: managed.info.rows
-        )
-        managed.info = resumingInfo
-
-        // Then: resuming -> activeAttached
-        let attachedInfo = SessionInfo(
-            id: managed.info.id,
-            name: managed.info.name,
-            state: .activeAttached,
-            tokenId: managed.info.tokenId,
-            createdAt: managed.info.createdAt,
-            cols: managed.info.cols,
-            rows: managed.info.rows
-        )
+        managed.info = managed.info.transitioning(to: .resuming)
+        let attachedInfo = managed.info.transitioning(to: .activeAttached)
         managed.info = attachedInfo
         sessions[id] = managed
 
@@ -317,16 +267,7 @@ public actor SessionManager {
             throw SessionError.invalidTransition(currentState, newState)
         }
 
-        let newInfo = SessionInfo(
-            id: managed.info.id,
-            name: managed.info.name,
-            state: newState,
-            tokenId: managed.info.tokenId,
-            createdAt: managed.info.createdAt,
-            cols: managed.info.cols,
-            rows: managed.info.rows
-        )
-        managed.info = newInfo
+        managed.info = managed.info.transitioning(to: newState)
         managed.terminalSince = Date()
         sessions[id] = managed
 
@@ -353,22 +294,12 @@ public actor SessionManager {
             throw SessionError.ownershipViolation
         }
 
-        let info = managed.info
-        managed.info = SessionInfo(
-            id: info.id,
-            name: name,
-            state: info.state,
-            tokenId: info.tokenId,
-            createdAt: info.createdAt,
-            cols: info.cols,
-            rows: info.rows,
-            activity: info.activity
-        )
+        managed.info = managed.info.with(name: name)
         sessions[id] = managed
 
         // Broadcast rename to all observers for this token
-        for (_, observer) in renameObservers where observer.tokenId == tokenId {
-            observer.callback(id, name)
+        for (_, callback) in renameObservers.forToken(tokenId) {
+            callback(id, name)
         }
     }
 
@@ -388,35 +319,15 @@ public actor SessionManager {
     /// List sessions for a specific token. Uses the cached activity state
     /// maintained via `reportActivityChange` — no PTY actor hops.
     public func listSessionsForToken(tokenId: String) -> [SessionInfo] {
-        var results: [SessionInfo] = []
-        for managed in sessions.values where managed.info.tokenId == tokenId {
-            let info = managed.info
-            results.append(SessionInfo(
-                id: info.id, name: info.name, state: info.state,
-                tokenId: info.tokenId, createdAt: info.createdAt,
-                cols: info.cols, rows: info.rows,
-                activity: managed.latestActivity,
-                agent: managed.latestAgent
-            ))
-        }
-        return results
+        sessions.values
+            .filter { $0.info.tokenId == tokenId }
+            .map { $0.info.enriched(activity: $0.latestActivity, agent: $0.latestAgent) }
     }
 
     /// List all sessions across all tokens, enriched with cached activity state.
     /// Used for cross-device attach — lets a device see sessions from other tokens.
     public func listAllSessions() -> [SessionInfo] {
-        var results: [SessionInfo] = []
-        for managed in sessions.values {
-            let info = managed.info
-            results.append(SessionInfo(
-                id: info.id, name: info.name, state: info.state,
-                tokenId: info.tokenId, createdAt: info.createdAt,
-                cols: info.cols, rows: info.rows,
-                activity: managed.latestActivity,
-                agent: managed.latestAgent
-            ))
-        }
-        return results
+        sessions.values.map { $0.info.enriched(activity: $0.latestActivity, agent: $0.latestAgent) }
     }
 
     // MARK: - Activity Observers
@@ -426,9 +337,7 @@ public actor SessionManager {
         tokenId: String,
         callback: @escaping ActivityObserver
     ) -> UUID {
-        let observerId = UUID()
-        activityObservers[observerId] = (tokenId: tokenId, callback: callback)
-        observerMetadata[observerId] = Date()
+        let observerId = activityObservers.add(tokenId: tokenId, callback: callback)
 
         // Push current (cached) activity state for this token's sessions so the
         // client doesn't wait for a change event to render correct state.
@@ -440,8 +349,7 @@ public actor SessionManager {
     }
 
     public func removeActivityObserver(id: UUID) {
-        activityObservers.removeValue(forKey: id)
-        observerMetadata.removeValue(forKey: id)
+        activityObservers.remove(id: id)
     }
 
     /// Apply an activity update reported by a PTY's monitor. The `revision`
@@ -469,8 +377,8 @@ public actor SessionManager {
         managed.latestAgent = agent
         sessions[sessionId] = managed
         let tokenId = managed.info.tokenId
-        for (_, observer) in activityObservers where observer.tokenId == tokenId {
-            observer.callback(sessionId, activity, agent)
+        for (_, callback) in activityObservers.forToken(tokenId) {
+            callback(sessionId, activity, agent)
         }
     }
 
@@ -481,21 +389,17 @@ public actor SessionManager {
         tokenId: String,
         callback: @escaping StealObserver
     ) -> UUID {
-        let observerId = UUID()
-        stealObservers[observerId] = (tokenId: tokenId, callback: callback)
-        observerMetadata[observerId] = Date()
-        return observerId
+        stealObservers.add(tokenId: tokenId, callback: callback)
     }
 
     public func removeStealObserver(id: UUID) {
-        stealObservers.removeValue(forKey: id)
-        observerMetadata.removeValue(forKey: id)
+        stealObservers.remove(id: id)
     }
 
     private func reportSessionStolen(sessionId: UUID, tokenId: String, excludeObserver: UUID?) {
-        for (observerId, observer) in stealObservers where observer.tokenId == tokenId {
+        for (observerId, callback) in stealObservers.forToken(tokenId) {
             if observerId != excludeObserver {
-                observer.callback(sessionId)
+                callback(sessionId)
             }
         }
     }
@@ -507,15 +411,11 @@ public actor SessionManager {
         tokenId: String,
         callback: @escaping RenameObserver
     ) -> UUID {
-        let observerId = UUID()
-        renameObservers[observerId] = (tokenId: tokenId, callback: callback)
-        observerMetadata[observerId] = Date()
-        return observerId
+        renameObservers.add(tokenId: tokenId, callback: callback)
     }
 
     public func removeRenameObserver(id: UUID) {
-        renameObservers.removeValue(forKey: id)
-        observerMetadata.removeValue(forKey: id)
+        renameObservers.remove(id: id)
     }
 
     // MARK: - Periodic Cleanup
@@ -525,16 +425,12 @@ public actor SessionManager {
     /// `cleanupSession()` (crash, panic, network partition).
     public func purgeStaleObservers(olderThan seconds: TimeInterval) {
         let cutoff = Date().addingTimeInterval(-seconds)
-        let stale = observerMetadata.filter { $0.value < cutoff }.map(\.key)
-        for id in stale {
-            activityObservers.removeValue(forKey: id)
-            stealObservers.removeValue(forKey: id)
-            renameObservers.removeValue(forKey: id)
-            observerMetadata.removeValue(forKey: id)
-        }
-        if !stale.isEmpty {
+        let purged = activityObservers.purgeStale(olderThan: cutoff)
+            + stealObservers.purgeStale(olderThan: cutoff)
+            + renameObservers.purgeStale(olderThan: cutoff)
+        if purged > 0 {
             RelayLogger.log(.info, category: "session",
-                            "Purged \(stale.count) stale observer(s)")
+                            "Purged \(purged) stale observer(s)")
         }
     }
 
@@ -554,15 +450,7 @@ public actor SessionManager {
                 ptysToTerminate.append(pty)
             }
             var updated = managed
-            updated.info = SessionInfo(
-                id: managed.info.id,
-                name: managed.info.name,
-                state: .terminated,
-                tokenId: managed.info.tokenId,
-                createdAt: managed.info.createdAt,
-                cols: managed.info.cols,
-                rows: managed.info.rows
-            )
+            updated.info = managed.info.transitioning(to: .terminated)
             sessions[id] = updated
         }
         // Await all PTY terminations in parallel
@@ -606,16 +494,7 @@ public actor SessionManager {
         let currentState = managed.info.state
         guard currentState.canTransition(to: .exited) else { return }
 
-        let newInfo = SessionInfo(
-            id: managed.info.id,
-            name: managed.info.name,
-            state: .exited,
-            tokenId: managed.info.tokenId,
-            createdAt: managed.info.createdAt,
-            cols: managed.info.cols,
-            rows: managed.info.rows
-        )
-        managed.info = newInfo
+        managed.info = managed.info.transitioning(to: .exited)
 
         // Terminate PTY to close master FD and free the kernel PTY pair
         if let pty = managed.ptySession {
@@ -639,16 +518,7 @@ public actor SessionManager {
         let currentState = managed.info.state
         guard currentState.canTransition(to: .expired) else { return }
 
-        let newInfo = SessionInfo(
-            id: managed.info.id,
-            name: managed.info.name,
-            state: .expired,
-            tokenId: managed.info.tokenId,
-            createdAt: managed.info.createdAt,
-            cols: managed.info.cols,
-            rows: managed.info.rows
-        )
-        managed.info = newInfo
+        managed.info = managed.info.transitioning(to: .expired)
         managed.terminalSince = Date()
         sessions[sessionId] = managed
 

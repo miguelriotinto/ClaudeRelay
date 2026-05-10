@@ -35,4 +35,30 @@ public struct SessionInfo: Codable, Equatable, Sendable {
         self.activity = activity
         self.agent = agent
     }
+
+    // MARK: - Copy Helpers
+
+    public func transitioning(to newState: SessionState) -> SessionInfo {
+        SessionInfo(id: id, name: name, state: newState, tokenId: tokenId,
+                    createdAt: createdAt, cols: cols, rows: rows,
+                    activity: activity, agent: agent)
+    }
+
+    public func with(name newName: String?) -> SessionInfo {
+        SessionInfo(id: id, name: newName, state: state, tokenId: tokenId,
+                    createdAt: createdAt, cols: cols, rows: rows,
+                    activity: activity, agent: agent)
+    }
+
+    public func with(tokenId newTokenId: String) -> SessionInfo {
+        SessionInfo(id: id, name: name, state: state, tokenId: newTokenId,
+                    createdAt: createdAt, cols: cols, rows: rows,
+                    activity: activity, agent: agent)
+    }
+
+    public func enriched(activity: ActivityState?, agent: String?) -> SessionInfo {
+        SessionInfo(id: id, name: name, state: state, tokenId: tokenId,
+                    createdAt: createdAt, cols: cols, rows: rows,
+                    activity: activity, agent: agent)
+    }
 }

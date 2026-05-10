@@ -3,7 +3,6 @@ import NIOCore
 import NIOWebSocket
 import Foundation
 import ClaudeRelayKit
-import AppKit
 
 final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = WebSocketFrame
@@ -12,6 +11,7 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     let sessionManager: SessionManager
     private let tokenStore: TokenStore
     private let rateLimiter: RateLimiter
+    private let clipboardService: ClipboardService
     var isAuthenticated = false
     var authenticatedTokenId: String?
     var attachedSessionId: UUID?
@@ -43,10 +43,11 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
     private var inflightOutputBytes = 0
     private static let maxInflightOutputBytes = 2 * 1024 * 1024  // 2 MB
 
-    init(sessionManager: SessionManager, tokenStore: TokenStore, rateLimiter: RateLimiter) {
+    init(sessionManager: SessionManager, tokenStore: TokenStore, rateLimiter: RateLimiter, clipboardService: ClipboardService) {
         self.sessionManager = sessionManager
         self.tokenStore = tokenStore
         self.rateLimiter = rateLimiter
+        self.clipboardService = clipboardService
     }
 
     /// This handler is installed by the WebSocket upgrade after the channel
@@ -225,122 +226,152 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     // MARK: - Auth
 
+    /// Distinguishes the three failure modes so `onFailure` can replicate the
+    /// original code paths (invalid token → attempt counter + rate-limit +
+    /// close-after-max; version mismatch → reject + close; unexpected error
+    /// → 500 + close).
+    private enum AuthFailure: Error {
+        case invalidToken
+        case versionMismatch(clientVersion: Int)
+    }
+
+    /// Bag of state produced by the async `work` phase and consumed by
+    /// `onSuccess` on the event loop. Observer ids must be captured here
+    /// (not on `self`) so we can unregister them if the channel was torn
+    /// down mid-registration.
+    private struct AuthSuccessPayload {
+        let tokenId: String
+        let clientVersion: Int
+        let activityObserverId: UUID
+        let stealObserverId: UUID
+        let renameObserverId: UUID
+    }
+
     private func handleAuth(token: String, clientProtocolVersion: Int?, context: ChannelHandlerContext) {
         let tokenStore = self.tokenStore
-        let ctx = UnsafeTransfer(context)
-        Task { [weak self] in
-            let tokenInfo = await tokenStore.validate(token: token)
-            ctx.value.eventLoop.execute {
-                guard let self = self else { return }
-                if let info = tokenInfo {
-                    // Check protocol compatibility (after auth, so unauthenticated
-                    // clients cannot probe the server version).
-                    let clientVersion = clientProtocolVersion ?? 0
-                    if clientVersion < ClaudeRelayKit.minProtocolVersion {
-                        let remote = ctx.value.remoteAddress?.description ?? "unknown"
-                        RelayLogger.log(.error, category: "auth",
-                            "Version mismatch from \(remote): client protocol v\(clientVersion), server requires >= v\(ClaudeRelayKit.minProtocolVersion)")
-                        self.sendServerMessage(.authFailure(
-                            reason: "This iOS app is not compatible with the server version running on the backend. "
-                                + "Client protocol: v\(clientVersion), server requires: v\(ClaudeRelayKit.minProtocolVersion)+."
-                        ), context: ctx.value)
-                        ctx.value.close(promise: nil)
-                        return
-                    }
+        let manager = self.sessionManager
+        let observerCtx = UnsafeTransfer(context)
+        let clientVersion = clientProtocolVersion ?? 0
 
-                    // Register observers BEFORE emitting auth_success. This closes
-                    // the race where a successful auth response was visible to the
-                    // client while the server's activity/steal/rename observers
-                    // were not yet installed — a concurrent steal from another
-                    // device in that window would never surface to this handler.
-                    //
-                    // The channel can still go inactive while the three actor
-                    // calls are in flight; `isCleanedUp` below covers that case.
-                    let manager = self.sessionManager
-                    let observerCtx = UnsafeTransfer(ctx.value)
-                    Task { [weak self] in
-                        let observerId = await manager.addActivityObserver(tokenId: info.id) { [weak self] sessionId, activity, agent in
-                            observerCtx.value.eventLoop.execute {
-                                self?.sendServerMessage(
-                                    .sessionActivity(sessionId: sessionId, activity: activity, agent: agent),
-                                    context: observerCtx.value
-                                )
-                            }
-                        }
-                        // Subscribe to steal notifications so this connection learns
-                        // when another device attaches to one of its sessions.
-                        let stealId = await manager.addStealObserver(tokenId: info.id) { [weak self] sessionId in
-                            observerCtx.value.eventLoop.execute {
-                                guard let self = self else { return }
-                                // Only notify if this connection is the one that lost the session.
-                                if self.attachedSessionId == sessionId {
-                                    self.attachedSessionId = nil
-                                    self.attachedPTY = nil
-                                    self.sendServerMessage(.sessionStolen(sessionId: sessionId), context: observerCtx.value)
-                                }
-                            }
-                        }
-                        let renameId = await manager.addRenameObserver(tokenId: info.id) { [weak self] sessionId, name in
-                            observerCtx.value.eventLoop.execute {
-                                self?.sendServerMessage(.sessionRenamed(sessionId: sessionId, name: name), context: observerCtx.value)
-                            }
-                        }
-                        observerCtx.value.eventLoop.execute {
-                            guard let self = self else {
-                                // Channel was torn down before we could finish
-                                // registering. Unregister observers so they don't
-                                // leak inside SessionManager.
-                                Task {
-                                    await manager.removeActivityObserver(id: observerId)
-                                    await manager.removeStealObserver(id: stealId)
-                                    await manager.removeRenameObserver(id: renameId)
-                                }
-                                return
-                            }
-                            if self.isCleanedUp {
-                                Task {
-                                    await manager.removeActivityObserver(id: observerId)
-                                    await manager.removeStealObserver(id: stealId)
-                                    await manager.removeRenameObserver(id: renameId)
-                                }
-                                return
-                            }
-                            // Observer IDs are now stored before the client sees
-                            // auth_success. Any steal/rename/activity event from
-                            // here on is guaranteed to reach this connection.
-                            self.activityObserverId = observerId
-                            self.stealObserverId = stealId
-                            self.renameObserverId = renameId
-                            self.isAuthenticated = true
-                            self.authenticatedTokenId = info.id
-                            self.authTimeout?.cancel()
-                            self.authTimeout = nil
-                            RelayLogger.log(category: "auth",
-                                "Auth success for token \(info.id) (protocol v\(clientVersion))")
-                            self.sendServerMessage(
-                                .authSuccess(protocolVersion: ClaudeRelayKit.protocolVersion),
-                                context: observerCtx.value
-                            )
+        bridgeToEventLoop(
+            context: context,
+            work: {
+                guard let info = await tokenStore.validate(token: token) else {
+                    throw AuthFailure.invalidToken
+                }
+                // Check protocol compatibility *after* auth, so unauthenticated
+                // clients cannot probe the server version.
+                guard clientVersion >= ClaudeRelayKit.minProtocolVersion else {
+                    throw AuthFailure.versionMismatch(clientVersion: clientVersion)
+                }
+
+                // Register observers BEFORE we signal success. This closes the
+                // race where `auth_success` was visible to the client while
+                // the server's activity/steal/rename observers were not yet
+                // installed — a concurrent steal from another device in that
+                // window would never reach this handler.
+                //
+                // The channel can still go inactive while these three actor
+                // calls are in flight; the `isCleanedUp` check in `onSuccess`
+                // covers that case by unregistering what we just installed.
+                let activityId = await manager.addActivityObserver(tokenId: info.id) { [weak self] sessionId, activity, agent in
+                    observerCtx.value.eventLoop.execute {
+                        self?.sendServerMessage(
+                            .sessionActivity(sessionId: sessionId, activity: activity, agent: agent),
+                            context: observerCtx.value
+                        )
+                    }
+                }
+                let stealId = await manager.addStealObserver(tokenId: info.id) { [weak self] sessionId in
+                    observerCtx.value.eventLoop.execute {
+                        guard let self else { return }
+                        // Only notify if this connection is the one that lost the session.
+                        if self.attachedSessionId == sessionId {
+                            self.attachedSessionId = nil
+                            self.attachedPTY = nil
+                            self.sendServerMessage(.sessionStolen(sessionId: sessionId), context: observerCtx.value)
                         }
                     }
-                } else {
-                    self.authAttempts += 1
-                    let remote = self.remoteIP
-                    RelayLogger.log(.error, category: "auth", "Auth failed — invalid token (attempt \(self.authAttempts)/\(Self.maxAuthAttempts)) from \(remote)")
+                }
+                let renameId = await manager.addRenameObserver(tokenId: info.id) { [weak self] sessionId, name in
+                    observerCtx.value.eventLoop.execute {
+                        self?.sendServerMessage(.sessionRenamed(sessionId: sessionId, name: name), context: observerCtx.value)
+                    }
+                }
+                return AuthSuccessPayload(
+                    tokenId: info.id,
+                    clientVersion: clientVersion,
+                    activityObserverId: activityId,
+                    stealObserverId: stealId,
+                    renameObserverId: renameId
+                )
+            },
+            onSuccess: { handler, ctx, payload in
+                // Late-arrival guard: if the channel tore down while we were
+                // registering observers, unregister them to avoid a leak
+                // inside SessionManager.
+                guard !handler.isCleanedUp else {
+                    Task {
+                        await manager.removeActivityObserver(id: payload.activityObserverId)
+                        await manager.removeStealObserver(id: payload.stealObserverId)
+                        await manager.removeRenameObserver(id: payload.renameObserverId)
+                    }
+                    return
+                }
+                handler.activityObserverId = payload.activityObserverId
+                handler.stealObserverId = payload.stealObserverId
+                handler.renameObserverId = payload.renameObserverId
+                handler.isAuthenticated = true
+                handler.authenticatedTokenId = payload.tokenId
+                handler.authTimeout?.cancel()
+                handler.authTimeout = nil
+                RelayLogger.log(category: "auth",
+                    "Auth success for token \(payload.tokenId) (protocol v\(payload.clientVersion))")
+                handler.sendServerMessage(
+                    .authSuccess(protocolVersion: ClaudeRelayKit.protocolVersion),
+                    context: ctx
+                )
+            },
+            onFailure: { handler, ctx, error in
+                switch error {
+                case AuthFailure.versionMismatch(let clientVersion):
+                    let remote = ctx.remoteAddress?.description ?? "unknown"
+                    RelayLogger.log(.error, category: "auth",
+                        "Version mismatch from \(remote): client protocol v\(clientVersion), server requires >= v\(ClaudeRelayKit.minProtocolVersion)")
+                    handler.sendServerMessage(.authFailure(
+                        reason: "This iOS app is not compatible with the server version running on the backend. "
+                            + "Client protocol: v\(clientVersion), server requires: v\(ClaudeRelayKit.minProtocolVersion)+."
+                    ), context: ctx)
+                    ctx.close(promise: nil)
+
+                case AuthFailure.invalidToken:
+                    handler.authAttempts += 1
+                    let remote = handler.remoteIP
+                    RelayLogger.log(.error, category: "auth",
+                        "Auth failed — invalid token (attempt \(handler.authAttempts)/\(Self.maxAuthAttempts)) from \(remote)")
                     // Record this failure against the shared rate limiter so
                     // repeated reconnect-and-retry from the same IP eventually
                     // hits the cross-connection cap (not just the per-connection
-                    // maxAuthAttempts).
-                    let limiter = self.rateLimiter
+                    // `maxAuthAttempts`).
+                    let limiter = handler.rateLimiter
                     Task { await limiter.recordFailure(ip: remote) }
-                    self.sendServerMessage(.authFailure(reason: "Invalid token"), context: ctx.value)
-                    if self.authAttempts >= Self.maxAuthAttempts {
-                        RelayLogger.log(.error, category: "auth", "Max auth attempts reached, closing connection from \(remote)")
-                        ctx.value.close(promise: nil)
+                    handler.sendServerMessage(.authFailure(reason: "Invalid token"), context: ctx)
+                    if handler.authAttempts >= Self.maxAuthAttempts {
+                        RelayLogger.log(.error, category: "auth",
+                            "Max auth attempts reached, closing connection from \(remote)")
+                        ctx.close(promise: nil)
                     }
+
+                default:
+                    // Any other error from validate/register is unexpected;
+                    // treat it like a server-side failure and close.
+                    RelayLogger.log(.error, category: "auth",
+                        "Auth error: \(error.localizedDescription)")
+                    handler.sendServerMessage(.error(code: 500, message: "Auth error"), context: ctx)
+                    ctx.close(promise: nil)
                 }
             }
-        }
+        )
     }
 
     // MARK: - Session Request Handlers
@@ -406,38 +437,25 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
 
     private func cleanupSession() {
         isCleanedUp = true
-        if let observerId = activityObserverId {
-            let manager = sessionManager
-            activityObserverId = nil
-            Task {
-                await manager.removeActivityObserver(id: observerId)
-            }
-        }
-        if let observerId = stealObserverId {
-            let manager = sessionManager
-            stealObserverId = nil
-            Task {
-                await manager.removeStealObserver(id: observerId)
-            }
-        }
-        if let observerId = renameObserverId {
-            let manager = sessionManager
-            renameObserverId = nil
-            Task {
-                await manager.removeRenameObserver(id: observerId)
-            }
-        }
+        let obsActivity = activityObserverId
+        let obsSteal = stealObserverId
+        let obsRename = renameObserverId
+        let sessionId = attachedSessionId
+        let pty = attachedPTY
+        let manager = sessionManager
 
-        guard let sessionId = attachedSessionId else { return }
-        let sessionManager = self.sessionManager
-        let pty = self.attachedPTY
+        activityObserverId = nil
+        stealObserverId = nil
+        renameObserverId = nil
         attachedSessionId = nil
         attachedPTY = nil
+
         Task {
-            if let pty = pty {
-                await pty.clearOutputHandler()
-            }
-            try? await sessionManager.detachSession(id: sessionId)
+            if let id = obsActivity { await manager.removeActivityObserver(id: id) }
+            if let id = obsSteal { await manager.removeStealObserver(id: id) }
+            if let id = obsRename { await manager.removeRenameObserver(id: id) }
+            if let pty { await pty.clearOutputHandler() }
+            if let sessionId { try? await manager.detachSession(id: sessionId) }
         }
     }
 
@@ -457,10 +475,10 @@ final class RelayMessageHandler: ChannelInboundHandler, @unchecked Sendable {
             return
         }
 
-        // Write image to the macOS system clipboard.
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setData(imageData, forType: .png)
+        guard clipboardService.pasteImage(imageData) else {
+            sendServerMessage(.pasteImageResult(success: false), context: context)
+            return
+        }
 
         // Trigger Claude Code to read the clipboard. Terminal emulators
         // (iTerm2, Terminal.app) send an empty bracketed paste when the

@@ -92,7 +92,7 @@ final class MenuBarViewModel: ObservableObject {
             }
         }
         let agentTask = Task { [weak self] in
-            for await _ in coordinator.$agentSessions.values {
+            for await _ in coordinator.activityCoordinator.$agentSessions.values {
                 guard let self else { return }
                 self.recomputeActivityStates(coordinator: coordinator)
             }

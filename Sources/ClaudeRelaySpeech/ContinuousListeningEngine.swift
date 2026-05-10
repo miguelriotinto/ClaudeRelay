@@ -69,6 +69,8 @@ public final class ContinuousListeningEngine: ObservableObject {
     private var pendingTask: Task<Void, Never>?
 
     private let audioSource: any StreamingAudioSourcing
+    private var audioStreamContinuation: AsyncStream<[Float]>.Continuation?
+    private var audioConsumerTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -92,11 +94,18 @@ public final class ContinuousListeningEngine: ObservableObject {
             capacitySeconds: bufferCapacitySeconds,
             sampleRate: sampleRate
         )
-        self.audioSource.onChunk = { [weak self] samples in
-            guard let self else { return }
-            Task { @MainActor [weak self] in
+        let (stream, continuation) = AsyncStream<[Float]>.makeStream(
+            bufferingPolicy: .bufferingNewest(10)
+        )
+        self.audioStreamContinuation = continuation
+        self.audioConsumerTask = Task { [weak self] in
+            for await samples in stream {
+                guard !Task.isCancelled else { break }
                 await self?.ingest(chunk: samples)
             }
+        }
+        self.audioSource.onChunk = { samples in
+            continuation.yield(samples)
         }
         self.audioSource.onInterruption = { [weak self] event in
             Task { @MainActor [weak self] in
@@ -148,6 +157,9 @@ public final class ContinuousListeningEngine: ObservableObject {
         cancelWakeWordTimer()
         cancelArmedTimer()
         audioSource.stop()
+        audioStreamContinuation?.finish()
+        audioConsumerTask?.cancel()
+        audioConsumerTask = nil
         vad.reset()
         wakeWordDetector.reset()
         state = .idle

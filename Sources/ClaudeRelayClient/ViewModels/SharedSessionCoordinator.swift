@@ -14,9 +14,47 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     @Published public var activeSessionId: UUID?
     @Published public var sessionNames: [UUID: String] = [:]
     @Published public var terminalTitles: [UUID: String] = [:]
-    @Published public var agentSessions: [UUID: String] = [:]
-    @Published public var sessionsAwaitingInput: Set<UUID> = []
     @Published public var isLoading = false
+
+    /// Live agent / awaiting-input / stolen-session state. Extracted into its
+    /// own object so the server-event fan-in (activity, stolen, rename) is
+    /// self-contained and independently testable. Views that need to bind
+    /// against the stolen-session alert reach through
+    /// `coordinator.activityCoordinator.showSessionStolen`; reads of
+    /// `agentSessions` / `sessionsAwaitingInput` are available via the
+    /// read-only forwarders below.
+    public let activityCoordinator: ActivityCoordinator
+
+    /// Read-through to `activityCoordinator.agentSessions`. Provided so the
+    /// `SessionCoordinating` protocol, sidebar views, and existing tests
+    /// keep the same `coordinator.agentSessions` access pattern.
+    public var agentSessions: [UUID: String] {
+        get { activityCoordinator.agentSessions }
+        set { activityCoordinator.agentSessions = newValue }
+    }
+
+    /// Read-through to `activityCoordinator.sessionsAwaitingInput`.
+    public var sessionsAwaitingInput: Set<UUID> {
+        get { activityCoordinator.sessionsAwaitingInput }
+        set { activityCoordinator.sessionsAwaitingInput = newValue }
+    }
+
+    /// Read-through to the stolen-session UI flags. Setters are provided so
+    /// `WorkspaceView`'s `.alert(..., isPresented: $coordinator...)` can
+    /// reset the flag on dismiss if it chooses to bind through the parent.
+    /// (New views should prefer `$coordinator.activityCoordinator...`.)
+    public var stolenSessionName: String? {
+        get { activityCoordinator.stolenSessionName }
+        set { activityCoordinator.stolenSessionName = newValue }
+    }
+    public var stolenSessionShortId: String? {
+        get { activityCoordinator.stolenSessionShortId }
+        set { activityCoordinator.stolenSessionShortId = newValue }
+    }
+    public var showSessionStolen: Bool {
+        get { activityCoordinator.showSessionStolen }
+        set { activityCoordinator.showSessionStolen = newValue }
+    }
     public enum RecoveryPhase {
         case reconnecting, authenticating, resuming
 
@@ -38,14 +76,16 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     /// all failed). Distinct from `sessionAttachFailed`, which covers the case where
     /// the connection is fine but the session is gone or unusable on the server.
     @Published public var connectionTimedOut = false
-    @Published public var stolenSessionName: String?
-    @Published public var stolenSessionShortId: String?
-    @Published public var showSessionStolen = false
     /// True when an attach/resume failed for application-level reasons (session gone, ownership,
     /// server-side error) rather than because the underlying connection is dead. The UI should
     /// surface this as a recoverable error instead of dismissing the workspace.
     @Published public var sessionAttachFailed = false
     @Published public var sessionAttachError: String?
+
+    /// Subscription that republishes `activityCoordinator.objectWillChange`
+    /// onto this parent so SwiftUI views observing the parent `@ObservedObject`
+    /// re-render when agent / awaiting-input / stolen state changes.
+    private var activityObjectWillChangeSubscription: AnyCancellable?
 
     public private(set) var ownedSessionIds: Set<UUID> = []
 
@@ -141,7 +181,10 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         self.ownershipStore = store
         sessionNames = store.loadNames()
         ownedSessionIds = store.loadOwned()
-        agentSessions = store.loadAgents()
+        self.activityCoordinator = ActivityCoordinator(
+            ownershipStore: store,
+            initialAgents: store.loadAgents()
+        )
 
         // Forward the auth coordinator's hook to the subclass `didAuthenticate`
         // override so the Mac app's `isAuthenticated` @Published flag still
@@ -155,6 +198,15 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         // the controller's `unowned` ref is safe for the lifetime of the
         // coordinator (the controller is stored here).
         self.recoveryController = RecoveryController(coordinator: self, connection: connection)
+
+        // Views observe this parent via @ObservedObject / @StateObject. The
+        // activity cluster is a nested ObservableObject, so re-emit its
+        // will-change to keep parent observers in sync without forcing every
+        // view to also observe the child.
+        self.activityObjectWillChangeSubscription = activityCoordinator.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
 
         connection.onSessionActivity = { [weak self] sessionId, activity, agent in
             Task { @MainActor [weak self] in
@@ -276,15 +328,19 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             // Prune names/owned/agents in one pass through the store. Each
             // `save*` inside `pruneToServerSessions` no-ops when nothing was
             // stale, so this does not churn UserDefaults (C-21).
+            //
+            // `agentSessions` is a computed forwarder onto `activityCoordinator`
+            // and can't be passed as `inout` directly — round-trip via a
+            // local so the prune + save path stays intact.
+            var agentsScratch = activityCoordinator.agentSessions
             let pruned = ownershipStore.pruneToServerSessions(
                 serverIds: serverIds,
                 names: &sessionNames,
                 owned: &ownedSessionIds,
-                agents: &agentSessions
+                agents: &agentsScratch
             )
-            if !pruned.removedAgents.isEmpty {
-                sessionsAwaitingInput.subtract(pruned.removedAgents)
-            }
+            activityCoordinator.agentSessions = agentsScratch
+            activityCoordinator.applyPrunedAgents(pruned.removedAgents)
             // Evict cached terminal views for sessions that no longer exist
             // on the server (exited, terminated elsewhere, server restarted).
             terminalCache.pruneStale(knownSessionIds: serverIds)
@@ -308,21 +364,18 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     }
 
     public func activeAgent(for sessionId: UUID) -> String? {
-        agentSessions[sessionId]
+        activityCoordinator.activeAgent(for: sessionId)
     }
 
     public func isRunningAgent(sessionId: UUID) -> Bool {
-        agentSessions[sessionId] != nil
+        activityCoordinator.isRunningAgent(sessionId: sessionId)
     }
 
     /// Derive the `ActivityState` for a session. Convenience helper used by
     /// sidebar views on both platforms — keeps the agent/awaiting-input
     /// resolution in one place.
     public func activityState(for sessionId: UUID) -> ActivityState {
-        if isRunningAgent(sessionId: sessionId) {
-            return sessionsAwaitingInput.contains(sessionId) ? .agentIdle : .agentActive
-        }
-        return sessionsAwaitingInput.contains(sessionId) ? .idle : .active
+        activityCoordinator.activityState(for: sessionId)
     }
 
     // MARK: - Create
@@ -510,11 +563,10 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 activeSessionId = nil
             }
             evictTerminal(for: id)
-            agentSessions.removeValue(forKey: id)
+            activityCoordinator.forgetSession(id)
             unclaimSession(id)
             sessionNames.removeValue(forKey: id)
             terminalTitles.removeValue(forKey: id)
-            sessionsAwaitingInput.remove(id)
             ownershipStore.saveNames(sessionNames)
             await fetchSessions()
         } catch {
@@ -523,44 +575,34 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
     }
 
     // MARK: - Activity / Steal / Rename Handlers
+    //
+    // Fan-in from the server. Mutation of activity/stolen state lives on
+    // `ActivityCoordinator`; the parent only owns the pieces outside that
+    // cluster (active-session slot, terminal cache, session names).
 
     private func handleActivityUpdate(sessionId: UUID, activity: ActivityState, agent: String? = nil) {
-        var changed = false
-        if activity.isAgentRunning, let agentId = agent {
-            if agentSessions[sessionId] != agentId {
-                agentSessions[sessionId] = agentId
-                terminalViewModels[sessionId]?.isAgentActive = true
-                changed = true
+        activityCoordinator.handleActivityUpdate(
+            sessionId: sessionId,
+            activity: activity,
+            agent: agent,
+            onAgentActiveChange: { [weak self] id, isActive in
+                self?.terminalViewModels[id]?.isAgentActive = isActive
             }
-        } else {
-            if agentSessions.removeValue(forKey: sessionId) != nil {
-                terminalViewModels[sessionId]?.isAgentActive = false
-                changed = true
-            }
-        }
-        if changed { ownershipStore.saveAgents(agentSessions) }
-
-        if activity == .agentIdle, agentSessions[sessionId] != nil {
-            sessionsAwaitingInput.insert(sessionId)
-        } else {
-            sessionsAwaitingInput.remove(sessionId)
-        }
+        )
     }
 
     private func handleSessionStolen(sessionId: UUID) {
-        let sessionName = name(for: sessionId)
-        let shortId = String(sessionId.uuidString.prefix(8))
+        _ = activityCoordinator.handleSessionStolen(
+            sessionId: sessionId,
+            nameLookup: { [weak self] id in
+                self?.name(for: id) ?? id.uuidString.prefix(8).description
+            }
+        )
 
         if activeSessionId == sessionId {
             activeSessionId = nil
         }
         evictTerminal(for: sessionId)
-        agentSessions.removeValue(forKey: sessionId)
-        sessionsAwaitingInput.remove(sessionId)
-
-        stolenSessionName = sessionName
-        stolenSessionShortId = shortId
-        showSessionStolen = true
 
         Task { await fetchSessions() }
     }
@@ -650,7 +692,13 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         recoveryTask = nil
         authCoordinator.invalidate()
         if activeSessionId != nil {
-            Task { try? await sessionController?.detach() }
+            Task {
+                do {
+                    try await sessionController?.detach()
+                } catch {
+                    recoveryLog.debug("Detach during teardown: \(error.localizedDescription, privacy: .public)")
+                }
+            }
         }
         terminalCache.removeAll()
         connection.disconnect()

@@ -11,7 +11,7 @@ public actor TokenStore {
     private var tokens: [TokenInfo]?
     private var lastUsedDirty = false
     private var flushTask: Task<Void, Never>?
-    private static let flushInterval: UInt64 = 30_000_000_000 // 30 seconds
+    private static let flushInterval: Duration = .seconds(30)
 
     // MARK: - Errors
 
@@ -166,7 +166,7 @@ public actor TokenStore {
         lastUsedDirty = true
         guard flushTask == nil else { return }
         flushTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: Self.flushInterval)
+            try? await Task.sleep(for: Self.flushInterval)
             guard !Task.isCancelled else { return }
             await self?.performDirtyFlush()
         }
