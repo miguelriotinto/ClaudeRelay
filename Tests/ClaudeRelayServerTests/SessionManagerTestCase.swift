@@ -11,6 +11,7 @@ actor MockPTYSession: PTYSessionProtocol {
     private var exitHandler: (@Sendable () -> Void)?
     private var terminated = false
     private var activityHandler: (@Sendable (ActivityState, CodingAgent?, UInt64) -> Void)?
+    private(set) var clearOutputHandlerCallCount = 0
 
     init(sessionId: UUID, cols: UInt16, rows: UInt16, scrollbackSize: Int) {
         self.sessionId = sessionId
@@ -19,7 +20,10 @@ actor MockPTYSession: PTYSessionProtocol {
     func startReading() {}
     func setOutputHandler(_ handler: @escaping @Sendable (Data) -> Void) { outputHandler = handler }
     func setExitHandler(_ handler: @escaping @Sendable () -> Void) { exitHandler = handler }
-    func clearOutputHandler() { outputHandler = nil }
+    func clearOutputHandler() {
+        outputHandler = nil
+        clearOutputHandlerCallCount += 1
+    }
     func write(_ data: Data) {}
     func resize(cols: UInt16, rows: UInt16) {}
     func readBuffer() -> Data { Data() }
@@ -31,6 +35,16 @@ actor MockPTYSession: PTYSessionProtocol {
     }
     func recordInput() {}
     func setPollCadence(_ seconds: TimeInterval) {}
+
+    /// Test hook: drives the dispatch-source equivalent so tests can verify
+    /// the currently-installed output callback (proxy for "which device is
+    /// wired up right now").
+    func deliverOutput(_ data: Data) {
+        outputHandler?(data)
+    }
+
+    /// Test hook: whether any output callback is currently installed.
+    var hasOutputHandler: Bool { outputHandler != nil }
 }
 
 // MARK: - Shared base

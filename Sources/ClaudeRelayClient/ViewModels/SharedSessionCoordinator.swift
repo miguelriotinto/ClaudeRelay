@@ -602,6 +602,11 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
         if activeSessionId == sessionId {
             activeSessionId = nil
         }
+        // Suppress any in-flight sends from a VM that a view may still hold
+        // a reference to, then release this device's claim so the sidebar
+        // stops listing the session as locally owned.
+        terminalViewModels[sessionId]?.isSendingSuppressed = true
+        unclaimSession(sessionId)
         evictTerminal(for: sessionId)
 
         Task { await fetchSessions() }

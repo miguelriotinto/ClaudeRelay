@@ -126,7 +126,7 @@ public actor SessionManager {
         id: UUID,
         tokenId: String,
         excludeObserver: UUID? = nil
-    ) throws -> (SessionInfo, any PTYSessionProtocol) {
+    ) async throws -> (SessionInfo, any PTYSessionProtocol) {
         guard var managed = sessions[id] else {
             throw SessionError.notFound(id)
         }
@@ -146,6 +146,13 @@ public actor SessionManager {
         let oldTokenId = managed.info.tokenId
 
         if currentState == .activeAttached {
+            // Clear the PTY's output handler before returning so the displaced
+            // device stops receiving output. The new attacher's wirePTYOutput
+            // will install its own handler on the next actor turn. Without
+            // this await the old handler could keep firing — the PTY read
+            // source runs on its own dispatch queue, not serialized with the
+            // unstructured Task that wirePTYOutput uses to call setOutputHandler.
+            await pty.clearOutputHandler()
             reportSessionStolen(sessionId: id, tokenId: oldTokenId, excludeObserver: excludeObserver)
         }
 

@@ -265,6 +265,43 @@ final class SessionOwnershipTests: SessionManagerTestCase {
     /// the calls — one attaches first (transferring ownership), the other
     /// steals from the first. Final ownership must be exactly one of the two
     /// tokens, never a third value or a split/torn state.
+    // MARK: - Output-Handler Lifecycle on Steal
+    //
+    // The server's steal path MUST clear the PTY output handler before
+    // returning, so the displaced device stops receiving output. Without
+    // this, `outputHandler` still points at the old device's send closure
+    // until the new device's `wirePTYOutput` overwrites it — which is
+    // an unstructured Task and racy with PTY reads.
+    //
+    // This test drops the PTY factory into our mock, attaches twice, and
+    // asserts that the mock saw a `clearOutputHandler()` call as part of
+    // the second attach (the steal). See SessionManager.attachSession.
+
+    /// TODO: Learner — implement this test.
+    ///
+    /// Shape:
+    /// 1. Create two tokens (A, B). Create a session under A (auto-attaches A).
+    /// 2. Install a sentinel output handler on the PTY so you can detect
+    ///    if output still routes anywhere (see `MockPTYSession.deliverOutput`
+    ///    and `hasOutputHandler`).
+    /// 3. Attach from token B (cross-device steal).
+    /// 4. Assert: the PTY's `clearOutputHandlerCallCount` incremented during
+    ///    the steal, and `hasOutputHandler` is false *immediately after*
+    ///    `attachSession` returns (before anyone calls `wirePTYOutput`).
+    ///
+    /// Reaching the PTY inside the manager's `sessions[id]` dictionary
+    /// requires a test hook — you can add one to `SessionManager` (e.g.
+    /// `func _testOnly_pty(for: UUID) -> (any PTYSessionProtocol)?`), or
+    /// capture the PTY from the `(SessionInfo, PTY)` tuple returned by
+    /// the first `attachSession` call.
+    ///
+    /// Decide: do you want to also assert a steal observer fired? That
+    /// behavior is already covered by testChainStealAcrossThreeDevices —
+    /// keep this test narrowly focused on the output-handler invariant.
+    func testAttachStealClearsOutputHandlerBeforeReturn() async throws {
+        // TODO
+    }
+
     func testConcurrentAttachSameSessionProducesSingleOwner() async throws {
         let (_, tokenA) = try await createTestToken()
         let (_, tokenB) = try await tokenStore.create(label: "device-b")

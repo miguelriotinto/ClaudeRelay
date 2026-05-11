@@ -361,6 +361,31 @@ final class SharedSessionCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.sessionsAwaitingInput.contains(sessionId))
     }
 
+    /// Regression: before this fix, `handleSessionStolen` cleared `activeSessionId`
+    /// and evicted the TerminalViewModel, but the stolen session remained in
+    /// `ownedSessionIds`, so the sidebar still listed it. Attaching "Gendry" on
+    /// the iPad left Gendry in the iPhone's local session list.
+    ///
+    /// TODO: Learner — implement this test.
+    ///
+    /// Shape:
+    /// 1. Construct a SharedSessionCoordinator with a mock RelayConnection.
+    /// 2. Call `coordinator.claimSession(sessionId)` to set up local state,
+    ///    then push a `SessionInfo` for that id through the sessions list
+    ///    (or expose a test helper) so `activeSessions` initially includes it.
+    /// 3. Fire `connection.onSessionStolen?(sessionId)` and wait for the
+    ///    MainActor dispatch (see the timing pattern in
+    ///    `testSessionStolenNotificationClearsActiveSession`).
+    /// 4. Assert: `coordinator.ownedSessionIds.contains(sessionId) == false`,
+    ///    and `coordinator.activeSessions` no longer contains the session.
+    ///
+    /// Optional: also assert that a preexisting TerminalViewModel for the
+    /// session has `isSendingSuppressed == true` after the steal. That covers
+    /// the secondary defense against stale view references.
+    func testSessionStolenRemovesFromOwnedSessions() {
+        // TODO
+    }
+
     // MARK: - Session Renamed Handling
 
     func testSessionRenamedUpdatesLocalName() {
