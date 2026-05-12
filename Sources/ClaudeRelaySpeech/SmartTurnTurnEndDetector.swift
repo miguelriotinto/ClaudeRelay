@@ -33,10 +33,7 @@ public final class SmartTurnTurnEndDetector: TurnEndDetecting, @unchecked Sendab
         self.init(preprocessor: pre, classifier: st, threshold: threshold)
     }
 
-    /// Loads an `.mlpackage` by first compiling it to `.mlmodelc` in the
-    /// user's caches directory (reused across launches), then loading the
-    /// compiled form. `.mlpackage` is a source bundle that CoreML requires
-    /// to be compiled before use at runtime.
+    // Cache compiled model — initial compile takes seconds, reuse is instant
     private static func loadModel(at url: URL) -> MLModel? {
         let cachesDir = FileManager.default.urls(for: .cachesDirectory,
                                                  in: .userDomainMask).first

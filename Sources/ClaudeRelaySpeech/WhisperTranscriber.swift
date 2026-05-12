@@ -102,12 +102,7 @@ public final class WhisperTranscriber: SpeechTranscribing {
         return Self.collapseRepetitions(text)
     }
 
-    /// Detect and collapse repeated substrings in decoder output.
-    ///
-    /// Whisper's attention decoder can loop, producing the same phrase 2-3+
-    /// times. Two strategies, tried in order:
-    /// 1. Sentence-level: split on `.?!` boundaries, check if segments repeat
-    /// 2. Character-level: find repeating prefix unit (handles no-delimiter concatenation)
+    // Two tiers: sentence-level catches punctuated loops, char-level catches unpunctuated
     nonisolated static func collapseRepetitions(_ text: String) -> String {
         let len = text.count
         guard len > 20 else { return text }

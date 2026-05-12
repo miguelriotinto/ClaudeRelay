@@ -108,8 +108,7 @@ public final class WakeWordDetector {
 
     // MARK: - Matching
 
-    /// Known Whisper misheard variants per keyword. Whisper's small.en model
-    /// commonly confuses "Claude" with phonetically-similar words.
+    // Learned from production Whisper small.en misrecognitions of "Claude"
     static let knownAliases: [String: Set<String>] = [
         "claude": ["lord", "cloud", "clod", "clawed", "cod", "claw", "klod", "klaud", "plot"]
     ]

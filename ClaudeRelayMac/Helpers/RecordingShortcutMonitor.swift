@@ -35,7 +35,7 @@ final class RecordingShortcutMonitor {
     }
 
     private func handle(_ event: NSEvent) -> NSEvent? {
-        // Don't intercept while settings is capturing a new combo.
+        // Skip while KeyCapture is active to avoid triggering during 'Change shortcut' flow
         if KeyCaptureInterceptor.shared.isActive { return event }
 
         let settings = AppSettings.shared

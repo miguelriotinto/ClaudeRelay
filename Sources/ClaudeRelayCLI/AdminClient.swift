@@ -39,7 +39,6 @@ public final class AdminClient {
         return url
     }
 
-    /// GET request, returns decoded JSON.
     public func get<T: Decodable>(_ path: String) async throws -> T {
         let url = buildURL(path)
         var request = URLRequest(url: url)
@@ -47,7 +46,6 @@ public final class AdminClient {
         return try await perform(request)
     }
 
-    /// POST request with optional body, returns decoded JSON.
     public func post<T: Decodable>(_ path: String, body: (any Encodable)? = nil) async throws -> T {
         let url = buildURL(path)
         var request = URLRequest(url: url)
@@ -59,7 +57,6 @@ public final class AdminClient {
         return try await perform(request)
     }
 
-    /// PUT request with body, returns decoded JSON.
     public func put<T: Decodable>(_ path: String, body: any Encodable) async throws -> T {
         let url = buildURL(path)
         var request = URLRequest(url: url)
@@ -69,7 +66,6 @@ public final class AdminClient {
         return try await perform(request)
     }
 
-    /// PATCH request with body, returns decoded JSON.
     public func patch<T: Decodable>(_ path: String, body: any Encodable) async throws -> T {
         let url = buildURL(path)
         var request = URLRequest(url: url)
@@ -79,7 +75,6 @@ public final class AdminClient {
         return try await perform(request)
     }
 
-    /// DELETE request.
     public func delete(_ path: String) async throws {
         let url = buildURL(path)
         var request = URLRequest(url: url)
@@ -97,7 +92,6 @@ public final class AdminClient {
         }
     }
 
-    /// Check if service is running (GET /health, handle connection refused).
     public func isServiceRunning() async -> Bool {
         let url = buildURL("/health")
         var request = URLRequest(url: url)

@@ -62,6 +62,7 @@ struct ConfigSetCommand: AsyncParsableCommand {
     var value: String
 
     func run() async throws {
+        // Must match server-side AdminRoutes.applyConfigValue accepted keys
         let validKeys: Set<String> = [
             "wsPort", "adminPort", "detachTimeout", "scrollbackSize",
             "tlsCert", "tlsKey", "logLevel", "maxSessionsPerToken",
@@ -192,14 +193,12 @@ struct ConfigValidateCommand: AsyncParsableCommand {
     }
 }
 
-// MARK: - Models
-
 enum ConfigValue: Codable, CustomStringConvertible {
     case string(String)
     case int(Int)
     case bool(Bool)
 
-    /// Parse a CLI string argument into the most specific JSON type.
+    // Infer type from string so CLI users can pass unquoted values (1024, true, info)
     static func infer(from string: String) -> ConfigValue {
         if let intVal = Int(string) { return .int(intVal) }
         if string == "true" { return .bool(true) }

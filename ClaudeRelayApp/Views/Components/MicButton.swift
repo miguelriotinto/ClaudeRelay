@@ -61,6 +61,7 @@ struct MicButton: View {
     }
 
     private var longPressGesture: some Gesture {
+        // Long press in continuous mode: one-shot PTT without disabling continuous listening
         LongPressGesture(minimumDuration: 0.3)
             .onEnded { _ in
                 guard settings.continuousListeningEnabled else { return }

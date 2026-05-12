@@ -12,16 +12,7 @@ import ObjectiveC
 /// SwiftTerm implements the `copy(_:)` / `paste(_:)` methods but does not
 /// register key commands, so the system never dispatches them on iOS.
 class RelayTerminalView: TerminalView {
-    // SwiftTerm declares `hasText` as `public` (not `open`), so Swift prevents a
-    // direct override. We use the Objective-C runtime to add our own implementation
-    // to this subclass, making `hasText` always return true. Without this, the
-    // software keyboard stops calling `deleteBackward()` on long-press once
-    // SwiftTerm's internal text buffer is empty — but in a terminal, backspace
-    // should always repeat since it sends escape codes to the remote shell.
-    //
-    // IMPORTANT: This must be triggered from didMoveToWindow(), not keyCommands.
-    // keyCommands is only queried when a hardware keyboard is present — on a
-    // software-only keyboard the override would never be installed.
+    // UIKit stops firing deleteBackward when text buffer is empty; override hasText to always return true so key-repeat works in the terminal
     private static var hasTextOverrideInstalled = false
     private static func installRuntimeOverrides() {
         guard !hasTextOverrideInstalled else { return }
@@ -115,9 +106,7 @@ class RelayTerminalView: TerminalView {
     var onPasteImage: ((Data) -> Void)?
 
     override func paste(_ sender: Any?) {
-        // Check images first — many clipboard entries carry both text and an image
-        // (e.g. a photo copied from Safari also has a URL string). Prioritise the
-        // image so it actually reaches Claude Code via the relay's clipboard path.
+        // Prioritize images — many clipboard sources (Safari, Mail) include both image and URL representations
         if UIPasteboard.general.hasImages,
            let image = UIPasteboard.general.image,
            let pngData = image.pngData() {

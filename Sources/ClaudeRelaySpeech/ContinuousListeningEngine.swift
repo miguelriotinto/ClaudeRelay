@@ -94,6 +94,7 @@ public final class ContinuousListeningEngine: ObservableObject {
             capacitySeconds: bufferCapacitySeconds,
             sampleRate: sampleRate
         )
+        // Drop oldest chunks during processing spikes to keep latency bounded
         let (stream, continuation) = AsyncStream<[Float]>.makeStream(
             bufferingPolicy: .bufferingNewest(10)
         )

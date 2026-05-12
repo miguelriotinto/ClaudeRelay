@@ -97,6 +97,7 @@ public final class ActivityCoordinator: ObservableObject {
         agent: String?,
         onAgentActiveChange: (UUID, Bool) -> Void = { _, _ in }
     ) {
+        // Only persist to UserDefaults on actual state transitions, not redundant updates
         var changed = false
         if activity.isAgentRunning, let agentId = agent {
             if agentSessions[sessionId] != agentId {

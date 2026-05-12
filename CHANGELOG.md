@@ -4,10 +4,57 @@ All notable changes to ClaudeRelay are documented in this file.
 
 The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI uses 0.x.y; iOS uses X.Y.Z; macOS starts at 0.1.0.
 
-## [Unreleased] — Test coverage expansion
+## [Unreleased]
+
+SPM test count: **672** (was 532).
+
+## [0.3.5] - 2026-05-11 — macOS QR attach + session steal fix
+
+### macOS
+
+- **QR code scanning for session attach** — macOS app can now scan QR codes to attach to sessions, matching the iOS feature. Includes refusal fallback for denied camera access.
+- **Menu bar refactored** — removed Settings from the menu bar toolbar; added Servers + Attach Session items for quicker navigation. Settings popup restored as a non-toolbar item.
+
+### Server
+
+- **Session steal stops output to stolen device** — when a session is stolen via `attachSession`, the server immediately stops sending output to the previous owner and unclaims it, preventing a race where stale output could leak to a device that no longer owns the session.
+
+## [0.3.4] - 2026-05-10 — Continuous listening + test coverage expansion
+
+### Speech — continuous listening redesign (iOS 1.4.0, macOS 1.1.0)
+
+- **Strict two-phase wake-word flow.** New `.armed` state sits between
+  `.detectingWakeWord` and `.recording`. User says "Claude" → mic turns red
+  → user speaks command → Smart-Turn decides when they're finished. Combined
+  utterances ("Claude list my files" in one breath) are rejected — the visual
+  red-light handshake is load-bearing. `.armed` times out to `.listening`
+  after 4 s if no command speech starts. UI color buckets: blue for
+  `listening`/`detectingWakeWord`, red for `armed`/`recording`/
+  `detectingTurnEnd`, yellow for processing.
+- **Wake-word recall boosters** (`WakeWordAudioPreprocessor`). Peak-normalize
+  clips to ~0.95 so a quiet "Claude" reads as loud; pad to 3 s of silence so
+  Whisper's encoder stops treating it as an outlier. Match cascade now ends
+  in Metaphone phonetic equality with a first-letter guard, catching
+  Whisper mishearings like "clod" / "clawed" without hard-coding them.
+- **Smart-Turn is now authoritative.** VAD `minSilenceDuration` raised
+  from 0.3 s to 1.0 s so natural breath pauses don't fire `silenceStart`.
+  The turn-end race no longer treats timer-wins as "force done" — the
+  timer is a safety-net against hung CoreML inference that resumes
+  `.recording` on expiry. `raceTurnEnd` returns three-way
+  `TurnEndDecision {done, continuing, inferenceTimedOut}`. Default
+  `turnEndSilenceTimeout` raised from 1.5 s to 8 s. The user-facing
+  "Silence Timeout" slider was removed from Settings on both platforms,
+  along with its `@AppStorage` — the value comes from
+  `SpeechProcessingOptions` defaults now.
+- **VAD swapped to FluidInference Silero-VAD v6 unified** (stateful LSTM,
+  576-sample input) in `SileroVoiceActivityDetector`. Smart-Turn v3 +
+  Whisper log-mel `.mlpackage` now bundled; both fall back gracefully
+  when the resource fails to load or compile.
+
+### Test coverage expansion
 
 A full-codebase test gap analysis followed by a targeted coverage sweep. SPM
-test count: **532** (was 405). The sweep focused on modules with zero or
+test count: **532** → **672**. The sweep focused on modules with zero or
 superficial coverage, and on protocol edge cases, concurrency invariants,
 and error paths that had previously been exercised only through integration
 tests.
@@ -133,7 +180,7 @@ tests.
   Whisper log-mel `.mlpackage` now bundled; both fall back gracefully
   when the resource fails to load or compile.
 
-### Pre-existing code — Hardening review follow-ups
+## [0.3.3] - 2026-05-07 — Hardening review follow-ups
 
 Executes the plan captured in `docs/superpowers/plans/2026-05-07-hardening-review-followups.md`.
 

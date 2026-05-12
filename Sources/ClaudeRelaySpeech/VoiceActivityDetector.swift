@@ -23,10 +23,7 @@ public final class VoiceActivityDetector: VoiceActivityDetecting, @unchecked Sen
         /// Minimum sustained speech before emitting speechStart.
         public var minSpeechDuration: TimeInterval = 0.25
         /// Minimum sustained silence before emitting silenceStart.
-        /// Must be longer than a typical breath pause (~400–800ms) so that
-        /// natural pauses within a sentence don't trigger turn-end evaluation.
-        /// The turn-end classifier is then what decides whether the speaker
-        /// is actually done, not this VAD-level threshold.
+        // 1.0s filters breath pauses (400-800ms) — turn-end classifier decides actual completion
         public var minSilenceDuration: TimeInterval = 1.0
 
         public init() {}

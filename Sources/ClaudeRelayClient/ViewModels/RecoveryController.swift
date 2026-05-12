@@ -254,6 +254,7 @@ final class RecoveryController {
             recoveryLog.error("restoreSession failed (gen=\(generation)): \(error.localizedDescription, privacy: .public)")
             guard !coordinator.isTornDown, generation == recoveryGeneration else { return }
             coordinator.recoveryFailed = true
+            // App-level errors leave the connection intact — user can retry without reconnecting
             if SharedSessionCoordinator.isApplicationLevelError(error) {
                 // Session no longer exists / invalid transition / etc. The
                 // socket itself is fine — clear the active session and surface

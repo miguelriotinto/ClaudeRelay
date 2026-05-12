@@ -35,7 +35,7 @@ struct LoadCommand: AsyncParsableCommand {
         let userName = ProcessInfo.processInfo.environment["USER"] ?? NSUserName()
         let pathEnv = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-        // Generate plist
+        // LaunchAgent plist: runs at user login, auto-restarts on crash
         let plist = """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -118,6 +118,7 @@ struct LoadCommand: AsyncParsableCommand {
         try ConfigManager.save(config)
     }
 
+    // Search order: sibling of CLI binary, Homebrew prefix, standard paths, user home
     private func findServerBinary() -> String {
         // Check same directory as CLI binary first (covers Homebrew and local builds)
         let cliPath = CommandLine.arguments[0]
@@ -293,8 +294,6 @@ struct HealthCommand: AsyncParsableCommand {
     }
 }
 
-// MARK: - Response Models
-
 struct StatusResponse: Codable {
     let status: String
     let version: String?
@@ -314,8 +313,6 @@ struct StatusResponse: Codable {
     var uptime: Int? { uptimeSeconds }
     var sessions: Int { sessionCount ?? 0 }
 }
-
-// MARK: - Helpers
 
 private func runLaunchctl(_ arguments: [String]) throws {
     let process = Process()

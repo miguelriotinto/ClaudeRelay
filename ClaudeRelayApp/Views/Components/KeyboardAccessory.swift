@@ -8,7 +8,6 @@ struct KeyboardAccessory: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                // Special keys
                 keyButton(nil, icon: "return") { send(0x0D) }
                 textKeyButton("ESC") { send(0x1B) }
                 keyButton(nil, icon: "arrow.right.to.line") { send(0x09) }
@@ -18,7 +17,6 @@ struct KeyboardAccessory: View {
                 charButton("2")
                 charButton("3")
 
-                // Arrow keys
                 keyButton(nil, icon: "arrow.up") { send(0x1B, 0x5B, 0x41) }
                 keyButton(nil, icon: "arrow.down") { send(0x1B, 0x5B, 0x42) }
                 keyButton(nil, icon: "arrow.left") { send(0x1B, 0x5B, 0x44) }
@@ -26,7 +24,6 @@ struct KeyboardAccessory: View {
 
                 Divider().frame(height: 24)
 
-                // Ctrl combos
                 ctrlComboButton("C", byte: 0x03)   // Ctrl-C (SIGINT)
                 ctrlComboButton("R", byte: 0x12)   // Ctrl-R (reverse search)
                 ctrlComboButton("A", byte: 0x01)   // Ctrl-A (beginning of line)
@@ -37,7 +34,6 @@ struct KeyboardAccessory: View {
 
                 Divider().frame(height: 24)
 
-                // Common characters
                 charButton("|")
                 charButton("/")
                 charButton("~")
@@ -132,14 +128,12 @@ struct KeyboardAccessory: View {
     private static let maxContinuationClearCycles = 16
 
     /// Clears all input back to the prompt, including across continuation lines.
-    /// Each cycle: Ctrl-U kills the current line, then Backspace deletes the
-    /// newline joining it to the previous continuation line. Extra cycles are
-    /// harmless — both are noops once the cursor is at the prompt start.
     private func clearToPrompt() {
+        // Ctrl-U kills line, Backspace removes continuation newline; 16x covers deep multi-line edits
         var bytes: [UInt8] = []
         for _ in 0..<Self.maxContinuationClearCycles {
-            bytes.append(0x15) // Ctrl-U: kill line
-            bytes.append(0x7F) // Backspace: cross into previous continuation line
+            bytes.append(0x15)
+            bytes.append(0x7F)
         }
         onKey(Data(bytes))
     }

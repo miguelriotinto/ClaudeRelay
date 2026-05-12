@@ -119,6 +119,7 @@ public final class OnDeviceSpeechEngine: ObservableObject {
 
         Task {
             do {
+                // Whisper model is ~4x larger than LLM cleanup model
                 try await whisperTranscriber?.loadModel { [weak self] progress in
                     Task { @MainActor in
                         guard self?.modelLoadProgress != nil else { return }
@@ -131,6 +132,7 @@ public final class OnDeviceSpeechEngine: ObservableObject {
                 try? textCleaner?.loadModel(from: modelStore.llmModelPath)
                 self.modelLoadProgress = 1.0
 
+                // Brief pause lets user see 100% progress before UI dismissal
                 try? await Task.sleep(for: .milliseconds(300))
                 self.modelLoadProgress = nil
             } catch {

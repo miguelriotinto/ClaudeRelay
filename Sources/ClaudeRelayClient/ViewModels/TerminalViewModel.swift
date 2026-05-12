@@ -116,6 +116,7 @@ public final class TerminalViewModel: ObservableObject {
                 pendingOutputBytes -= dropped.count
             }
         }
+        // Output drives silence detection — reset timer on each chunk
         detectInputPrompt(data)
     }
 
@@ -131,9 +132,7 @@ public final class TerminalViewModel: ObservableObject {
         for chunk in buffered { handler(chunk) }
     }
 
-    /// Sends RIS (`ESC c`) so a subsequent scrollback replay replaces the
-    /// existing buffer rather than appending to it. Used during foreground
-    /// recovery after reconnection.
+    /// RIS (Reset to Initial State) clears terminal before replaying scrollback
     public func resetForReplay() {
         onTerminalOutput?(Data([0x1B, 0x63]))
     }

@@ -38,6 +38,7 @@ public struct SessionInfo: Codable, Equatable, Sendable {
 
     // MARK: - Copy Helpers
 
+    // Immutable-update helpers — produce a new SessionInfo with targeted field changes.
     public func transitioning(to newState: SessionState) -> SessionInfo {
         SessionInfo(id: id, name: name, state: newState, tokenId: tokenId,
                     createdAt: createdAt, cols: cols, rows: rows,

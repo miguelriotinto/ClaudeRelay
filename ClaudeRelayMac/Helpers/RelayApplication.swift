@@ -29,8 +29,7 @@ final class KeyCaptureInterceptor {
 
     private func installMonitor() {
         removeMonitor()
-        // Pre-dispatch local event monitor. This runs BEFORE the event reaches
-        // `performKeyEquivalent:`, so menu shortcuts are bypassed while capturing.
+        // Local monitors fire before menu performKeyEquivalent — lets capture intercept Cmd-shortcuts
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self] event in
             guard let self, let handler = self.handler else { return event }
             let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])

@@ -227,8 +227,6 @@ struct TokenInspectCommand: AsyncParsableCommand {
     }
 }
 
-// MARK: - Models
-
 struct TokenCreateRequest: Encodable {
     let label: String?
     let expiryDays: Int?

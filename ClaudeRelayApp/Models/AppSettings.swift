@@ -14,9 +14,7 @@ final class AppSettings: ObservableObject {
         // Seed the in-memory mirror from the Keychain (or legacy UserDefaults
         // fallback if the migration above hit a Keychain failure).
         self.bedrockBearerToken = loadBedrockTokenWithFallback()
-        // Debounce Keychain writes: rapid keystrokes collapse into a single
-        // save 500 ms after the last change. `dropFirst()` skips the seed
-        // value we just wrote above.
+        // Debounce prevents per-keystroke Keychain writes during SecureField typing
         $bedrockBearerToken
             .dropFirst()
             .debounce(for: Self.bedrockDebounce, scheduler: DispatchQueue.main)

@@ -35,6 +35,7 @@ public struct ConnectionQualityDot: View, Equatable {
             .frame(width: size, height: size)
             .fixedSize()
             .opacity(shouldBlink ? blinkOpacity : 1.0)
+            // onAppear for initial state; onChange for transitions during view lifetime
             .onChange(of: quality) { _, newValue in
                 let blink = newValue == .good || newValue == .veryPoor
                 if blink {

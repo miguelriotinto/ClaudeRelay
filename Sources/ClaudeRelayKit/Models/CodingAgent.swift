@@ -57,6 +57,7 @@ public struct CodingAgent: Codable, Equatable, Hashable, Sendable {
 
     public func matchesProcessName(_ name: String) -> Bool {
         let lower = name.lowercased()
+        // Dot-separated: macOS bundles appear as `name.app` in process tree
         return normalizedProcessNames.contains { lower == $0 || lower.hasPrefix($0 + "-") || lower.hasPrefix($0 + ".") }
     }
 

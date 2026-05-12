@@ -61,7 +61,7 @@ public final class SpeechModelStore: ObservableObject {
     // MARK: - Download
 
     /// Download both models. Updates `downloadProgress` during the process.
-    /// Progress range: Whisper 0.0–0.5, LLM 0.5–1.0.
+    // 50/50 split approximates relative download sizes
     public func downloadAllModels() async throws {
         downloadProgress = 0.0
 

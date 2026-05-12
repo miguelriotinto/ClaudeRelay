@@ -33,6 +33,7 @@ public struct ActivityDot: View, Equatable {
             .frame(width: size, height: size)
             .fixedSize()
             .opacity(activity == .agentIdle ? blinkOpacity : 1.0)
+            // onAppear for initial state; onChange for transitions during view lifetime
             .onChange(of: activity) { _, newValue in
                 if newValue == .agentIdle {
                     withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {

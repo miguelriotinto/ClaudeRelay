@@ -29,7 +29,7 @@ ClaudeRelay consists of six main components:
 - **ClaudeRelayKit** - Shared library with protocol definitions, utilities, and `CodingAgent` registry
 - **ClaudeRelayClient** - Swift client library for building custom clients (includes shared `SessionCoordinating` protocol and `SessionNaming` helpers)
 - **ClaudeRelayApp** - iOS application with terminal emulation
-- **ClaudeRelayMac** - Native macOS application with menu-bar persistence and full feature parity with iOS
+- **ClaudeRelayMac** (branded "ClaudeDock") - Native macOS application with menu-bar persistence and full feature parity with iOS
 
 ## Installation
 
@@ -224,7 +224,7 @@ swift build
 ### Run Tests
 
 ```bash
-swift test                                    # All SPM tests (532 tests across 4 targets)
+swift test                                    # All SPM tests (672 tests across 5 targets)
 swift test --filter ClaudeRelayKitTests       # Specific suite
 swift test --filter testTokenGeneration       # Specific test
 ```

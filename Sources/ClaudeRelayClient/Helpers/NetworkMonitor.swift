@@ -10,6 +10,7 @@ public final class NetworkMonitor: ObservableObject {
 
     private let monitor = NWPathMonitor()
     private static let queue = DispatchQueue(label: "com.clauderelay.networkMonitor")
+    // Track prior state to fire reconnection notification only once per transition
     private var wasDisconnected = false
 
     public init() {

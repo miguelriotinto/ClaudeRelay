@@ -64,6 +64,7 @@ public final class AudioCaptureSession {
         recordingStart = Date()
         isRecording = true
 
+        // Cap recording to prevent unbounded Float-sample memory growth in backgrounded sessions
         autoStopTask?.cancel()
         autoStopTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(Self.maximumDuration))

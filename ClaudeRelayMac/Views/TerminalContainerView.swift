@@ -119,7 +119,7 @@ struct TerminalContainerView: NSViewRepresentable {
             ])
         }
 
-        // Hide every other cached terminal, show the active one.
+        // Toggle visibility instead of removing to preserve SwiftTerm's scrollback and parse state
         for subview in host.subviews {
             subview.isHidden = (subview !== cached.view)
         }
@@ -129,13 +129,12 @@ struct TerminalContainerView: NSViewRepresentable {
             cached.view.font = newFont
         }
 
-        // Ensure the delegate observes the current view model (it may have been
-        // recreated on recovery), and that live output feeds this terminal.
         cached.delegate.viewModel = viewModel
         viewModel.onTerminalOutput = { [weak view = cached.view] data in
             guard let view else { return }
             view.feed(byteArray: Array(data)[...])
         }
+        // Order matters: terminalReady() flushes pending buffer through the newly-wired callback
         viewModel.terminalReady()
 
         if context.coordinator.lastFocusedId != activeId {

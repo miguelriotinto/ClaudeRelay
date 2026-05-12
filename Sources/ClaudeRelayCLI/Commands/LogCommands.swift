@@ -73,8 +73,8 @@ struct LogTailCommand: AsyncParsableCommand {
                 let response: LogResponse = try await client.get("/logs?lines=50")
 
                 let entries = response.entries
+                // First poll establishes baseline — only subsequent polls print new entries
                 if !baselineEstablished {
-                    // First poll — don't print history, just establish baseline
                     baselineEstablished = true
                 } else if let lastSeen = lastSeenEntry,
                    let lastIndex = entries.lastIndex(of: lastSeen) {
@@ -106,12 +106,11 @@ struct LogTailCommand: AsyncParsableCommand {
                 throw ExitCode.failure
             }
 
-            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            // 2s poll interval balances responsiveness against admin API load
+            try await Task.sleep(nanoseconds: 2_000_000_000)
         }
     }
 }
-
-// MARK: - Models
 
 struct LogResponse: Codable {
     let entries: [String]

@@ -118,8 +118,6 @@ struct SessionTerminateCommand: AsyncParsableCommand {
     }
 }
 
-// MARK: - Models
-
 struct CLISessionInfo: Codable {
     let id: UUID
     let state: String

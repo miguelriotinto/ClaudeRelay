@@ -7,6 +7,7 @@ public enum ConnectionQuality: String, Sendable, Equatable {
     case veryPoor
     case disconnected
 
+    // RTT thresholds in seconds. 83% success = 5 of 6 pings; perfect required for excellent.
     private static let excellentRTT: TimeInterval = 0.1
     private static let goodRTT: TimeInterval = 0.3
     private static let poorRTT: TimeInterval = 0.8
