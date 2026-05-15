@@ -6,7 +6,34 @@ The server/CLI, iOS app, and macOS app are versioned independently. Server/CLI u
 
 ## [Unreleased]
 
-SPM test count: **672** (was 532).
+## [0.3.6] - 2026-05-15 — Silent scrollback replay on reattach
+
+### Server + Client
+
+- **`replay_complete` protocol message** — new `ServerMessage` case sent by
+  the server after the binary scrollback chunks (and before
+  `session_activity`) on every `session_attach` and `session_resume`,
+  including the empty-buffer case. The protocol stays additive: no
+  `protocolVersion` bump, the message is ignored by clients that don't
+  recognise it.
+- **Client-side replay buffering** — `TerminalViewModel` gains an
+  `isReplaying` gate. While the gate is held, all incoming bytes are
+  parked in `pendingOutput` regardless of whether the SwiftUI terminal
+  view has already laid out (`terminalSized`). On `replay_complete` the
+  gate releases and the entire buffer is fed to SwiftTerm in one batch,
+  so SwiftTerm's 60 fps `queuePendingDisplay` coalesces the whole
+  scrollback into a single rendered frame. The user no longer sees the
+  terminal scroll through 512 KB of history when reattaching to a
+  long-lived session.
+- **`SharedSessionCoordinator`** sets `vm.beginReplay()` before
+  `attachSession` / `resumeSession` and routes the new
+  `RelayConnection.onReplayComplete` callback into `vm.endReplay()` so
+  the gate opens deterministically rather than via a timer heuristic.
+
+SPM test count: **677** (was 672) — added protocol round-trip /
+field-verification tests for `replay_complete` plus two
+`WebSocketIntegrationTests` covering the emit ordering (after binary,
+before activity) and the empty-buffer-still-emits invariant.
 
 ## [0.3.5] - 2026-05-11 — macOS QR attach + session steal fix
 

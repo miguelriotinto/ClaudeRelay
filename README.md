@@ -224,7 +224,7 @@ swift build
 ### Run Tests
 
 ```bash
-swift test                                    # All SPM tests (672 tests across 5 targets)
+swift test                                    # All SPM tests (677 tests across 5 targets)
 swift test --filter ClaudeRelayKitTests       # Specific suite
 swift test --filter testTokenGeneration       # Specific test
 ```
@@ -335,6 +335,7 @@ All WebSocket messages use `MessageEnvelope` with JSON encoding:
 - `session_activity` - Coding agent running/idle activity push
 - `session_stolen` - Another device attached to your session
 - `session_renamed` - Session name changed
+- `replay_complete` - Server has finished sending scrollback for an attach/resume; client may stop buffering and render
 - `session_list_result` - List of own sessions
 - `session_list_all_result` - List of all sessions
 - `resize_ack` - Terminal resize acknowledged
@@ -411,7 +412,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
    paths, and any backward-compat decoding (see how `RelayConfigTests`
    pins defaults across missing-field JSON)
 3. Update documentation (README, CHANGELOG, CLAUDE.md)
-4. Run `swift test` before submitting (all 532 SPM tests must pass; the
+4. Run `swift test` before submitting (all 677 SPM tests must pass; the
    pre-existing Keychain-dependent `AuthManagerTests` and one timing
    `SessionActivityMonitor` test may fail in sandboxed environments —
    they're environmental, not regressions)
