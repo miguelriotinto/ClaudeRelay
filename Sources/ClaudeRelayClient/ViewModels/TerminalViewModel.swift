@@ -123,12 +123,15 @@ public final class TerminalViewModel: ObservableObject {
         guard !terminalSized else { return }
         terminalSized = true
         didLogPendingCap = false
-        guard !isReplaying else { return }
+        if isReplaying {
+            onTerminalOutput?(Data([0x1B, 0x63]))
+            return
+        }
         guard let handler = onTerminalOutput else { return }
-        let buffered = pendingOutput
+        let combined = pendingOutput.reduce(into: Data()) { $0.append($1) }
         pendingOutput.removeAll()
         pendingOutputBytes = 0
-        for chunk in buffered { handler(chunk) }
+        if !combined.isEmpty { handler(combined) }
     }
 
     /// Enters replay-buffering mode. All output is held until `endReplay()`.
@@ -136,16 +139,17 @@ public final class TerminalViewModel: ObservableObject {
         isReplaying = true
     }
 
-    /// Exits replay-buffering mode and flushes pending data in one batch.
+    /// Exits replay-buffering mode and flushes all pending data as a single
+    /// contiguous blob so SwiftTerm renders in one display pass.
     public func endReplay() {
         guard isReplaying else { return }
         isReplaying = false
         if terminalSized, let handler = onTerminalOutput {
-            let buffered = pendingOutput
+            let combined = pendingOutput.reduce(into: Data()) { $0.append($1) }
             pendingOutput.removeAll()
             pendingOutputBytes = 0
             didLogPendingCap = false
-            for chunk in buffered { handler(chunk) }
+            if !combined.isEmpty { handler(combined) }
         }
     }
 
@@ -170,9 +174,9 @@ public final class TerminalViewModel: ObservableObject {
         didLogPendingCap = false
     }
 
-    /// Resets buffering state and seeds a RIS (ESC c) so the terminal clears
-    /// before ring-buffer replay data arrives. Used when switching back to a
-    /// session whose native view buffer may have lost content while hidden.
+    /// Resets buffering state in preparation for ring-buffer replay. The RIS
+    /// (ESC c) is deferred to `terminalReady()` so it fires only once the view
+    /// is wired and can blank the screen immediately.
     public func prepareForReplay() {
         promptDebounceTask?.cancel()
         promptDebounceTask = nil
@@ -181,8 +185,8 @@ public final class TerminalViewModel: ObservableObject {
         onAwaitingInputChanged = nil
         terminalSized = false
         isReplaying = false
-        pendingOutput = [Data([0x1B, 0x63])]
-        pendingOutputBytes = 2
+        pendingOutput.removeAll()
+        pendingOutputBytes = 0
         didLogPendingCap = false
     }
 

@@ -57,9 +57,8 @@ final class TerminalViewModelTests: XCTestCase {
         vm.receiveOutput(Data([0x42]))
         vm.terminalReady()
 
-        XCTAssertEqual(received.count, 2)
-        XCTAssertEqual(received[0], Data([0x41]))
-        XCTAssertEqual(received[1], Data([0x42]))
+        XCTAssertEqual(received.count, 1)
+        XCTAssertEqual(received[0], Data([0x41, 0x42]))
     }
 
     func testOutputForwardedAfterReady() {
@@ -99,7 +98,7 @@ final class TerminalViewModelTests: XCTestCase {
         XCTAssertNil(vm.onAwaitingInputChanged)
     }
 
-    func testPrepareForReplaySeedsRISIntoPendingBuffer() {
+    func testPrepareForReplayThenTerminalReadySendsRIS() {
         let vm = makeVM()
         vm.onTerminalOutput = { _ in }
         vm.terminalReady()
@@ -110,8 +109,9 @@ final class TerminalViewModelTests: XCTestCase {
         XCTAssertNil(vm.onTerminalOutput)
         XCTAssertNil(vm.onTitleChanged)
 
-        // After prepareForReplay, the pending buffer should contain RIS.
-        // Re-wire and call terminalReady to flush it.
+        // Mirror coordinator flow: beginReplay → wire handler → terminalReady.
+        // terminalReady detects isReplaying and immediately feeds RIS.
+        vm.beginReplay()
         var received = [Data]()
         vm.onTerminalOutput = { received.append($0) }
         vm.terminalReady()
