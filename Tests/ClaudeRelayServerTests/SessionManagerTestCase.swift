@@ -12,6 +12,7 @@ actor MockPTYSession: PTYSessionProtocol {
     private var terminated = false
     private var activityHandler: (@Sendable (ActivityState, CodingAgent?, UInt64) -> Void)?
     private(set) var clearOutputHandlerCallCount = 0
+    private var bufferContents = Data()
 
     init(sessionId: UUID, cols: UInt16, rows: UInt16, scrollbackSize: Int) {
         self.sessionId = sessionId
@@ -26,7 +27,7 @@ actor MockPTYSession: PTYSessionProtocol {
     }
     func write(_ data: Data) {}
     func resize(cols: UInt16, rows: UInt16) {}
-    func readBuffer() -> Data { Data() }
+    func readBuffer() -> Data { bufferContents }
     func terminate() { terminated = true }
     func getActivityState() -> ActivityState { .active }
     func getActiveAgent() -> CodingAgent? { nil }
@@ -35,6 +36,11 @@ actor MockPTYSession: PTYSessionProtocol {
     }
     func recordInput() {}
     func setPollCadence(_ seconds: TimeInterval) {}
+
+    /// Test hook: seed the ring buffer with data for replay tests.
+    func writeToBuffer(_ data: Data) {
+        bufferContents.append(data)
+    }
 
     /// Test hook: drives the dispatch-source equivalent so tests can verify
     /// the currently-installed output callback (proxy for "which device is

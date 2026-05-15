@@ -88,6 +88,7 @@ extension RelayMessageHandler {
                 if !filtered.isEmpty {
                     handler.sendChunkedBinaryData(filtered, context: ctx)
                 }
+                handler.sendServerMessage(.replayComplete(sessionId: sessionId), context: ctx)
                 handler.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx)
                 handler.wirePTYOutput(pty: pty, context: ctx)
             },
@@ -126,6 +127,7 @@ extension RelayMessageHandler {
                 if !filtered.isEmpty {
                     handler.sendChunkedBinaryData(filtered, context: ctx)
                 }
+                handler.sendServerMessage(.replayComplete(sessionId: sessionId), context: ctx)
                 handler.sendServerMessage(.sessionActivity(sessionId: sessionId, activity: activity, agent: agent?.id), context: ctx)
                 handler.wirePTYOutput(pty: pty, context: ctx)
             },

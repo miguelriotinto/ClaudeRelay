@@ -315,4 +315,144 @@ final class WebSocketIntegrationTests: XCTestCase {
 
         connection.disconnect()
     }
+
+    /// Verifies that `replayComplete` is emitted after scrollback binary data
+    /// and before `sessionActivity` when attaching to a session with history.
+    @MainActor
+    func testAttachEmitsReplayCompleteAfterScrollback() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WSIntegrationReplay-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        defer { try? group.syncShutdownGracefully() }
+
+        var config = RelayConfig.default
+        config.wsPort = UInt16.random(in: 19_000..<20_000)
+        config.adminPort = UInt16.random(in: 20_000..<21_000)
+
+        let tokenStore = TokenStore(directory: tempDir)
+        let (plaintext, tokenInfo) = try await tokenStore.create(label: "replay")
+
+        let sessionManager = SessionManager(
+            config: config,
+            tokenStore: tokenStore,
+            ptyFactory: { id, cols, rows, scrollback in
+                MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+            }
+        )
+
+        let sessionInfo = try await sessionManager.createSession(tokenId: tokenInfo.id, name: "replay-test")
+
+        // Write scrollback data into the session's mock PTY buffer so attach
+        // has something to replay.
+        let (_, pty) = try await sessionManager.attachSession(id: sessionInfo.id, tokenId: tokenInfo.id)
+        let mockPTY = pty as! MockPTYSession
+        let scrollbackData = Data(repeating: 0x41, count: 1024)
+        await mockPTY.writeToBuffer(scrollbackData)
+        try await sessionManager.detachSession(id: sessionInfo.id)
+
+        let server = WebSocketServer(
+            group: group, config: config,
+            sessionManager: sessionManager, tokenStore: tokenStore
+        )
+        try await server.start()
+        defer { Task { try? await server.stop() } }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let connection = RelayConnection()
+        let controller = SessionController(connection: connection)
+        let clientConfig = ConnectionConfig(name: "replay", host: "127.0.0.1", port: config.wsPort)
+
+        // Collect all server messages in order.
+        var receivedMessages: [String] = []
+        var receivedBinaryChunks = 0
+        connection.onTerminalOutput = { _ in
+            receivedMessages.append("binary")
+            receivedBinaryChunks += 1
+        }
+        connection.onReplayComplete = { _ in
+            receivedMessages.append("replay_complete")
+        }
+        connection.onSessionActivity = { _, _, _ in
+            receivedMessages.append("session_activity")
+        }
+
+        try await connection.connect(config: clientConfig, token: plaintext)
+        try await controller.authenticate(token: plaintext)
+        try await controller.attachSession(id: sessionInfo.id)
+
+        // Allow server to finish sending all post-attach messages.
+        try? await Task.sleep(for: .milliseconds(200))
+
+        // Verify ordering: replay_complete must come after all binary chunks.
+        XCTAssertGreaterThan(receivedBinaryChunks, 0, "Should have received scrollback data")
+        guard let replayIdx = receivedMessages.firstIndex(of: "replay_complete") else {
+            XCTFail("replay_complete not received"); return
+        }
+        let lastBinaryIdx = receivedMessages.lastIndex(of: "binary")!
+        XCTAssertGreaterThan(replayIdx, lastBinaryIdx, "replay_complete must come after all binary chunks")
+
+        connection.disconnect()
+    }
+
+    /// Verifies that `replayComplete` is still emitted even when there is no
+    /// scrollback data to replay (fresh session, empty buffer).
+    @MainActor
+    func testAttachEmitsReplayCompleteEvenWithEmptyBuffer() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WSIntegrationReplayEmpty-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        defer { try? group.syncShutdownGracefully() }
+
+        var config = RelayConfig.default
+        config.wsPort = UInt16.random(in: 19_000..<20_000)
+        config.adminPort = UInt16.random(in: 20_000..<21_000)
+
+        let tokenStore = TokenStore(directory: tempDir)
+        let (plaintext, tokenInfo) = try await tokenStore.create(label: "replay-empty")
+
+        let sessionManager = SessionManager(
+            config: config,
+            tokenStore: tokenStore,
+            ptyFactory: { id, cols, rows, scrollback in
+                MockPTYSession(sessionId: id, cols: cols, rows: rows, scrollbackSize: scrollback)
+            }
+        )
+
+        _ = try await sessionManager.createSession(tokenId: tokenInfo.id, name: "empty-test")
+        let sessions = await sessionManager.listSessionsForToken(tokenId: tokenInfo.id)
+        let sessionId = sessions[0].id
+
+        let server = WebSocketServer(
+            group: group, config: config,
+            sessionManager: sessionManager, tokenStore: tokenStore
+        )
+        try await server.start()
+        defer { Task { try? await server.stop() } }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let connection = RelayConnection()
+        let controller = SessionController(connection: connection)
+        let clientConfig = ConnectionConfig(name: "replay-empty", host: "127.0.0.1", port: config.wsPort)
+
+        var gotReplayComplete = false
+        connection.onReplayComplete = { _ in
+            gotReplayComplete = true
+        }
+
+        try await connection.connect(config: clientConfig, token: plaintext)
+        try await controller.authenticate(token: plaintext)
+        try await controller.attachSession(id: sessionId)
+
+        try? await Task.sleep(for: .milliseconds(200))
+
+        XCTAssertTrue(gotReplayComplete, "replay_complete must be sent even with empty buffer")
+
+        connection.disconnect()
+    }
 }

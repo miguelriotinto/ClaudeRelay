@@ -64,6 +64,35 @@ final class ServerMessageTests: ProtocolTestCase {
         XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
     }
 
+    func testReplayCompleteEncoding() throws {
+        let id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
+        let msg = ServerMessage.replayComplete(sessionId: id)
+        let envelope = MessageEnvelope.server(msg)
+        let data = try encoder.encode(envelope)
+        let obj = try jsonObject(data)
+
+        XCTAssertEqual(obj["type"] as? String, "replay_complete")
+        let payload = obj["payload"] as? [String: Any]
+        XCTAssertEqual(payload?["sessionId"] as? String, id.uuidString)
+    }
+
+    func testReplayCompleteFieldVerification() throws {
+        let id = "12345678-1234-1234-1234-123456789ABC"
+        let json = #"{"type":"replay_complete","payload":{"sessionId":"\#(id)"}}"#
+        let envelope = try decoder.decode(MessageEnvelope.self, from: Data(json.utf8))
+        guard case .server(.replayComplete(let sessionId)) = envelope else {
+            XCTFail("Expected replayComplete"); return
+        }
+        XCTAssertEqual(sessionId.uuidString, id)
+    }
+
+    func testReplayCompleteTypeString() {
+        let id = UUID()
+        let msg = ServerMessage.replayComplete(sessionId: id)
+        XCTAssertEqual(msg.typeString, "replay_complete")
+        XCTAssert(ServerMessage.allTypeStrings.contains("replay_complete"))
+    }
+
     func testSessionDetachedEncoding() throws {
         let msg = ServerMessage.sessionDetached
         let envelope = MessageEnvelope.server(msg)
@@ -152,6 +181,7 @@ final class ServerMessageTests: ProtocolTestCase {
             .sessionCreated(sessionId: id, cols: 80, rows: 24),
             .sessionAttached(sessionId: id, state: "running"),
             .sessionResumed(sessionId: id),
+            .replayComplete(sessionId: id),
             .sessionDetached,
             .sessionTerminated(sessionId: id, reason: "exit"),
             .sessionExpired(sessionId: id),

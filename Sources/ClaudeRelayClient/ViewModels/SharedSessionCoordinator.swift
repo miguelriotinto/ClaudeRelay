@@ -208,6 +208,11 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
                 self?.objectWillChange.send()
             }
 
+        connection.onReplayComplete = { [weak self] sessionId in
+            Task { @MainActor [weak self] in
+                self?.terminalViewModels[sessionId]?.endReplay()
+            }
+        }
         connection.onSessionActivity = { [weak self] sessionId, activity, agent in
             Task { @MainActor [weak self] in
                 self?.handleActivityUpdate(sessionId: sessionId, activity: activity, agent: agent)
@@ -432,6 +437,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
             } else {
                 terminalViewModels[id]?.prepareForReplay()
             }
+            terminalViewModels[id]?.beginReplay()
             wireTerminalOutput(to: id)
 
             try await withAuth { controller in
@@ -483,6 +489,7 @@ open class SharedSessionCoordinator: ObservableObject, SessionCoordinating {
 
             claimSession(id)
             let vm = TerminalViewModel(sessionId: id, connection: connection)
+            vm.beginReplay()
             terminalViewModels[id] = vm
             wireTerminalOutput(to: id)
             activeSessionId = id

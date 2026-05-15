@@ -7,6 +7,7 @@ public enum ServerMessage: Equatable, Sendable {
     case sessionCreated(sessionId: UUID, cols: UInt16, rows: UInt16)
     case sessionAttached(sessionId: UUID, state: String)
     case sessionResumed(sessionId: UUID)
+    case replayComplete(sessionId: UUID)
     case sessionDetached
     case sessionTerminated(sessionId: UUID, reason: String)
     case sessionExpired(sessionId: UUID)
@@ -30,6 +31,7 @@ public enum ServerMessage: Equatable, Sendable {
         case .sessionCreated:      return "session_created"
         case .sessionAttached:     return "session_attached"
         case .sessionResumed:      return "session_resumed"
+        case .replayComplete:      return "replay_complete"
         case .sessionDetached:     return "session_detached"
         case .sessionTerminated:   return "session_terminated"
         case .sessionExpired:      return "session_expired"
@@ -50,7 +52,7 @@ public enum ServerMessage: Equatable, Sendable {
 
     static let allTypeStrings: Set<String> = [
         "auth_success", "auth_failure",
-        "session_created", "session_attached", "session_resumed", "session_detached",
+        "session_created", "session_attached", "session_resumed", "replay_complete", "session_detached",
         "session_terminated", "session_expired", "session_state", "session_activity",
         "session_stolen", "session_renamed",
         "session_list_result", "session_list_all_result",
@@ -80,6 +82,8 @@ extension ServerMessage: Codable {
             try container.encode(sessionId, forKey: .sessionId)
             try container.encode(state, forKey: .state)
         case .sessionResumed(let sessionId):
+            try container.encode(sessionId, forKey: .sessionId)
+        case .replayComplete(let sessionId):
             try container.encode(sessionId, forKey: .sessionId)
         case .sessionDetached:
             break
@@ -138,6 +142,9 @@ extension ServerMessage: Codable {
         case "session_resumed":
             let sessionId = try container.decode(UUID.self, forKey: .sessionId)
             return .sessionResumed(sessionId: sessionId)
+        case "replay_complete":
+            let sessionId = try container.decode(UUID.self, forKey: .sessionId)
+            return .replayComplete(sessionId: sessionId)
         case "session_detached":
             return .sessionDetached
         case "session_terminated":

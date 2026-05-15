@@ -55,6 +55,7 @@ public final class TerminalViewModel: ObservableObject {
     public var onAwaitingInputChanged: ((Bool) -> Void)?
 
     private var terminalSized = false
+    private var isReplaying = false
 
     // MARK: - Dependencies
 
@@ -97,15 +98,11 @@ public final class TerminalViewModel: ObservableObject {
 
     /// Receives terminal output from the coordinator's I/O routing.
     public func receiveOutput(_ data: Data) {
-        if terminalSized, let handler = onTerminalOutput {
+        if !isReplaying && terminalSized, let handler = onTerminalOutput {
             handler(data)
         } else {
             pendingOutput.append(data)
             pendingOutputBytes += data.count
-            // Cap pending buffer: if the terminal never calls terminalReady()
-            // (layout stuck, bug, etc.), drop oldest chunks instead of growing
-            // unboundedly. The server's ring buffer replays anything we drop
-            // on next attach/resume.
             if pendingOutputBytes > Self.pendingOutputByteLimit, !didLogPendingCap {
                 pendingOutputLog.warning(
                     "Terminal pending buffer hit \(Self.pendingOutputByteLimit / 1024 / 1024, privacy: .public) MB cap for session \(self.sessionId.uuidString.prefix(8), privacy: .public) — dropping oldest chunks")
@@ -116,20 +113,40 @@ public final class TerminalViewModel: ObservableObject {
                 pendingOutputBytes -= dropped.count
             }
         }
-        // Output drives silence detection — reset timer on each chunk
         detectInputPrompt(data)
     }
 
     /// Call once after the terminal view's first `sizeChanged` callback.
-    /// Flushes any scrollback that arrived while the view was still laying out.
+    /// Flushes any scrollback that arrived while the view was still laying out,
+    /// unless a replay is in progress (endReplay will flush instead).
     public func terminalReady() {
-        guard !terminalSized, let handler = onTerminalOutput else { return }
+        guard !terminalSized else { return }
         terminalSized = true
         didLogPendingCap = false
+        guard !isReplaying else { return }
+        guard let handler = onTerminalOutput else { return }
         let buffered = pendingOutput
         pendingOutput.removeAll()
         pendingOutputBytes = 0
         for chunk in buffered { handler(chunk) }
+    }
+
+    /// Enters replay-buffering mode. All output is held until `endReplay()`.
+    public func beginReplay() {
+        isReplaying = true
+    }
+
+    /// Exits replay-buffering mode and flushes pending data in one batch.
+    public func endReplay() {
+        guard isReplaying else { return }
+        isReplaying = false
+        if terminalSized, let handler = onTerminalOutput {
+            let buffered = pendingOutput
+            pendingOutput.removeAll()
+            pendingOutputBytes = 0
+            didLogPendingCap = false
+            for chunk in buffered { handler(chunk) }
+        }
     }
 
     /// RIS (Reset to Initial State) clears terminal before replaying scrollback
@@ -147,6 +164,7 @@ public final class TerminalViewModel: ObservableObject {
         onTitleChanged = nil
         onAwaitingInputChanged = nil
         terminalSized = false
+        isReplaying = false
         pendingOutput.removeAll()
         pendingOutputBytes = 0
         didLogPendingCap = false
@@ -162,6 +180,7 @@ public final class TerminalViewModel: ObservableObject {
         onTitleChanged = nil
         onAwaitingInputChanged = nil
         terminalSized = false
+        isReplaying = false
         pendingOutput = [Data([0x1B, 0x63])]
         pendingOutputBytes = 2
         didLogPendingCap = false
