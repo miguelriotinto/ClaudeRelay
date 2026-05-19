@@ -110,6 +110,11 @@ targets:
     info:
       path: ClaudeRelayMac/Info.plist
       properties:
+        # Read versions from build settings (MARKETING_VERSION /
+        # CURRENT_PROJECT_VERSION above) so a single source of truth in
+        # project.yml drives both iOS and Mac.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSApplicationCategoryType: "public.app-category.developer-tools"
         NSMicrophoneUsageDescription: "ClaudeDock needs microphone access for voice-to-text input."
         NSCameraUsageDescription: "ClaudeDock uses the camera to scan QR codes for session sharing."
