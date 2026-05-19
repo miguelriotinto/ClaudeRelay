@@ -5,6 +5,11 @@ import os.log
 private let pendingOutputLog = Logger(subsystem: "com.claude.relay.client",
                                        category: "TerminalViewModel")
 
+/// Diagnostic logger for the idle-no-echo bug. Filter Console.app on
+/// subsystem com.claude.relay.client and category EchoDiag to see only these.
+private let echoDiag = Logger(subsystem: "com.claude.relay.client",
+                              category: "EchoDiag")
+
 /// Configures the input-prompt silence detector. Production defaults match the
 /// empirically-tuned behavior (1.0 s normal, 2.0 s when Claude is running —
 /// longer so API-call/tool-execution gaps don't trip the detector). Tests can
@@ -101,6 +106,15 @@ public final class TerminalViewModel: ObservableObject {
         if !isReplaying && terminalSized, let handler = onTerminalOutput {
             handler(data)
         } else {
+            // EchoDiag: log only the FIRST time we buffer a chunk (rate-limited
+            // by the existing didLogPendingCap flag would over-fire; use a
+            // dedicated short-lived flag so a single buffering episode produces
+            // exactly one log line).
+            if pendingOutput.isEmpty {
+                echoDiag.info(
+                    "buffer-path entered session=\(self.sessionId.uuidString.prefix(8), privacy: .public) isReplaying=\(self.isReplaying, privacy: .public) terminalSized=\(self.terminalSized, privacy: .public) onTerminalOutput=\(self.onTerminalOutput != nil, privacy: .public) bytes=\(data.count, privacy: .public)"
+                )
+            }
             pendingOutput.append(data)
             pendingOutputBytes += data.count
             if pendingOutputBytes > Self.pendingOutputByteLimit, !didLogPendingCap {
@@ -123,6 +137,9 @@ public final class TerminalViewModel: ObservableObject {
         guard !terminalSized else { return }
         terminalSized = true
         didLogPendingCap = false
+        echoDiag.info(
+            "terminalReady session=\(self.sessionId.uuidString.prefix(8), privacy: .public) isReplaying=\(self.isReplaying, privacy: .public) pendingBytes=\(self.pendingOutputBytes, privacy: .public)"
+        )
         if isReplaying {
             onTerminalOutput?(Data([0x1B, 0x63]))
             return
@@ -136,6 +153,7 @@ public final class TerminalViewModel: ObservableObject {
 
     /// Enters replay-buffering mode. All output is held until `endReplay()`.
     public func beginReplay() {
+        echoDiag.info("beginReplay session=\(self.sessionId.uuidString.prefix(8), privacy: .public)")
         isReplaying = true
     }
 
@@ -144,6 +162,9 @@ public final class TerminalViewModel: ObservableObject {
     public func endReplay() {
         guard isReplaying else { return }
         isReplaying = false
+        echoDiag.info(
+            "endReplay session=\(self.sessionId.uuidString.prefix(8), privacy: .public) terminalSized=\(self.terminalSized, privacy: .public) onTerminalOutput=\(self.onTerminalOutput != nil, privacy: .public) pendingBytes=\(self.pendingOutputBytes, privacy: .public)"
+        )
         if terminalSized, let handler = onTerminalOutput {
             let combined = pendingOutput.reduce(into: Data()) { $0.append($1) }
             pendingOutput.removeAll()
@@ -162,6 +183,7 @@ public final class TerminalViewModel: ObservableObject {
     /// callbacks (the old terminal view is about to be destroyed) and any
     /// pending debounce task.
     public func prepareForSwitch() {
+        echoDiag.info("prepareForSwitch session=\(self.sessionId.uuidString.prefix(8), privacy: .public)")
         promptDebounceTask?.cancel()
         promptDebounceTask = nil
         onTerminalOutput = nil
@@ -178,6 +200,7 @@ public final class TerminalViewModel: ObservableObject {
     /// (ESC c) is deferred to `terminalReady()` so it fires only once the view
     /// is wired and can blank the screen immediately.
     public func prepareForReplay() {
+        echoDiag.info("prepareForReplay session=\(self.sessionId.uuidString.prefix(8), privacy: .public)")
         promptDebounceTask?.cancel()
         promptDebounceTask = nil
         onTerminalOutput = nil

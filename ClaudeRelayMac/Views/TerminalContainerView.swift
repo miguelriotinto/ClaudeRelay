@@ -1,7 +1,13 @@
 import SwiftUI
 import SwiftTerm
 import AppKit
+import os.log
 import ClaudeRelayClient
+
+/// Diagnostic logger for the idle-no-echo bug. Filter Console.app on
+/// subsystem com.claude.relay.client and category EchoDiag.
+private let echoDiag = Logger(subsystem: "com.claude.relay.client",
+                              category: "EchoDiag")
 
 /// Wraps a SwiftTerm TerminalView and intercepts Cmd+V to handle image paste.
 final class PasteAwareTerminalView: TerminalView {
@@ -130,6 +136,7 @@ struct TerminalContainerView: NSViewRepresentable {
         }
 
         cached.delegate.viewModel = viewModel
+        echoDiag.info("updateNSView wiring session=\(activeId.uuidString.prefix(8), privacy: .public)")
         viewModel.onTerminalOutput = { [weak view = cached.view] data in
             guard let view else { return }
             view.feed(byteArray: Array(data)[...])
