@@ -37,6 +37,18 @@ final class SessionNamingTests: XCTestCase {
         XCTAssertEqual(SessionNamingTheme.starWars.rawValue, "starWars")
         XCTAssertEqual(SessionNamingTheme.dune.rawValue, "dune")
         XCTAssertEqual(SessionNamingTheme.lordOfTheRings.rawValue, "lordOfTheRings")
+        XCTAssertEqual(SessionNamingTheme.starTrek.rawValue, "starTrek")
+    }
+
+    func testStarTrekPoolHasReasonableSize() {
+        // Star Trek is documented at ~76 names in the design spec.
+        // Floor of 50 guards against accidental truncation that would
+        // cause early "Session N" fallback while leaving room to prune
+        // a few names without churning the test.
+        XCTAssertGreaterThanOrEqual(
+            SessionNamingTheme.starTrek.names.count, 50,
+            "Star Trek pool unexpectedly small — \(SessionNamingTheme.starTrek.names.count) names"
+        )
     }
 
     // MARK: - pickDefaultName
