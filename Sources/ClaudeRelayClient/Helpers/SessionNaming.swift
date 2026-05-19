@@ -13,6 +13,7 @@ public enum SessionNamingTheme: String, CaseIterable, Identifiable, Sendable {
     case starWars
     case dune
     case lordOfTheRings
+    case starTrek
 
     public var id: String { rawValue }
 
@@ -23,6 +24,7 @@ public enum SessionNamingTheme: String, CaseIterable, Identifiable, Sendable {
         case .starWars:      return "Star Wars"
         case .dune:          return "Dune"
         case .lordOfTheRings: return "Lord of the Rings"
+        case .starTrek:      return "Star Trek"
         }
     }
 
@@ -33,6 +35,7 @@ public enum SessionNamingTheme: String, CaseIterable, Identifiable, Sendable {
         case .starWars:       return Self.starWarsNames
         case .dune:           return Self.duneNames
         case .lordOfTheRings: return Self.lotrNames
+        case .starTrek:       return Self.starTrekNames
         }
     }
 
@@ -119,6 +122,25 @@ public enum SessionNamingTheme: String, CaseIterable, Identifiable, Sendable {
         "Hamfast", "Farmer Maggot", "Quickbeam", "Shadowfax", "Bill the Pony",
         "Witch-King", "Mouth of Sauron", "Gil-galad", "Isildur", "Elendil",
         "Cirdan", "Feanor", "Fingolfin", "Earendil", "Hurin"
+    ]
+
+    public static let starTrekNames = [
+        "Kirk", "Spock", "McCoy", "Uhura", "Scotty",
+        "Sulu", "Chekov", "Chapel", "Rand", "Sarek",
+        "Khan", "Pike", "T'Pring", "Number One",
+        "Picard", "Riker", "Data", "Worf", "La Forge",
+        "Crusher", "Troi", "Wesley", "Guinan", "Q",
+        "Ro Laren", "Pulaski", "Tasha Yar", "Barclay", "Lwaxana",
+        "Sisko", "Kira", "Odo", "Bashir", "Dax",
+        "O'Brien", "Quark", "Garak", "Rom", "Nog",
+        "Jake", "Dukat", "Weyoun", "Martok", "Damar",
+        "Ezri", "Janeway", "Chakotay", "Tuvok", "Paris",
+        "Torres", "Kim", "Neelix", "Kes", "Seven",
+        "The Doctor", "Archer", "T'Pol", "Trip", "Reed",
+        "Mayweather", "Hoshi", "Phlox", "Burnham", "Saru",
+        "Tilly", "Lorca", "Georgiou", "Stamets", "Una",
+        "La'an", "M'Benga", "Ortegas", "Mariner", "Boimler",
+        "Tendi", "Rutherford"
     ]
 }
 
