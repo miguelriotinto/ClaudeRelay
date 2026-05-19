@@ -51,6 +51,11 @@ targets:
     info:
       path: ClaudeRelayApp/Info.plist
       properties:
+        # App uses only Apple-provided cryptography (CryptoKit + system TLS),
+        # which is exempt under U.S. export rules. Declaring this lets every
+        # TestFlight upload skip the manual encryption-compliance gate that
+        # otherwise blocks external distribution.
+        ITSAppUsesNonExemptEncryption: false
         NSAppTransportSecurity:
           # Scoped ATS: plaintext WebSocket is allowed only to RFC1918 /
           # link-local addresses (typical LAN server use). Plaintext to a
@@ -115,6 +120,8 @@ targets:
         # project.yml drives both iOS and Mac.
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # See iOS note — exempt because the app only uses Apple-provided crypto.
+        ITSAppUsesNonExemptEncryption: false
         LSApplicationCategoryType: "public.app-category.developer-tools"
         NSMicrophoneUsageDescription: "ClaudeDock needs microphone access for voice-to-text input."
         NSCameraUsageDescription: "ClaudeDock uses the camera to scan QR codes for session sharing."
