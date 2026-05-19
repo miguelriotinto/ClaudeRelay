@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		028D1B51EA464565B380385D /* MenuBarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D717204F74BA58AC8D5C168 /* MenuBarViewModel.swift */; };
+		0717D69490BE19F05FCF66E6 /* MenuBarActivityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EC88C3C7486A906F4D35E7 /* MenuBarActivityTests.swift */; };
 		0877BB8EA417A60F1F577800 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EB4DA40B47A6CE46CC9797F /* SessionSidebarView.swift */; };
 		08F925B0F2FCF5B7E66B746D /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */; };
 		0C5F93F50E30A58EF58F5E5F /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BA4095B6DFC9164DB8C74D /* SessionCoordinator.swift */; };
@@ -22,6 +23,7 @@
 		2BD76AD6A79D0ABC114DFF65 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B9B72D775E497F2FB66C38A /* AppCommands.swift */; };
 		2F089377DAA194A044572F1D /* KeyboardAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */; };
 		33CB2A7296D4D8959C1C8A3C /* TextCleanerStaticTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6782154FCD1AA4FC355A0B9 /* TextCleanerStaticTests.swift */; };
+		341933F48F2628C5756EB64B /* AppSettingsBedrockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09635901942F407E83C1B376 /* AppSettingsBedrockTests.swift */; };
 		382DD387109329B4EC0DB56B /* AddEditServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B2AF59490A10B933D223D7 /* AddEditServerView.swift */; };
 		3A2F3332CF50028F70BBDE38 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */; };
 		3C1FB57BAEEB29070F151C11 /* AddEditServerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */; };
@@ -38,21 +40,26 @@
 		6D09056ADDB5D682689F7DDF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */; };
 		7C1BDD714B65C5AEFBCD74D6 /* QRCodeComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3014236A9153620618B1A7 /* QRCodeComponents.swift */; };
 		7E9F091C0D22BC8F83E18092 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A6EA1094483278ADD0146F /* WorkspaceView.swift */; };
+		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
 		83965FD395DF96FA49CEEECD /* MicButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508D7CD8DCA41375E993CDA2 /* MicButton.swift */; };
 		83B690BF3E8237A28F8D11A2 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE15BB470918FEC539F58286 /* QRScannerView.swift */; };
 		8D0F21B7F585FDF16CF11CB7 /* AppSettingsContinuousTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA0F04426C58852C4530707 /* AppSettingsContinuousTests.swift */; };
+		914AF6D14CDFD92EF3E05D54 /* ModifierFlagsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE8732910310E2EB40DAF34 /* ModifierFlagsTests.swift */; };
 		938D018C46C19AA652D25CBC /* OnDeviceSpeechEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */; };
 		94AA79984E51DEE45DF97285 /* RelayApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = C534081CE1B2BAEF48EA8ECC /* RelayApplication.swift */; };
 		9971C020B99AC4E90062CFBC /* SleepWakeObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DAF1C22B93D5299F03C3F5 /* SleepWakeObserver.swift */; };
+		9ADD58276B77C25D003DC541 /* ClaudeRelaySpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 0DCA66CBFE9754D57666DA1D /* ClaudeRelaySpeech */; };
 		9BC5C1857B9B1DF31D6652D2 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE187F4CD17DE18B5927964D /* SessionCoordinator.swift */; };
 		9E41F6BB4D69F89CFE550AE9 /* SessionSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78EB2D70760D5EC3165F8E5C /* SessionSidebarView.swift */; };
 		A55D2687ECBFEB0BD138BACA /* ClaudeRelayApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203B7144359F258D91797C4E /* ClaudeRelayApp.swift */; };
+		A79C5F365CB65F31BD376486 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = A715244E0841962565A77F01 /* ClaudeRelayClient */; };
 		A9D94F9D30CF4FC923A8C6AB /* ClaudeRelaySpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 6E1855478A9ACA3614582EA5 /* ClaudeRelaySpeech */; };
 		AE20EB3A429DA20B6284117C /* TerminalContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B785672A5F0D293AC7BF84 /* TerminalContainerView.swift */; };
 		AE54E51AD13B1D63E09B1D41 /* QRCodePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94688372C735D9B8D283F7BE /* QRCodePopover.swift */; };
 		B5928FFA4B1500FD2062C36C /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A7D6C757F3F4D55DDE13B0 /* SplashScreenView.swift */; };
 		B86A8371A657E020A7E507C4 /* ActiveTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */; };
 		BB36A7F84B4D5BD57244E8AF /* ServerListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */; };
+		BF7D692CA36FCEDE6801C0B0 /* AddEditServerViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC86DF2DE21C02D9CA12851 /* AddEditServerViewModelTests.swift */; };
 		C15F3382DD45173C00444AB2 /* ClaudeRelaySpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 1BED93A77A967016B0481601 /* ClaudeRelaySpeech */; };
 		C2D144F0C636F110F135601F /* SpeechEngineStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322C4BBCAB06B016D16AFE7F /* SpeechEngineStateTests.swift */; };
 		CC50C840F4CB8B067339A21D /* ImagePasteHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8738BA3A8400468879A7EA72 /* ImagePasteHandler.swift */; };
@@ -62,9 +69,9 @@
 		E773E7EDA1271778ADC748E0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */; };
 		E9FBE1A1DE907E4CF7E23433 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = CB2627EF23FDE67AF2E31A6A /* SwiftTerm */; };
 		EFFCA49EDD9553791CAADCB9 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF311DE62F36AF5A19AB87E9 /* StatusBarView.swift */; };
-		8102CB9311F239F2CE8D238E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7FCEC509175BD571CE89C2 /* SettingsView.swift */; };
 		F5391066E5BB1F15D347FCA7 /* ClaudeRelayClient in Frameworks */ = {isa = PBXBuildFile; productRef = 79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */; };
 		FBB59F2B15827CE9597B7DA4 /* AttachRemoteSessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A314CF6083AD77911749C92 /* AttachRemoteSessionSheet.swift */; };
+		FD3223CE996DF0C0059D7333 /* SessionNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F590C080D494FF31C908F29F /* SessionNavigationTests.swift */; };
 		FEF1C2E9192B51A3EF6CB7B3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD5621F82700100B9C4F53F /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -76,17 +83,27 @@
 			remoteGlobalIDString = 53D3A67986EB0528C6161974;
 			remoteInfo = ClaudeRelayApp;
 		};
+		DFB6313E33056A95E46C5DB7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B3F1AC50CD8DFE78AB64F3DE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4590A002CC655CDF66EA3646;
+			remoteInfo = ClaudeRelayMac;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		03CCD809DA85DE7858FE6A87 /* KeyboardAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAccessory.swift; sourceTree = "<group>"; };
+		09635901942F407E83C1B376 /* AppSettingsBedrockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsBedrockTests.swift; sourceTree = "<group>"; };
 		09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeRelayMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0BA9F1A3D0A1C24B057EF633 /* ActiveTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTerminalView.swift; sourceTree = "<group>"; };
+		0CE8732910310E2EB40DAF34 /* ModifierFlagsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModifierFlagsTests.swift; sourceTree = "<group>"; };
 		1070882CC08139377A3E6C5B /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		1481B919F081FD62AD2BBD9A /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
 		203B7144359F258D91797C4E /* ClaudeRelayApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRelayApp.swift; sourceTree = "<group>"; };
 		2BC85F57C078BD1CFAAFED7C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		2ECDDEFC7B5354014FB3BFCA /* ServerListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListViewModel.swift; sourceTree = "<group>"; };
+		30EC88C3C7486A906F4D35E7 /* MenuBarActivityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarActivityTests.swift; sourceTree = "<group>"; };
 		322C4BBCAB06B016D16AFE7F /* SpeechEngineStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEngineStateTests.swift; sourceTree = "<group>"; };
 		338CD3ED0482F3AB64117CF9 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
 		36C86DE341C6B0EC9ED1F8BB /* ServerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerListView.swift; sourceTree = "<group>"; };
@@ -97,6 +114,7 @@
 		563F4F7F71211D99C0146EAC /* RecordingShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingShortcutMonitor.swift; sourceTree = "<group>"; };
 		5D747D243348BFF4BE40432F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		68A6EA1094483278ADD0146F /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
+		7079226266577C165AB70463 /* ClaudeRelayMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClaudeRelayMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		73B3DBEA35055556AD1BCA31 /* WhisperHallucinationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperHallucinationTests.swift; sourceTree = "<group>"; };
 		76DAF1C22B93D5299F03C3F5 /* SleepWakeObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepWakeObserver.swift; sourceTree = "<group>"; };
 		78EB2D70760D5EC3165F8E5C /* SessionSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSidebarView.swift; sourceTree = "<group>"; };
@@ -128,15 +146,17 @@
 		CA74FC6F11B3B0786A977C8C /* KeyCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCaptureView.swift; sourceTree = "<group>"; };
 		CB3014236A9153620618B1A7 /* QRCodeComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeComponents.swift; sourceTree = "<group>"; };
 		CF311DE62F36AF5A19AB87E9 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
-		DD7FCEC509175BD571CE89C2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D056FB2ADC91419A5B818866 /* OnDeviceSpeechEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSpeechEngineTests.swift; sourceTree = "<group>"; };
 		D4204EB40CF647D61C19C014 /* ClaudeRelayMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ClaudeRelayMac.entitlements; sourceTree = "<group>"; };
 		D78DC0EE4B30D251D06A848D /* AddEditServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerView.swift; sourceTree = "<group>"; };
 		D7FB5BCA00B611C22E4B93FD /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
+		DD7FCEC509175BD571CE89C2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		DE629162439FC9496A0EA4D4 /* AddEditServerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModel.swift; sourceTree = "<group>"; };
 		DECD505C04D50E2D42420381 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		EE15BB470918FEC539F58286 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		F3D21FADD27700A6E040337F /* QRCodeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeSheet.swift; sourceTree = "<group>"; };
+		F590C080D494FF31C908F29F /* SessionNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNavigationTests.swift; sourceTree = "<group>"; };
+		FEC86DF2DE21C02D9CA12851 /* AddEditServerViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEditServerViewModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -168,6 +188,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A0C6BBC79DC4FC0AEB81D403 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A79C5F365CB65F31BD376486 /* ClaudeRelayClient in Frameworks */,
+				9ADD58276B77C25D003DC541 /* ClaudeRelaySpeech in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -187,6 +216,7 @@
 				7C001E978A6A6C85BABCA076 /* ClaudeRelayApp.app */,
 				91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */,
 				09EC62BA9D637188AC22F1FC /* ClaudeRelayMac.app */,
+				7079226266577C165AB70463 /* ClaudeRelayMacTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -243,6 +273,7 @@
 				FD9BDF9589CD5417F7C454F4 /* ClaudeRelayApp */,
 				FADB8ECCEC3717C13790030F /* ClaudeRelayAppTests */,
 				AF870067608021C3EDB43141 /* ClaudeRelayMac */,
+				9B0A0EE0BD052C3A96716BA7 /* ClaudeRelayMacTests */,
 				7D4E3B0EAF3D5DCAC3E10215 /* Packages */,
 				3AA098A37E7D398E1EC025E4 /* Products */,
 			);
@@ -254,6 +285,18 @@
 				477B528B65A3A1F49D31B173 /* Claude Relay */,
 			);
 			name = Packages;
+			sourceTree = "<group>";
+		};
+		9B0A0EE0BD052C3A96716BA7 /* ClaudeRelayMacTests */ = {
+			isa = PBXGroup;
+			children = (
+				FEC86DF2DE21C02D9CA12851 /* AddEditServerViewModelTests.swift */,
+				09635901942F407E83C1B376 /* AppSettingsBedrockTests.swift */,
+				30EC88C3C7486A906F4D35E7 /* MenuBarActivityTests.swift */,
+				0CE8732910310E2EB40DAF34 /* ModifierFlagsTests.swift */,
+				F590C080D494FF31C908F29F /* SessionNavigationTests.swift */,
+			);
+			path = ClaudeRelayMacTests;
 			sourceTree = "<group>";
 		};
 		AF870067608021C3EDB43141 /* ClaudeRelayMac */ = {
@@ -414,6 +457,27 @@
 			productReference = 91FD1804AA1C8F43534632C6 /* ClaudeRelayAppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		AD187412EFCF7C7F8C5838A2 /* ClaudeRelayMacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1270ADD185DCE59101A21486 /* Build configuration list for PBXNativeTarget "ClaudeRelayMacTests" */;
+			buildPhases = (
+				011566F970A962D605E426DC /* Sources */,
+				A0C6BBC79DC4FC0AEB81D403 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5E2123210C122AFC14685190 /* PBXTargetDependency */,
+			);
+			name = ClaudeRelayMacTests;
+			packageProductDependencies = (
+				A715244E0841962565A77F01 /* ClaudeRelayClient */,
+				0DCA66CBFE9754D57666DA1D /* ClaudeRelaySpeech */,
+			);
+			productName = ClaudeRelayMacTests;
+			productReference = 7079226266577C165AB70463 /* ClaudeRelayMacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -452,6 +516,7 @@
 				53D3A67986EB0528C6161974 /* ClaudeRelayApp */,
 				7CBFB18DE009C817F4052367 /* ClaudeRelayAppTests */,
 				4590A002CC655CDF66EA3646 /* ClaudeRelayMac */,
+				AD187412EFCF7C7F8C5838A2 /* ClaudeRelayMacTests */,
 			);
 		};
 /* End PBXProject section */
@@ -476,6 +541,18 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		011566F970A962D605E426DC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF7D692CA36FCEDE6801C0B0 /* AddEditServerViewModelTests.swift in Sources */,
+				341933F48F2628C5756EB64B /* AppSettingsBedrockTests.swift in Sources */,
+				0717D69490BE19F05FCF66E6 /* MenuBarActivityTests.swift in Sources */,
+				914AF6D14CDFD92EF3E05D54 /* ModifierFlagsTests.swift in Sources */,
+				FD3223CE996DF0C0059D7333 /* SessionNavigationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1F062DDE80DFCA1BAA53FCD4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -550,6 +627,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		5E2123210C122AFC14685190 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4590A002CC655CDF66EA3646 /* ClaudeRelayMac */;
+			targetProxy = DFB6313E33056A95E46C5DB7 /* PBXContainerItemProxy */;
+		};
 		95C96386379ED6BCFCC2CB70 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 53D3A67986EB0528C6161974 /* ClaudeRelayApp */;
@@ -564,7 +646,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ClaudeRelayMac/ClaudeRelayMac.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 32;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				INFOPLIST_FILE = ClaudeRelayMac/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ClaudeDock;
@@ -640,6 +722,23 @@
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
+		};
+		40A2A382C62C3BF7A54D0676 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay.mac.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeDock.app/Contents/MacOS/ClaudeDock";
+			};
+			name = Debug;
 		};
 		787A599A77B0E871EA767164 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -726,7 +825,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 121;
+				CURRENT_PROJECT_VERSION = 111;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
@@ -758,7 +857,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 121;
+				CURRENT_PROJECT_VERSION = 111;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ClaudeRelayApp/Info.plist;
@@ -808,7 +907,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ClaudeRelayMac/ClaudeRelayMac.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 32;
 				DEVELOPMENT_TEAM = T9WF95GC9T;
 				INFOPLIST_FILE = ClaudeRelayMac/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ClaudeDock;
@@ -829,9 +928,35 @@
 			};
 			name = Release;
 		};
+		FFDF5908E7A995A3C1CFD69F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.claude.relay.mac.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeDock.app/Contents/MacOS/ClaudeDock";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1270ADD185DCE59101A21486 /* Build configuration list for PBXNativeTarget "ClaudeRelayMacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				40A2A382C62C3BF7A54D0676 /* Debug */,
+				FFDF5908E7A995A3C1CFD69F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		51F903A9054604952CC1FF0D /* Build configuration list for PBXProject "ClaudeRelay" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -889,6 +1014,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0DCA66CBFE9754D57666DA1D /* ClaudeRelaySpeech */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ClaudeRelaySpeech;
+		};
 		1306E716950146DD761EE8DC /* ClaudeRelayClient */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ClaudeRelayClient;
@@ -911,6 +1040,10 @@
 			productName = ClaudeRelaySpeech;
 		};
 		79A9D0B1D5DEC741B2045A7E /* ClaudeRelayClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ClaudeRelayClient;
+		};
+		A715244E0841962565A77F01 /* ClaudeRelayClient */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ClaudeRelayClient;
 		};

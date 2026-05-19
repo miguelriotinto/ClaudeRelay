@@ -120,3 +120,20 @@ targets:
           - CFBundleURLName: "com.claude.relay.mac"
             CFBundleURLSchemes:
               - clauderelay
+  ClaudeRelayMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: ClaudeRelayMacTests
+    dependencies:
+      - target: ClaudeRelayMac
+      - package: ClaudeRelayClient
+        product: ClaudeRelayClient
+      - package: ClaudeRelayClient
+        product: ClaudeRelaySpeech
+    settings:
+      base:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ClaudeDock.app/Contents/MacOS/ClaudeDock"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.claude.relay.mac.tests

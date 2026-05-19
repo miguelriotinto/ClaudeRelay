@@ -90,21 +90,31 @@ final class SessionCoordinator: SharedSessionCoordinator {
 
     // MARK: - Navigation
 
+    static func nextIndex(current: Int, count: Int) -> Int? {
+        guard count > 1 else { return nil }
+        let next = (current + 1) % count
+        return next == current ? nil : next
+    }
+
+    static func previousIndex(current: Int, count: Int) -> Int? {
+        guard count > 1 else { return nil }
+        let prev = (current - 1 + count) % count
+        return prev == current ? nil : prev
+    }
+
     func switchToNextSession() {
         guard let current = activeSessionId,
-              let idx = activeSessions.firstIndex(where: { $0.id == current }) else { return }
-        let next = (idx + 1) % activeSessions.count
+              let idx = activeSessions.firstIndex(where: { $0.id == current }),
+              let next = Self.nextIndex(current: idx, count: activeSessions.count) else { return }
         let target = activeSessions[next].id
-        guard target != current else { return }
         Task { await switchToSession(id: target) }
     }
 
     func switchToPreviousSession() {
         guard let current = activeSessionId,
-              let idx = activeSessions.firstIndex(where: { $0.id == current }) else { return }
-        let previous = (idx - 1 + activeSessions.count) % activeSessions.count
-        let target = activeSessions[previous].id
-        guard target != current else { return }
+              let idx = activeSessions.firstIndex(where: { $0.id == current }),
+              let prev = Self.previousIndex(current: idx, count: activeSessions.count) else { return }
+        let target = activeSessions[prev].id
         Task { await switchToSession(id: target) }
     }
 

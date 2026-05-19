@@ -81,7 +81,15 @@ final class MenuBarViewModel: ObservableObject {
         let sessionsTask = Task { [weak self] in
             for await s in coordinator.$sessions.values {
                 guard let self else { return }
-                self.sessions = s.filter { !$0.state.isTerminal }
+                // Restrict to sessions this device owns. The server-side list
+                // includes every session under the auth token — the sidebar
+                // filters via `coordinator.activeSessions`, and so must this
+                // dropdown. Cross-device sessions show up under "Attach
+                // Session…", not in the live list.
+                self.sessions = Self.filterOwned(
+                    sessions: s,
+                    owned: coordinator.ownedSessionIds
+                )
                 self.recomputeActivityStates(coordinator: coordinator)
             }
         }
@@ -101,19 +109,41 @@ final class MenuBarViewModel: ObservableObject {
     }
 
     private func recomputeActivityStates(coordinator: SessionCoordinator) {
+        let (states, ids) = Self.computeActivityStates(
+            sessions: sessions,
+            awaitingInput: coordinator.sessionsAwaitingInput,
+            activeAgentLookup: { coordinator.activeAgent(for: $0) }
+        )
+        activityStates = states
+        agentIds = ids
+    }
+
+    /// Pure helper used by `followCoordinator` and unit tests.
+    /// Drops terminal sessions and any session not in `owned`.
+    static func filterOwned(
+        sessions: [SessionInfo],
+        owned: Set<UUID>
+    ) -> [SessionInfo] {
+        sessions.filter { !$0.state.isTerminal && owned.contains($0.id) }
+    }
+
+    static func computeActivityStates(
+        sessions: [SessionInfo],
+        awaitingInput: Set<UUID>,
+        activeAgentLookup: (UUID) -> String?
+    ) -> (states: [UUID: ActivityState], agentIds: [UUID: String]) {
         var states: [UUID: ActivityState] = [:]
         var ids: [UUID: String] = [:]
         for session in sessions {
-            let awaiting = coordinator.sessionsAwaitingInput.contains(session.id)
-            if let agentId = coordinator.activeAgent(for: session.id) {
+            let awaiting = awaitingInput.contains(session.id)
+            if let agentId = activeAgentLookup(session.id) {
                 states[session.id] = awaiting ? .agentIdle : .agentActive
                 ids[session.id] = agentId
             } else {
                 states[session.id] = awaiting ? .idle : .active
             }
         }
-        activityStates = states
-        agentIds = ids
+        return (states, ids)
     }
 
     deinit {
